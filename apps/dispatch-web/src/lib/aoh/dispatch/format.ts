@@ -1,6 +1,5 @@
 /**
- * Presentation helpers shared by the console's components. Pure functions, no DOM, so
- * they are unit-tested directly.
+ * Presentation helpers shared by the console's components. Pure functions, no DOM.
  */
 import type { UnitStatus } from './types';
 

@@ -30,9 +30,8 @@ Do not "restore" these because a convention doc mentions them:
 with no reachable identity provider every route returned HTTP 500 — including
 unauthenticated ones. Auth here is all-or-nothing.
 
-`tests/e2e/public/no-auth.spec.ts` asserts this posture. If you reintroduce auth, that
-spec is the first thing that will fail, and it should be updated deliberately rather than
-deleted.
+There is no test asserting this posture any more (the test suite was removed by
+decision), so if you reintroduce auth, update this file and the README deliberately.
 
 ## Architecture (load-bearing)
 
@@ -62,17 +61,15 @@ border">`. Hand-rolling silently bypasses theme tokens and dark mode.
 - **API quirks worth knowing** (they fail silently, not loudly):
   - `Badge` splits shape from palette: `<Badge variant="soft" color="success">`.
     Writing `variant="success"` renders a default solid badge with no error.
-  - `CardTitle` renders a `<div data-slot="card-title">`, **not** a heading element —
-    `getByRole('heading')` will not find it in tests.
+  - `CardTitle` renders a `<div data-slot="card-title">`, **not** a heading element.
   - Lucide icons import per-icon: `import Radio from '@lucide/svelte/icons/radio'`.
 
 - **Svelte 5 runes only.** `$state` / `$derived` / `$props` / `$effect`; never
   `export let` or `$:`.
 
-- **There is no end-to-end suite.** Playwright was removed deliberately
-  (`openspec/changes/dispatch-units-service`, design.md D6). `lint`, `check-types`,
-  `build` and vitest are the automated checks. Don't reintroduce Playwright without
-  raising it — its removal was a decision, not an oversight.
+- **There is no automated test suite** — no Playwright, no vitest — by decision. `lint`,
+  `check-types` and `build` are the checks. Don't reintroduce a test framework without
+  raising it; the removal was a decision, not an oversight.
 
 - **The roster comes from `dispatch-svc` over HTTP**, read in
   `src/routes/units/+page.server.ts` via `listUnits()` in
@@ -82,11 +79,9 @@ border">`. Hand-rolling silently bypasses theme tokens and dark mode.
   config anywhere, and adding a client-side fetch to the service would need one.
 
 - **Logic lives in pure modules, rendering in components.** `filters.ts` (search / filter /
-  sort / counts) and `format.ts` (recency, colour maps) have no DOM and are unit-tested;
-  `components/{StatusFilter,UnitRow,UnitDetail}.svelte` render them. Put a new behaviour
-  in the pure module first and test it there — component tests are deliberately absent
-  (no DOM test environment is configured), so untested logic inside a `.svelte` file is
-  untested, full stop.
+  sort / counts), `format.ts` (recency, colour maps) and `forms.ts` (form parsing) have no
+  DOM; `components/{StatusFilter,UnitRow,UnitDetail,UnitForm}.svelte` render them. Put a
+  new behaviour in the pure module first.
 
 - **Types import from `types.ts`, not `units.server.ts`.** Client components must never
   import the server module — even `import type` from it is a smell, because the next
@@ -100,7 +95,7 @@ border">`. Hand-rolling silently bypasses theme tokens and dark mode.
   `create` / `update` / `delete`; the forms use `use:enhance`. That keeps the browser
   same-origin (no CORS, no service URL in the bundle) and lets validation come back as
   `fail(400, { errors })` rendered beside the field. `parseUnitForm` in `forms.ts` is the
-  console's first-pass validation and is unit-tested; the service validates again.
+  console's first-pass validation; the service validates again.
 - **Always echo `occLock`.** Edit and delete forms carry a hidden `occLock` from the unit
   the user is looking at. The service answers 409 `DISPATCH_UNIT_STALE` if someone else
   wrote first, which the action turns into a form-level message. Don't "fix" a 409 by

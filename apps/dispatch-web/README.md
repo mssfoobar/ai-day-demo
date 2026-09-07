@@ -71,8 +71,8 @@ Re-scaffolding those files with `aoh-web-init` is the sane way to do it.
 | -------------------------------------- | ----------------------------------------------------------------------- |
 | `src/lib/aoh/dispatch/types.ts`        | `FieldUnit` / `Crew` / `Assignment` — client-safe, no `$env`            |
 | `src/lib/aoh/dispatch/units.server.ts` | Service client: `listUnits()`, envelope unwrapping, wire mapping        |
-| `src/lib/aoh/dispatch/filters.ts`      | Search, status filter, sort, fleet counts — pure, unit-tested           |
-| `src/lib/aoh/dispatch/format.ts`       | Recency labels and status/priority colour maps — pure, unit-tested      |
+| `src/lib/aoh/dispatch/filters.ts`      | Search, status filter, sort, fleet counts — pure                        |
+| `src/lib/aoh/dispatch/format.ts`       | Recency labels and status/priority colour maps — pure                   |
 | `src/lib/aoh/dispatch/components/`     | `StatusFilter`, `UnitRow`, `UnitDetail` — composed from `@mssfoobar/ui` |
 | `src/routes/units/+page.server.ts`     | Server `load` — the browser never calls the service                     |
 | `src/routes/units/+page.svelte`        | The console page: wires state, keyboard handling and layout             |
@@ -94,12 +94,9 @@ from client code is a build error and the service URL cannot reach the browser b
 - `pnpm run check` — type-check with svelte-check
 - `pnpm run lint` — prettier + eslint
 - `pnpm run format` — prettier write
-- `pnpm run test:unit` — Vitest
-- `pnpm run test` — Vitest
 
-There is **no end-to-end suite**. It was removed deliberately (see
-`openspec/changes/dispatch-units-service`, design.md D6), so `lint`, `check-types`,
-`build` and the unit tests are the automated checks on this app.
+There is **no automated test suite** — no Playwright, no vitest — by decision. `lint`,
+`check-types` and `build` are the automated checks on this app.
 
 ## Architecture
 

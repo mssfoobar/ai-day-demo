@@ -1,6 +1,5 @@
 /**
- * Form parsing for the unit add/edit form. Pure — no SvelteKit, no DOM — so the
- * validation the user sees first is unit-tested directly.
+ * Form parsing for the unit add/edit form. Pure — no SvelteKit, no DOM.
  *
  * This is the console's own first pass; the service validates again and the database has
  * the last word. Duplicating the *required* checks here means a blank field is caught

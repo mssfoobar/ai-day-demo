@@ -48,7 +48,7 @@ service starts.
 | `pnpm start` | db → service → console, with a port preflight and a health wait |
 | `pnpm start --no-db` | same, assuming Postgres is already up |
 | `pnpm stop` / `pnpm reset-db` | stop the database / stop it **and delete its data** |
-| `pnpm verify` | lint, type-check, build and unit tests across both apps |
+| `pnpm verify` | lint, type-check and build across both apps |
 
 ## Layout
 

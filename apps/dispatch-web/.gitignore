@@ -30,5 +30,3 @@ test-results
 playwright-report
 playwright/.auth
 
-# Coverage output (vitest --coverage)
-coverage

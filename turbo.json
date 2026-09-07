@@ -31,11 +31,6 @@
         "^check-types"
       ]
     },
-    "test:unit": {
-      "dependsOn": [
-        "^build"
-      ]
-    },
     "dev": {
       "cache": false,
       "persistent": true

@@ -112,15 +112,3 @@ the real scaffold later and diffing against this is a reasonable follow-up.
 
 See `openspec/changes/dispatch-units-service/design.md` (D1) for the full rationale.
 
-## Tests
-
-```sh
-go build ./... && go vet ./... && go test ./... -count=1
-```
-
-Service tests use a hand-written fake repo and cover validation (every failing field at
-once), duplicate-code conflict, stale `occ_lock`, and not-found on each write. Handler
-tests assert status codes for 201/200/204/400/404/409, that a missing `occ_lock` is a 400
-while `0` is accepted, strict JSON decoding (unknown fields rejected), 405 for undefined
-verbs, and that `/readyz` fails when the database is unreachable. There is deliberately no
-end-to-end test.

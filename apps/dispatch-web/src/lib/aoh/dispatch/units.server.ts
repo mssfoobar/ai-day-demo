@@ -123,8 +123,8 @@ function toAssignment(value: unknown): Assignment | undefined {
 /**
  * Map one wire unit to the app's shape.
  *
- * Exported for unit tests: the mapping is where snake_case, absent assignments and
- * unknown statuses are actually handled, and it is worth testing without a live service.
+ * Exported separately from listUnits(): the mapping is where snake_case, absent
+ * assignments and unknown statuses are actually handled.
  */
 export function toFieldUnit(value: unknown): FieldUnit {
 	const wire = (value ?? {}) as WireUnit;
@@ -155,7 +155,7 @@ export function toFieldUnit(value: unknown): FieldUnit {
 	};
 }
 
-/** Unwrap the AOH envelope and map every unit. Exported for tests. */
+/** Unwrap the AOH envelope and map every unit. */
 export function unitsFromEnvelope(body: unknown): FieldUnit[] {
 	const envelope = (body ?? {}) as Envelope<unknown>;
 	if (!Array.isArray(envelope.data)) {
@@ -206,7 +206,7 @@ export function fieldFromWire(field: string): UnitField | string {
 
 /**
  * Decode an AOH error payload — `{ errorCode, errorMessage, details }` — into a
- * DispatchServiceError. Exported for tests. Tolerates a non-JSON body.
+ * DispatchServiceError. Tolerates a non-JSON body.
  */
 export async function errorFromResponse(response: Response): Promise<DispatchServiceError> {
 	let body: Record<string, unknown> = {};
