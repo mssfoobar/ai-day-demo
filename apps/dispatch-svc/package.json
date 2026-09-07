@@ -1,0 +1,13 @@
+{
+	"name": "@mssfoobar/dispatch-svc",
+	"version": "1.0.0",
+	"private": true,
+	"description": "Dispatch field-unit service (Go). package.json exists so turborepo can run its tasks alongside the web app; there is no JavaScript here.",
+	"scripts": {
+		"build": "go build ./...",
+		"lint": "go vet ./...",
+		"check-types": "go build ./...",
+		"test:unit": "go test ./... -count=1",
+		"dev": "go run ./cmd/server"
+	}
+}

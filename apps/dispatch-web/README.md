@@ -20,16 +20,21 @@ is already mapped in this app's `.npmrc`; only the token is per-developer.
 
 ## Development
 
+The console now reads its roster from `dispatch-svc`, so it is no longer standalone.
+From the **repo root**, one command starts the database, the service and this app:
+
 ```sh
-pnpm install     # from the repo root
-pnpm run dev
+pnpm install
+pnpm start
 ```
 
 Then open http://localhost:5173 — bare `/` redirects to `/units`.
 
-**No containers are required.** No Keycloak, no Traefik, no IAMS, no `sds-server`, no
-database. If something tells you to run `docker compose` or `podman compose` to see this
-page, that instruction is for a different app.
+Running `pnpm dev` in this directory alone still works, but with no service reachable the
+console renders its **Units unavailable** state rather than a fleet.
+
+**One container is required** — PostgreSQL, for the service. There is still no Keycloak,
+no Traefik, no IAMS and no SDS.
 
 `.env.development` is **checked in on purpose** — `pnpm dev` reads it through `env-cmd`
 and fails outright without it, and the workshop needs every attendee on byte-identical
@@ -62,18 +67,17 @@ Re-scaffolding those files with `aoh-web-init` is the sane way to do it.
 
 ## Where the console code lives
 
-| Path                                     | What                                                   |
-| ---------------------------------------- | ------------------------------------------------------ |
-| `src/lib/aoh/dispatch/roster.ts`         | `FieldUnit`, the `UnitStatus` union, and `listUnits()` |
-| `src/lib/aoh/dispatch/roster.test.ts`    | Unit tests for the roster                              |
-| `src/routes/units/+page.svelte`          | The console page                                       |
-| `src/routes/+layout.server.ts`           | Redirects `/` to `/units`                              |
-| `tests/e2e/public/units-console.spec.ts` | Console acceptance coverage                            |
-| `tests/e2e/public/no-auth.spec.ts`       | Asserts the no-auth posture stays true                 |
+| Path                                   | What                                                                    |
+| -------------------------------------- | ----------------------------------------------------------------------- |
+| `src/lib/aoh/dispatch/units.server.ts` | Service client: types, `listUnits()`, envelope unwrapping, wire mapping |
+| `src/lib/aoh/dispatch/units.test.ts`   | Unit tests for the mapping layer                                        |
+| `src/routes/units/+page.server.ts`     | Server `load` — the browser never calls the service                     |
+| `src/routes/units/+page.svelte`        | The console page                                                        |
+| `src/routes/+layout.server.ts`         | Redirects `/` to `/units`                                               |
 
 Read the roster through `listUnits()`, never by importing the underlying array. That
-accessor is the seam the follow-up change repoints at a real backend service without
-touching the page.
+accessor is the seam that now calls `dispatch-svc`. It is `.server.ts`, so importing it
+from client code is a build error and the service URL cannot reach the browser bundle.
 
 ## Scripts
 
@@ -84,14 +88,11 @@ touching the page.
 - `pnpm run lint` — prettier + eslint
 - `pnpm run format` — prettier write
 - `pnpm run test:unit` — Vitest
-- `pnpm run test` — Playwright + Vitest
+- `pnpm run test` — Vitest
 
-Playwright has a single `public-chromium` project; it starts the dev server itself and
-needs nothing else running:
-
-```sh
-pnpm exec playwright test
-```
+There is **no end-to-end suite**. It was removed deliberately (see
+`openspec/changes/dispatch-units-service`, design.md D6), so `lint`, `check-types`,
+`build` and the unit tests are the automated checks on this app.
 
 ## Architecture
 

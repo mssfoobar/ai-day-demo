@@ -9,8 +9,11 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
     "test": "turbo run test:unit",
-    "test:e2e": "turbo run test:integration",
-    "verify": "turbo run lint check-types build test:unit"
+    "verify": "turbo run lint check-types build test:unit",
+    "start": "node scripts/dev.mjs",
+    "start:no-db": "node scripts/dev.mjs --no-db",
+    "stop": "docker compose -f compose/compose.yml down || podman compose -f compose/compose.yml down",
+    "reset-db": "docker compose -f compose/compose.yml down -v || podman compose -f compose/compose.yml down -v"
   },
   "packageManager": "pnpm@10.16.1",
   "engines": {

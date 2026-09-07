@@ -3,29 +3,58 @@
   "ui": "tui",
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"]
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        ".env*"
+      ]
     },
     "@mssfoobar/dispatch-web#build": {
-      "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["build/**", ".svelte-kit/**"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        ".env*"
+      ],
+      "outputs": [
+        "build/**",
+        ".svelte-kit/**"
+      ]
     },
     "lint": {
-      "dependsOn": ["^lint"]
+      "dependsOn": [
+        "^lint"
+      ]
     },
     "check-types": {
-      "dependsOn": ["^check-types"]
+      "dependsOn": [
+        "^check-types"
+      ]
     },
     "test:unit": {
-      "dependsOn": ["^build"]
-    },
-    "test:integration": {
-      "dependsOn": ["^build"],
-      "cache": false
+      "dependsOn": [
+        "^build"
+      ]
     },
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "@mssfoobar/dispatch-svc#build": {
+      "inputs": [
+        "$TURBO_DEFAULT$"
+      ],
+      "outputs": []
     }
-  }
+  },
+  "globalPassThroughEnv": [
+    "GO*",
+    "HOME",
+    "USERPROFILE",
+    "LOCALAPPDATA",
+    "APPDATA",
+    "SystemRoot",
+    "TEMP",
+    "TMP"
+  ]
 }

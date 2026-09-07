@@ -52,7 +52,7 @@ border">`. Hand-rolling silently bypasses theme tokens and dark mode.
 
 - **Tailwind only scans this app because `src/app.css` says so.** The
   `@import 'tailwindcss'` lives inside `@mssfoobar/ui/styles/app.css`, so Tailwind v4
-  roots its automatic content detection at the *package* (its own `@source "../"`), not
+  roots its automatic content detection at the _package_ (its own `@source "../"`), not
   here. `src/app.css` therefore carries an explicit `@source './'`. **Do not remove it**,
   and if you add source outside `src/`, add a `@source` for it. Without it a utility this
   app uses but the package doesn't is emitted into the DOM with no CSS rule behind it —
@@ -69,14 +69,24 @@ border">`. Hand-rolling silently bypasses theme tokens and dark mode.
 - **Svelte 5 runes only.** `$state` / `$derived` / `$props` / `$effect`; never
   `export let` or `$:`.
 
-- **The console page is server-rendered.** In E2E tests, wait for hydration before
-  clicking — the rows exist and are "actionable" before Svelte attaches handlers, and a
-  click in that window does nothing. `tests/e2e/public/units-console.spec.ts` has a
-  `gotoUnits()` helper that does this; use it rather than a bare `page.goto`.
+- **There is no end-to-end suite.** Playwright was removed deliberately
+  (`openspec/changes/dispatch-units-service`, design.md D6). `lint`, `check-types`,
+  `build` and vitest are the automated checks. Don't reintroduce Playwright without
+  raising it — its removal was a decision, not an oversight.
 
-- **Roster access goes through `listUnits()`** in `src/lib/aoh/dispatch/roster.ts`, never
-  by importing the underlying array. That accessor is the seam a follow-up change
-  repoints at a backend service without touching the page.
+- **The roster comes from `dispatch-svc` over HTTP**, read in
+  `src/routes/units/+page.server.ts` via `listUnits()` in
+  `src/lib/aoh/dispatch/units.server.ts`. The `.server.ts` suffix is load-bearing:
+  importing it from client code is a build error, which is what keeps `DISPATCH_SVC_URL`
+  out of the browser bundle. The browser talks only to its own origin — there is no CORS
+  config anywhere, and adding a client-side fetch to the service would need one.
+
+- **An unassigned unit has no `assignment` key at all.** Branch on presence; the service
+  omits it rather than sending an empty object.
+
+- **The status vocabulary lives in the database** (a `CHECK` on `dispatch.unit.status`).
+  The `UnitStatus` type is documentation, and `units.server.ts` guards unknown values at
+  the wire boundary. Adding a status means a migration _and_ updating that guard.
 
 - **Module code** lives under `src/lib/aoh/{module}/` (here: `dispatch`), per
   `aoh-conventions`. Pages live under `src/routes/`.

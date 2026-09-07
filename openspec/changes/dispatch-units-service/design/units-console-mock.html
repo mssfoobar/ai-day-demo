@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dispatch console — mock</title>
+<style>
+  /* AOH tokens, lifted from aoh-design/assets/colors_and_type.css.
+     STATIC APPROXIMATION for design review only — the implementation composes
+     @mssfoobar/ui primitives and none of this CSS ships. */
+  :root{
+    --color-bg:#F8FAFC; --card:#FFFFFF; --foreground:#09090B; --muted-foreground:#71717A;
+    --accent:#F4F4F5; --border:#E4E4E7; --ring:#0284C7; --destructive:#DC2626;
+    --badge-success-bg:#ECFDF5; --badge-success-fg:#047857;
+    --badge-info-bg:#ECFEFF;    --badge-info-fg:#0E7490;
+    --badge-default-bg:#F4F4F5; --badge-default-fg:#52525B;
+    --badge-danger-bg:#FEF2F2;  --badge-danger-fg:#B91C1C;
+    --radius:12px;
+    --font:"Geist","Inter",ui-sans-serif,system-ui,-apple-system,sans-serif;
+    --mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  }
+  [data-theme="dark"]{
+    --color-bg:#09090B; --card:#18181B; --foreground:#FAFAFA; --muted-foreground:#A1A1AA;
+    --accent:#27272A; --border:#2A2A31; --ring:#0EA5E9; --destructive:#F87171;
+    --badge-success-bg:rgba(5,150,105,.16); --badge-success-fg:#6EE7B7;
+    --badge-info-bg:rgba(6,182,212,.16);    --badge-info-fg:#67E8F9;
+    --badge-default-bg:#27272A;             --badge-default-fg:#D4D4D8;
+    --badge-danger-bg:rgba(220,38,38,.18);  --badge-danger-fg:#FCA5A5;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--color-bg);color:var(--foreground);font-family:var(--font);font-size:14px;-webkit-font-smoothing:antialiased}
+  .page{max-width:1280px;margin:0 auto;padding:32px 24px 48px}
+  .topline{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:24px}
+  h1{font-size:20px;line-height:32px;margin:0 0 4px;font-weight:600;letter-spacing:-.01em}
+  .desc{color:var(--muted-foreground);font-size:14px;margin:0}
+  button.ctl{font:inherit;font-size:13px;color:var(--foreground);background:transparent;border:1px solid var(--border);border-radius:6px;padding:6px 12px;cursor:pointer}
+  button.ctl:hover{background:var(--accent)}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 1px 3px rgba(0,0,0,.1);overflow:hidden}
+  .card-header{padding:16px 16px 12px;border-bottom:1px solid var(--border)}
+  .card-title{font-size:14px;font-weight:600;margin:0}
+  .card-content{padding:16px}
+  /* summary tiles */
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
+  @media(max-width:900px){.tiles{grid-template-columns:repeat(2,1fr)}}
+  .tile .n{font-size:24px;line-height:32px;font-weight:600;font-variant-numeric:tabular-nums;margin:0}
+  .tile .l{color:var(--muted-foreground);font-size:12px;margin:2px 0 0}
+  .console{display:grid;grid-template-columns:380px 1fr;gap:20px;align-items:start}
+  @media(max-width:1024px){.console{grid-template-columns:1fr}}
+  ul.units{list-style:none;margin:0;padding:6px}
+  ul.units li.sep{border-top:1px solid var(--border)}
+  .unit{width:100%;display:flex;align-items:center;gap:12px;text-align:left;background:transparent;border:0;border-radius:6px;padding:10px;cursor:pointer;font:inherit;color:var(--foreground)}
+  .unit:hover{background:var(--accent)}
+  .unit:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+  .unit[aria-current="true"]{background:var(--accent)}
+  .unit .ico{color:var(--muted-foreground);flex:none;display:flex}
+  .unit[aria-current="true"] .ico{color:var(--foreground)}
+  .stack{flex:1;min-width:0}
+  .l1{display:flex;align-items:baseline;gap:8px}
+  .cs{font-size:14px;font-weight:600;line-height:20px}
+  .uid{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12px;color:var(--muted-foreground)}
+  .l2{display:block;font-size:12px;line-height:16px;color:var(--muted-foreground);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .badge{flex:none;font-size:12px;line-height:16px;font-weight:500;padding:3px 8px;border-radius:999px;white-space:nowrap}
+  .badge.success{background:var(--badge-success-bg);color:var(--badge-success-fg)}
+  .badge.info{background:var(--badge-info-bg);color:var(--badge-info-fg)}
+  .badge.default{background:var(--badge-default-bg);color:var(--badge-default-fg)}
+  .badge.danger{background:var(--badge-danger-bg);color:var(--badge-danger-fg)}
+  .badge.outline{background:transparent;border:1px solid var(--border);color:var(--foreground)}
+  h3.sec{color:var(--muted-foreground);font-size:12px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;margin:0 0 12px}
+  dl.fields{margin:0;display:grid;grid-template-columns:130px 1fr;gap:12px 20px}
+  dl.fields dt{color:var(--muted-foreground);font-size:14px}
+  dl.fields dd{margin:0;font-size:14px}
+  dd.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .hr{height:1px;background:var(--border);margin:20px 0}
+  .crew{list-style:none;margin:0;padding:0}
+  .crew li{display:flex;justify-content:space-between;gap:16px;font-size:14px;padding:4px 0}
+  .crew .role{color:var(--muted-foreground);font-size:12px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .empty{text-align:center;padding:56px 24px;color:var(--muted-foreground)}
+  .empty svg{width:32px;height:32px;margin:0 auto 12px;display:block}
+  .err{border-color:var(--destructive)}
+  .err .card-title{color:var(--destructive);display:flex;align-items:center;gap:8px}
+  .note{margin-top:24px;font-size:12px;color:var(--muted-foreground);border-top:1px solid var(--border);padding-top:12px;line-height:18px}
+  .note code{font-family:var(--mono)}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="topline">
+    <div>
+      <h1>Dispatch console</h1>
+      <p class="desc">Field units and their current status.</p>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="ctl" id="state">Show error state</button>
+      <button class="ctl" id="theme">Light</button>
+    </div>
+  </div>
+
+  <div id="ok">
+    <div class="tiles" id="tiles"></div>
+    <div class="console">
+      <section class="card" aria-label="Units">
+        <div class="card-header"><h2 class="card-title">Units</h2></div>
+        <ul class="units" id="list"></ul>
+      </section>
+      <section class="card">
+        <div class="card-header"><h2 class="card-title" id="dtitle">Unit detail</h2></div>
+        <div class="card-content" id="detail" aria-live="polite"></div>
+      </section>
+    </div>
+  </div>
+
+  <div id="bad" hidden>
+    <section class="card err">
+      <div class="card-header">
+        <h2 class="card-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+          Units unavailable
+        </h2>
+      </div>
+      <div class="card-content"><p class="desc" role="alert">Could not reach the dispatch service. Check that it is running, then reload.</p></div>
+    </section>
+  </div>
+
+  <p class="note">
+    Design mock for <code>openspec/changes/dispatch-units-service</code>. Selection, the
+    summary tiles, the sectioned detail pane, the unassigned and no-capabilities cases,
+    the error state and the theme toggle are all live. Data mirrors the seeded roster.
+  </p>
+</div>
+
+<script>
+  const UNITS = [
+    {id:"FU-101",callSign:"Alpha-1",status:"Available",type:"Ambulance",station:"Marina Bay Station 4",sector:"Sector 4 · Marina Bay",radio:"TAC-2",shift:"Day · 07:00-19:00",caps:["ALS","Water rescue"],crew:[["J. Tan","Paramedic"],["M. Lim","EMT"]],last:"3 min ago",assign:null},
+    {id:"FU-102",callSign:"Alpha-2",status:"En route",type:"Ambulance",station:"Marina Bay Station 4",sector:"Sector 2 · Raffles Place",radio:"TAC-2",shift:"Day · 07:00-19:00",caps:["ALS"],crew:[["S. Wong","Paramedic"],["K. Chua","EMT"]],last:"1 min ago",
+      assign:{code:"INC-2841",title:"Cardiac arrest",prio:"P1",loc:"12 Raffles Quay",since:"14 min ago"}},
+    {id:"FU-204",callSign:"Bravo-1",status:"Idle",type:"Fire engine",station:"Tanjong Pagar Station 2",sector:"Sector 7 · Tanjong Pagar",radio:"TAC-4",shift:"Night · 19:00-07:00",caps:["Hazmat","Ladder 30m"],crew:[["R. Kumar","Officer"],["D. Ng","Driver"],["A. Rahman","Firefighter"]],last:"22 min ago",assign:null},
+    {id:"FU-205",callSign:"Bravo-2",status:"Available",type:"Rescue tender",station:"Tanjong Pagar Station 2",sector:"Sector 7 · Tanjong Pagar",radio:"TAC-4",shift:"Day · 07:00-19:00",caps:["Extrication","Rope rescue"],crew:[["P. Goh","Officer"],["Y. Lee","Firefighter"]],last:"8 min ago",assign:null},
+    // No capabilities — exercises the "None recorded." path.
+    {id:"FU-311",callSign:"Charlie-1",status:"En route",type:"Patrol car",station:"Central Division",sector:"Sector 1 · City Hall",radio:"TAC-1",shift:"Day · 07:00-19:00",caps:[],crew:[["L. Fernandez","Sergeant"]],last:"2 min ago",
+      assign:{code:"INC-2839",title:"Traffic obstruction",prio:"P3",loc:"Nicoll Highway / Republic Ave",since:"35 min ago"}}
+  ];
+  const BADGE={"Available":"success","En route":"info","Idle":"default"};
+  const PRIO={"P1":"danger","P2":"default","P3":"default"};
+  const ICON={
+    "Ambulance":'<path d="M10 10H6"/><path d="M8 8v4"/><path d="M9 18h6"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M14 9h4l4 4v4a1 1 0 0 1-1 1h-2"/>',
+    "Fire engine":'<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5Z"/>',
+    "Rescue tender":'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/>',
+    "Patrol car":'<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/>'
+  };
+  const svg=(p,w)=>'<svg width="'+(w||20)+'" height="'+(w||20)+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+p+'</svg>';
+
+  let sel=null;
+  const $=(id)=>document.getElementById(id);
+
+  function renderTiles(){
+    const by=(s)=>UNITS.filter(u=>u.status===s).length;
+    $("tiles").innerHTML=[["Total units",UNITS.length],["Available",by("Available")],["En route",by("En route")],["Idle",by("Idle")]]
+      .map(([l,n])=>'<div class="card tile"><div class="card-content"><p class="n">'+n+'</p><p class="l">'+l+'</p></div></div>').join("");
+  }
+  function renderList(){
+    $("list").innerHTML=UNITS.map((u,i)=>
+      (i?'<li class="sep"></li>':'')+
+      '<li><button class="unit" data-id="'+u.id+'"'+(u.id===sel?' aria-current="true"':'')+'>'+
+        '<span class="ico">'+svg(ICON[u.type]||ICON["Ambulance"])+'</span>'+
+        '<span class="stack">'+
+          '<span class="l1"><span class="cs">'+u.callSign+'</span><span class="uid">'+u.id+'</span></span>'+
+          '<span class="l2">'+(u.assign?u.assign.code+' · '+u.assign.title:u.station)+'</span>'+
+        '</span>'+
+        '<span class="badge '+BADGE[u.status]+'">'+u.status+'</span>'+
+      '</button></li>').join("");
+  }
+  function renderDetail(){
+    const u=UNITS.find(x=>x.id===sel);
+    if(!u){
+      $("dtitle").textContent="Unit detail";
+      $("detail").innerHTML='<div class="empty">'+svg('<path d="M9 9l5 12 1.8-5.2L21 14z"/><path d="M7.2 2.2 8 5.1"/><path d="m5.1 8-2.9-.8"/><path d="M14 4.1 12 6"/><path d="m6 12-1.9 2"/>',32)+'<p>Select a unit to see its details.</p></div>';
+      return;
+    }
+    $("dtitle").textContent=u.callSign;
+    $("detail").innerHTML=
+      '<h3 class="sec">Overview</h3><dl class="fields">'+
+        '<dt>Call sign</dt><dd>'+u.callSign+'</dd>'+
+        '<dt>Unit ID</dt><dd class="mono">'+u.id+'</dd>'+
+        '<dt>Status</dt><dd><span class="badge '+BADGE[u.status]+'">'+u.status+'</span></dd>'+
+        '<dt>Type</dt><dd>'+u.type+'</dd>'+
+        '<dt>Station</dt><dd>'+u.station+'</dd>'+
+        '<dt>Sector</dt><dd>'+u.sector+'</dd>'+
+        '<dt>Radio</dt><dd class="mono">'+u.radio+'</dd>'+
+        '<dt>Shift</dt><dd>'+u.shift+'</dd>'+
+        '<dt>Last contact</dt><dd>'+u.last+'</dd>'+
+      '</dl><div class="hr"></div>'+
+      '<h3 class="sec">Assignment</h3>'+
+      (u.assign
+        ? '<dl class="fields"><dt>Incident</dt><dd><span class="mono">'+u.assign.code+'</span> · '+u.assign.title+'</dd>'+
+          '<dt>Priority</dt><dd><span class="badge '+PRIO[u.assign.prio]+'">'+u.assign.prio+'</span></dd>'+
+          '<dt>Location</dt><dd>'+u.assign.loc+'</dd>'+
+          '<dt>Committed</dt><dd>'+u.assign.since+'</dd></dl>'
+        : '<p class="desc">Not currently assigned.</p>')+
+      '<div class="hr"></div><h3 class="sec">Crew</h3>'+
+      (u.crew.length?'<ul class="crew">'+u.crew.map(c=>'<li><span>'+c[0]+'</span><span class="role">'+c[1]+'</span></li>').join("")+'</ul>':'<p class="desc">None recorded.</p>')+
+      '<div class="hr"></div><h3 class="sec">Capabilities</h3>'+
+      (u.caps.length?'<div class="chips">'+u.caps.map(c=>'<span class="badge outline">'+c+'</span>').join("")+'</div>':'<p class="desc">None recorded.</p>');
+  }
+
+  $("list").addEventListener("click",e=>{
+    const b=e.target.closest(".unit"); if(!b) return;
+    sel=b.dataset.id; renderList(); renderDetail();
+  });
+  $("state").addEventListener("click",()=>{
+    const bad=$("bad").hidden;
+    $("bad").hidden=!bad; $("ok").hidden=bad;
+    $("state").textContent=bad?"Show loaded state":"Show error state";
+  });
+  $("theme").addEventListener("click",()=>{
+    const dark=document.documentElement.getAttribute("data-theme")==="dark";
+    document.documentElement.setAttribute("data-theme",dark?"light":"dark");
+    $("theme").textContent=dark?"Dark":"Light";
+  });
+
+  renderTiles(); renderList(); renderDetail();
+</script>
+</body>
+</html>
