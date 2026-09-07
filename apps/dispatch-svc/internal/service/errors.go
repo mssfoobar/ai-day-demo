@@ -14,4 +14,13 @@ var (
 	CodeUnitCodeRequired = aoherr.MustCode("DISPATCH_UNIT_CODE_REQUIRED")
 	// CodeUnitReadFailed — the unit store could not be read.
 	CodeUnitReadFailed = aoherr.MustCode("DISPATCH_UNIT_READ_FAILED")
+
+	// CodeUnitInvalid — a write failed validation; details name the fields.
+	CodeUnitInvalid = aoherr.MustCode("DISPATCH_UNIT_INVALID")
+	// CodeUnitCodeTaken — create collided with an existing unit_code.
+	CodeUnitCodeTaken = aoherr.MustCode("DISPATCH_UNIT_CODE_TAKEN")
+	// CodeUnitStale — the caller's occ_lock no longer matches; someone else wrote first.
+	CodeUnitStale = aoherr.MustCode("DISPATCH_UNIT_STALE")
+	// CodeUnitWriteFailed — the unit store could not be written.
+	CodeUnitWriteFailed = aoherr.MustCode("DISPATCH_UNIT_WRITE_FAILED")
 )

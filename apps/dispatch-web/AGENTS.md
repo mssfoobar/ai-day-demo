@@ -96,6 +96,20 @@ border">`. Hand-rolling silently bypasses theme tokens and dark mode.
   are computed over the full roster on purpose. Don't "fix" them to reflect the filtered
   list.
 
+- **Writes go through form actions, never a client fetch.** `+page.server.ts` has
+  `create` / `update` / `delete`; the forms use `use:enhance`. That keeps the browser
+  same-origin (no CORS, no service URL in the bundle) and lets validation come back as
+  `fail(400, { errors })` rendered beside the field. `parseUnitForm` in `forms.ts` is the
+  console's first-pass validation and is unit-tested; the service validates again.
+- **Always echo `occLock`.** Edit and delete forms carry a hidden `occLock` from the unit
+  the user is looking at. The service answers 409 `DISPATCH_UNIT_STALE` if someone else
+  wrote first, which the action turns into a form-level message. Don't "fix" a 409 by
+  re-reading and retrying silently — the user needs to see that their view was stale.
+- **Field-error UI is a sibling `<p class="text-destructive text-xs">`.** `@mssfoobar/ui`
+  ships no `FormMessage`; this is the documented composition (`aoh-conventions/web.md`).
+- **`<Toaster />` is mounted in `+layout.svelte`.** Without it every `toast.*()` call is a
+  silent no-op and a write looks like nothing happened.
+
 - **An unassigned unit has no `assignment` key at all.** Branch on presence; the service
   omits it rather than sending an empty object.
 

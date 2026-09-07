@@ -25,9 +25,19 @@ Agent context for `dispatch-svc`. Monorepo-wide conventions live in the repo-roo
 - **No authentication.** The workshop is unauthenticated by decision — there is no
   `BearerAuth` middleware, no JWT parsing, no `active_tenant`. Rows still carry
   `tenant_id` so multi-tenancy is not designed out, but nothing populates it from a token.
-- **Read-only.** There are no write endpoints. `POST`/`PUT`/`PATCH`/`DELETE` return 405
-  via the router fallback. Adding writes should pull in RTUS for change events rather
-  than leaving the console to poll.
+- **Writes are guarded by `occ_lock`.** PUT and DELETE take the client's last-read version
+  and the SQL `WHERE` includes it; zero rows affected means stale → `repo.ErrStale` →
+  409 `DISPATCH_UNIT_STALE`. Never drop the guard "to make a test pass" — silently
+  overwriting a newer row is the failure it exists to prevent. `staleOrMissing` tells stale
+  apart from not-found so the client gets the right status.
+- **Postgres errors are mapped at the repo boundary** (`mapWriteError`): `23505` →
+  `ErrConflict`, `23514` → `ErrInvalid`. The service classifies those into `aoherr`; the
+  handler never sees a driver error. Add new constraint codes there, not in handlers.
+- **Every write bumps `last_contact`** (design decision, `dispatch-units-crud` D4). If that
+  stops being wanted, change the UPDATE, not the frontend.
+- **Crew and assignment are not writable yet.** `UnitInput` deliberately omits them.
+  `PATCH` and collection-level `PUT`/`DELETE` are unmounted and return 405. Writes exist
+  now, so live fan-out to other sessions is the next gap — that is RTUS, not polling.
 - **Migrations are embedded and run on start** (`internal/db`, `migrations/`). The seed is
   idempotent (`ON CONFLICT … DO UPDATE`); keep it that way or the reproducibility gate
   stops meaning anything.

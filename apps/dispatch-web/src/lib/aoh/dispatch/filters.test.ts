@@ -14,6 +14,7 @@ const unit = (overrides: Partial<FieldUnit>): FieldUnit => ({
 	capabilities: [],
 	crew: [],
 	lastContact: '2026-09-07T12:00:00Z',
+	occLock: 0,
 	...overrides
 });
 

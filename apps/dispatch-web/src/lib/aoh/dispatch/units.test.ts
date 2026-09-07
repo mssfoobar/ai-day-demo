@@ -1,10 +1,91 @@
 import { describe, expect, it } from 'vitest';
 import {
 	DispatchServiceError,
+	errorFromResponse,
+	fieldFromWire,
 	toFieldUnit,
+	toWireInput,
 	unitsFromEnvelope,
 	type FieldUnit
 } from './units.server';
+
+describe('occ_lock and the write path', () => {
+	it('maps occ_lock, defaulting to 0 when absent', () => {
+		expect(toFieldUnit({ ...baseWire(), occ_lock: 4 }).occLock).toBe(4);
+		expect(toFieldUnit(baseWire()).occLock).toBe(0);
+	});
+
+	it('serialises input back to the snake_case body the service expects', () => {
+		expect(
+			toWireInput({
+				unitCode: 'FU-401',
+				callSign: 'Delta-1',
+				status: 'Available',
+				unitType: 'Ambulance',
+				station: 'S',
+				sector: 'X',
+				radioChannel: 'TAC-3',
+				shift: 'Day',
+				capabilities: ['ALS']
+			})
+		).toEqual({
+			unit_code: 'FU-401',
+			call_sign: 'Delta-1',
+			status: 'Available',
+			unit_type: 'Ambulance',
+			station: 'S',
+			sector: 'X',
+			radio_channel: 'TAC-3',
+			shift: 'Day',
+			capabilities: ['ALS']
+		});
+	});
+
+	it('translates wire field names to form field names', () => {
+		expect(fieldFromWire('call_sign')).toBe('callSign');
+		expect(fieldFromWire('occ_lock')).toBe('occ_lock');
+	});
+
+	it('decodes the AOH error payload into status, code and field details', async () => {
+		const res = new Response(
+			JSON.stringify({
+				errorCode: 'DISPATCH_UNIT_INVALID',
+				errorMessage: 'unit failed validation',
+				details: [{ field: 'call_sign', message: 'must not be empty' }]
+			}),
+			{ status: 400 }
+		);
+		const err = await errorFromResponse(res);
+		expect(err).toBeInstanceOf(DispatchServiceError);
+		expect(err.status).toBe(400);
+		expect(err.isValidation).toBe(true);
+		expect(err.errorCode).toBe('DISPATCH_UNIT_INVALID');
+		expect(err.details).toEqual([{ field: 'call_sign', message: 'must not be empty' }]);
+	});
+
+	it('tolerates a non-JSON failure body', async () => {
+		const err = await errorFromResponse(new Response('<html>bad gateway</html>', { status: 502 }));
+		expect(err.status).toBe(502);
+		expect(err.errorCode).toBeNull();
+		expect(err.details).toEqual([]);
+	});
+
+	function baseWire() {
+		return {
+			unit_code: 'FU-101',
+			call_sign: 'Alpha-1',
+			status: 'Available',
+			unit_type: 'Ambulance',
+			station: 'S',
+			sector: 'X',
+			radio_channel: 'TAC-2',
+			shift: 'Day',
+			capabilities: [],
+			crew: [],
+			last_contact: '2026-09-07T13:41:00Z'
+		};
+	}
+});
 
 /** One unit exactly as the service puts it on the wire. */
 function wireUnit(overrides: Record<string, unknown> = {}) {

@@ -1,23 +1,35 @@
 <svelte:options runes={true} />
 
 <!--
-  Dispatch console — search, filter, sort and inspect field units.
+  Dispatch console — search, filter, sort, inspect, and (basic) add / edit / delete field
+  units.
 
-  Units are fetched on the SvelteKit server (see +page.server.ts) from dispatch-svc, so
-  the browser only ever talks to its own origin. This app has NO authentication.
-  See openspec/changes/dispatch-units-service.
-
-  Read-only on purpose: nothing here dispatches, reassigns or changes a status.
+  Reads happen in +page.server.ts's load; writes go through its form actions. Either way
+  the browser only ever talks to its own origin and the server talks to dispatch-svc. This
+  app has NO authentication. See openspec/changes/dispatch-units-service and
+  openspec/changes/dispatch-units-crud.
 -->
 
 <script lang="ts">
+	import { enhance } from '$app/forms';
+	import {
+		AlertDialog,
+		AlertDialogCancel,
+		AlertDialogContent,
+		AlertDialogDescription,
+		AlertDialogFooter,
+		AlertDialogHeader,
+		AlertDialogTitle
+	} from '@mssfoobar/ui/alert-dialog';
 	import { Button } from '@mssfoobar/ui/button';
 	import { Card, CardContent, CardHeader, CardTitle } from '@mssfoobar/ui/card';
 	import { Input } from '@mssfoobar/ui/input';
 	import { ScrollArea } from '@mssfoobar/ui/scroll-area';
 	import { Select, SelectContent, SelectItem, SelectTrigger } from '@mssfoobar/ui/select';
 	import { Separator } from '@mssfoobar/ui/separator';
+	import { toast } from '@mssfoobar/ui/toast';
 	import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
+	import Plus from '@lucide/svelte/icons/plus';
 	import Search from '@lucide/svelte/icons/search';
 	import SearchX from '@lucide/svelte/icons/search-x';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
@@ -25,6 +37,7 @@
 
 	import StatusFilter from '$lib/aoh/dispatch/components/StatusFilter.svelte';
 	import UnitDetail from '$lib/aoh/dispatch/components/UnitDetail.svelte';
+	import UnitForm from '$lib/aoh/dispatch/components/UnitForm.svelte';
 	import UnitRow from '$lib/aoh/dispatch/components/UnitRow.svelte';
 	import {
 		countByStatus,
@@ -36,32 +49,47 @@
 	} from '$lib/aoh/dispatch/filters';
 	import { sinceLabel } from '$lib/aoh/dispatch/format';
 	import type { FieldUnit, UnitStatus } from '$lib/aoh/dispatch/types';
+	import type { UnitFormErrors } from '$lib/aoh/dispatch/forms';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 	const units = $derived(data.units);
 
-	// --- interaction state (all client-side; nothing here fetches or navigates) ---------
+	// --- interaction state (client-side; only the forms below talk to the server) --------
 	let query = $state('');
 	let statuses = $state<UnitStatus[]>([]);
 	let sortKey = $state<SortKey>('status');
 	let selectedId = $state<string | null>(null);
 	let searchRef = $state<HTMLInputElement | null>(null);
 
+	// Write UI state.
+	let formOpen = $state(false);
+	let formMode = $state<'create' | 'edit'>('create');
+	let deleteOpen = $state(false);
+	let deleting = $state(false);
+
 	const visible = $derived(sortUnits(filterUnits(units, query, statuses), sortKey));
 	const counts = $derived(countByStatus(units));
 	const fleet = $derived(fleetSummary(units));
+	// Re-resolved against the freshly loaded roster after every write, so a deleted unit
+	// deselects itself and an edited one shows its new values.
 	const selected = $derived(units.find((u) => u.id === selectedId) ?? null);
 	const filtering = $derived(query.trim() !== '' || statuses.length > 0);
 	const sortLabel = $derived(SORT_OPTIONS.find((o) => o.value === sortKey)?.label ?? 'Sort');
+	const overlayOpen = $derived(formOpen || deleteOpen);
 
 	// Recency labels ("3 min ago") re-render every 30s without any data refetch. The
-	// header's "updated …" is anchored to page load — the roster is as fresh as that.
-	const loadedAt = new Date().toISOString();
+	// header's "updated …" is anchored to the last load.
+	let loadedAt = $state(new Date().toISOString());
 	let now = $state(Date.now());
 	$effect(() => {
 		const id = setInterval(() => (now = Date.now()), 30_000);
 		return () => clearInterval(id);
+	});
+	$effect(() => {
+		// Any change to the roster counts as an update for the header line.
+		void units;
+		loadedAt = new Date().toISOString();
 	});
 
 	function select(unit: FieldUnit) {
@@ -71,6 +99,31 @@
 	function clearFilters() {
 		query = '';
 		statuses = [];
+	}
+
+	function openCreate() {
+		formMode = 'create';
+		formOpen = true;
+	}
+
+	function openEdit() {
+		if (!selected) return;
+		formMode = 'edit';
+		formOpen = true;
+	}
+
+	function onFormOutcome(
+		outcome:
+			| { ok: true; intent: 'create' | 'update'; unitCode: string; callSign: string }
+			| { ok: false; intent: 'create' | 'update'; errors: UnitFormErrors }
+	) {
+		if (outcome.ok) {
+			toast.success(`${outcome.callSign} ${outcome.intent === 'create' ? 'added' : 'saved'}`);
+			selectedId = outcome.unitCode;
+			return;
+		}
+		// Field errors render inside the form; only a form-level failure needs a toast.
+		if (outcome.errors.form) toast.error(outcome.errors.form);
 	}
 
 	/** Arrow keys move the selection through the VISIBLE list and keep focus on the row. */
@@ -96,8 +149,9 @@
 			?.focus();
 	}
 
-	/** `/` jumps to search from anywhere; Escape in the search box clears it. */
+	/** `/` jumps to search from anywhere (unless an overlay is open); Escape in the box clears it. */
 	function onWindowKeydown(event: KeyboardEvent) {
+		if (overlayOpen) return;
 		const target = event.target as HTMLElement | null;
 		const typing = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA';
 		if (event.key === '/' && !typing) {
@@ -120,7 +174,6 @@
 			{#if data.unavailable}
 				<p class="text-xs text-muted-foreground">Field units and their current status.</p>
 			{:else}
-				<!-- The description carries live context rather than boilerplate. -->
 				<p class="text-xs text-muted-foreground tabular-nums">
 					{fleet.total} units · {fleet.assigned} assigned · {fleet.free} free · updated
 					{sinceLabel(loadedAt, now)}
@@ -163,13 +216,16 @@
 						{/each}
 					</SelectContent>
 				</Select>
+
+				<Button size="sm" onclick={openCreate} class="gap-1.5 text-xs">
+					<Plus class="size-3.5" aria-hidden="true" />
+					Add unit
+				</Button>
 			</div>
 		{/if}
 	</header>
 
 	{#if data.unavailable}
-		<!-- @mssfoobar/ui ships no inline Alert primitive; the documented substitute is a
-		     Card with a destructive border and title. -->
 		<Card class="border-destructive">
 			<CardHeader>
 				<CardTitle class="flex items-center gap-2 text-destructive">
@@ -213,10 +269,16 @@
 					{#if visible.length === 0}
 						<div class="flex flex-col items-center px-6 py-14 text-center text-muted-foreground">
 							<SearchX class="mb-3 size-8" aria-hidden="true" />
-							<p class="text-sm">No units match.</p>
-							<Button variant="outline" size="sm" onclick={clearFilters} class="mt-3">
-								Clear filters
-							</Button>
+							<p class="text-sm">{units.length === 0 ? 'No units yet.' : 'No units match.'}</p>
+							{#if units.length === 0}
+								<Button variant="outline" size="sm" onclick={openCreate} class="mt-3">
+									Add the first unit
+								</Button>
+							{:else}
+								<Button variant="outline" size="sm" onclick={clearFilters} class="mt-3">
+									Clear filters
+								</Button>
+							{/if}
 						</div>
 					{:else}
 						<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -242,11 +304,64 @@
 			<Card class="flex min-h-0 flex-col">
 				<ScrollArea class="min-h-0 flex-1">
 					<div aria-live="polite">
-						<UnitDetail unit={selected} {units} {now} />
+						<UnitDetail
+							unit={selected}
+							{units}
+							{now}
+							onedit={openEdit}
+							ondelete={() => (deleteOpen = true)}
+						/>
 					</div>
 				</ScrollArea>
 			</Card>
 		</div>
+
+		<!-- Add / edit -->
+		<UnitForm bind:open={formOpen} mode={formMode} unit={selected} onoutcome={onFormOutcome} />
+
+		<!-- Delete — confirmation names the unit; the action is a real form post. -->
+		<AlertDialog bind:open={deleteOpen}>
+			<AlertDialogContent>
+				{#if selected}
+					<form
+						method="POST"
+						action="?/delete"
+						use:enhance={() => {
+							deleting = true;
+							const gone = selected;
+							return async ({ result, update }) => {
+								deleting = false;
+								deleteOpen = false;
+								if (result.type === 'success') {
+									toast.success(`${gone?.callSign ?? 'Unit'} deleted`);
+									selectedId = null;
+								} else if (result.type === 'failure') {
+									const d = result.data as { errors?: UnitFormErrors } | undefined;
+									toast.error(d?.errors?.form ?? 'The unit could not be deleted.');
+								}
+								await update({ reset: false });
+							};
+						}}
+					>
+						<input type="hidden" name="unitCode" value={selected.id} />
+						<input type="hidden" name="callSign" value={selected.callSign} />
+						<input type="hidden" name="occLock" value={selected.occLock} />
+						<AlertDialogHeader>
+							<AlertDialogTitle>Delete {selected.callSign}?</AlertDialogTitle>
+							<AlertDialogDescription>
+								This removes <span class="font-mono">{selected.id}</span> and its crew. It cannot be undone.
+							</AlertDialogDescription>
+						</AlertDialogHeader>
+						<AlertDialogFooter>
+							<AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+							<Button type="submit" variant="destructive" disabled={deleting}>
+								{deleting ? 'Deleting…' : 'Delete'}
+							</Button>
+						</AlertDialogFooter>
+					</form>
+				{/if}
+			</AlertDialogContent>
+		</AlertDialog>
 	{/if}
 </div>
 

@@ -10,14 +10,30 @@
 
 <script lang="ts">
 	import { Badge } from '@mssfoobar/ui/badge';
+	import { Button } from '@mssfoobar/ui/button';
 	import { Separator } from '@mssfoobar/ui/separator';
 	import MapPin from '@lucide/svelte/icons/map-pin';
+	import Pencil from '@lucide/svelte/icons/pencil';
 	import Radio from '@lucide/svelte/icons/radio';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import type { FieldUnit } from '../types';
 	import { fleetSummary } from '../filters';
 	import { priorityColor, sinceLabel, statusColor } from '../format';
 
-	let { unit, units, now }: { unit: FieldUnit | null; units: FieldUnit[]; now: number } = $props();
+	let {
+		unit,
+		units,
+		now,
+		onedit,
+		ondelete
+	}: {
+		unit: FieldUnit | null;
+		units: FieldUnit[];
+		now: number;
+		/** Optional: when provided, Edit / Delete appear in the identity header. */
+		onedit?: () => void;
+		ondelete?: () => void;
+	} = $props();
 
 	const fleet = $derived(fleetSummary(units));
 </script>
@@ -52,7 +68,28 @@
 				<span>{unit.station}</span>
 			</p>
 		</div>
-		<div class="flex shrink-0 flex-col items-end gap-1">
+		<div class="flex shrink-0 flex-col items-end gap-1.5">
+			{#if onedit || ondelete}
+				<div class="flex gap-1">
+					{#if onedit}
+						<Button variant="ghost" size="sm" onclick={onedit} class="h-7 gap-1 px-2 text-xs">
+							<Pencil class="size-3.5" aria-hidden="true" />
+							Edit
+						</Button>
+					{/if}
+					{#if ondelete}
+						<Button
+							variant="ghost"
+							size="sm"
+							onclick={ondelete}
+							class="h-7 gap-1 px-2 text-xs text-destructive hover:text-destructive"
+						>
+							<Trash2 class="size-3.5" aria-hidden="true" />
+							Delete
+						</Button>
+					{/if}
+				</div>
+			{/if}
 			<Badge variant="soft" color={statusColor[unit.status]}>{unit.status}</Badge>
 			<span class="font-mono text-xs text-muted-foreground tabular-nums">
 				{sinceLabel(unit.lastContact, now)}

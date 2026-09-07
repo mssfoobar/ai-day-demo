@@ -1,8 +1,9 @@
 # dispatch-svc
 
-The dispatch field-unit service. Go + PostgreSQL, read-only, **no authentication**.
+The dispatch field-unit service. Go + PostgreSQL, **no authentication**.
 
-It owns the roster the console renders: `GET /v1/units` and `GET /v1/units/{unit_code}`.
+It owns the roster the console renders and edits: read, create, replace and delete on
+`/v1/units`, with optimistic concurrency via `occ_lock`.
 
 ## Prerequisites
 
@@ -55,8 +56,20 @@ All optional — the defaults target the compose Postgres on localhost.
 |---|---|---|
 | GET | `/v1/units` | Every field unit, ordered by `unit_code`. |
 | GET | `/v1/units/{unit_code}` | One unit; 404 when the code is unknown. |
+| POST | `/v1/units` | Create. 201. Body: the writable fields below. |
+| PUT | `/v1/units/{unit_code}` | Replace the writable fields. Body must carry the current `occ_lock`. 200. |
+| DELETE | `/v1/units/{unit_code}?occ_lock=N` | Delete the unit and its crew. 204. |
 | GET | `/livez` | Liveness. |
 | GET | `/readyz` | Readiness — fails when the database is unreachable. |
+
+Writable fields: `unit_code` (create only), `call_sign`, `status`, `unit_type`, `station`,
+`sector`, `radio_channel`, `shift`, `capabilities`. Crew and assignment are read-only for
+now. Every write bumps `last_contact` and `occ_lock`.
+
+**Optimistic concurrency.** Every unit carries an integer `occ_lock`. PUT and DELETE must
+echo the value the client last read; if someone else wrote first the service answers
+**409 `DISPATCH_UNIT_STALE`** and changes nothing. That is the AOH convention — a stale
+edit is refused, never silently applied over a newer one.
 
 Success bodies are the AOH envelope, never a bare array:
 
@@ -64,11 +77,13 @@ Success bodies are the AOH envelope, never a bare array:
 { "data": [ /* units */ ], "sent_at": "2026-09-07T06:31:05Z" }
 ```
 
-Failures use the AOH error contract — `{timestamp, errorCode, errorMessage, ...}` — so no
-4xx/5xx has an empty body. Codes are namespaced: `DISPATCH_UNIT_NOT_FOUND`,
-`DISPATCH_UNIT_CODE_REQUIRED`, `DISPATCH_UNIT_READ_FAILED`.
+Failures use the AOH error contract — `{timestamp, errorCode, errorMessage, details?}` — so
+no 4xx/5xx has an empty body. Validation failures (400, `DISPATCH_UNIT_INVALID`) list every
+offending field in `details`. Other codes: `DISPATCH_UNIT_NOT_FOUND` (404),
+`DISPATCH_UNIT_CODE_TAKEN` (409), `DISPATCH_UNIT_STALE` (409), `DISPATCH_UNIT_READ_FAILED`
+/ `DISPATCH_UNIT_WRITE_FAILED` (500).
 
-There are **no write endpoints**; `POST`/`PUT`/`PATCH`/`DELETE` return 405.
+`PATCH`, and `PUT`/`DELETE` on the collection, return 405.
 
 ## Layout
 
@@ -103,6 +118,9 @@ See `openspec/changes/dispatch-units-service/design.md` (D1) for the full ration
 go build ./... && go vet ./... && go test ./... -count=1
 ```
 
-Service tests use a hand-written fake repo; handler tests assert the envelope shape, the
-404 body, 405 on write verbs, and that `/readyz` fails when the database is unreachable.
-There is deliberately no end-to-end test — see design.md D6.
+Service tests use a hand-written fake repo and cover validation (every failing field at
+once), duplicate-code conflict, stale `occ_lock`, and not-found on each write. Handler
+tests assert status codes for 201/200/204/400/404/409, that a missing `occ_lock` is a 400
+while `0` is accepted, strict JSON decoding (unknown fields rejected), 405 for undefined
+verbs, and that `/readyz` fails when the database is unreachable. There is deliberately no
+end-to-end test.
