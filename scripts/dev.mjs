@@ -206,10 +206,13 @@ if (await waitForHttp('svc', `${SVC_URL}/readyz`)) {
 }
 
 log('web', 'vite dev');
+// `corepack pnpm`, not bare `pnpm`: corepack ships with Node and activates the version
+// pinned in package.json, so this works on a fresh clone where pnpm is not on PATH yet —
+// which is precisely who launch.ps1 / launch.sh are for.
 run(
 	'web',
-	'pnpm',
-	['exec', 'env-cmd', '-f', '.env.development', 'vite', 'dev', '--port', '5173', '--strictPort'],
+	'corepack',
+	['pnpm', 'exec', 'env-cmd', '-f', '.env.development', 'vite', 'dev', '--port', '5173', '--strictPort'],
 	join(ROOT, 'apps', 'dispatch-web')
 );
 
