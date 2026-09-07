@@ -6,6 +6,10 @@
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"]
     },
+    "@mssfoobar/dispatch-web#build": {
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": ["build/**", ".svelte-kit/**"]
+    },
     "lint": {
       "dependsOn": ["^lint"]
     },

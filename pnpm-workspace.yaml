@@ -7,3 +7,15 @@ packages:
 minimumReleaseAge: 10080
 trustPolicy: no-downgrade
 blockExoticSubdeps: true
+
+# Required by the AOH web-base scaffold: without it the app Dockerfile's
+# `pnpm deploy` fails with ERR_PNPM_DEPLOY_NONINJECTED_WORKSPACE.
+injectWorkspacePackages: true
+
+# pnpm >=10 blocks dependency build scripts by default; vite needs esbuild's and
+# Tailwind v4 needs oxide's. Keep this as ONE key — `sv add tailwindcss` appends a
+# second `onlyBuiltDependencies:` block, which makes the YAML a duplicate-key error.
+onlyBuiltDependencies:
+  - esbuild
+  - '@tailwindcss/oxide'
+  - protobufjs
