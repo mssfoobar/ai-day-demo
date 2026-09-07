@@ -69,11 +69,18 @@ Re-scaffolding those files with `aoh-web-init` is the sane way to do it.
 
 | Path                                   | What                                                                    |
 | -------------------------------------- | ----------------------------------------------------------------------- |
-| `src/lib/aoh/dispatch/units.server.ts` | Service client: types, `listUnits()`, envelope unwrapping, wire mapping |
-| `src/lib/aoh/dispatch/units.test.ts`   | Unit tests for the mapping layer                                        |
+| `src/lib/aoh/dispatch/types.ts`        | `FieldUnit` / `Crew` / `Assignment` — client-safe, no `$env`            |
+| `src/lib/aoh/dispatch/units.server.ts` | Service client: `listUnits()`, envelope unwrapping, wire mapping        |
+| `src/lib/aoh/dispatch/filters.ts`      | Search, status filter, sort, fleet counts — pure, unit-tested           |
+| `src/lib/aoh/dispatch/format.ts`       | Recency labels and status/priority colour maps — pure, unit-tested      |
+| `src/lib/aoh/dispatch/components/`     | `StatusFilter`, `UnitRow`, `UnitDetail` — composed from `@mssfoobar/ui` |
 | `src/routes/units/+page.server.ts`     | Server `load` — the browser never calls the service                     |
-| `src/routes/units/+page.svelte`        | The console page                                                        |
+| `src/routes/units/+page.svelte`        | The console page: wires state, keyboard handling and layout             |
 | `src/routes/+layout.server.ts`         | Redirects `/` to `/units`                                               |
+
+Keyboard: `/` focuses search, `Esc` clears it, `↑ ↓ Home End` move through the visible
+list, `Enter`/`Space` select. Clicking a status tile filters the list; counts stay
+fleet-wide.
 
 Read the roster through `listUnits()`, never by importing the underlying array. That
 accessor is the seam that now calls `dispatch-svc`. It is `.server.ts`, so importing it

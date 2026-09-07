@@ -97,7 +97,10 @@ function portInUse(port) {
 		const probe = createServer();
 		probe.once('error', () => resolve(true));
 		probe.once('listening', () => probe.close(() => resolve(false)));
-		probe.listen(port, '127.0.0.1');
+		// No host: bind the way the services do (all interfaces). Probing 127.0.0.1 alone
+		// passed on Windows while a previous `go run` still held `[::]:8081`, and the new
+		// service then died on bind — exactly the case this check exists to name.
+		probe.listen(port);
 	});
 }
 

@@ -81,6 +81,21 @@ border">`. Hand-rolling silently bypasses theme tokens and dark mode.
   out of the browser bundle. The browser talks only to its own origin — there is no CORS
   config anywhere, and adding a client-side fetch to the service would need one.
 
+- **Logic lives in pure modules, rendering in components.** `filters.ts` (search / filter /
+  sort / counts) and `format.ts` (recency, colour maps) have no DOM and are unit-tested;
+  `components/{StatusFilter,UnitRow,UnitDetail}.svelte` render them. Put a new behaviour
+  in the pure module first and test it there — component tests are deliberately absent
+  (no DOM test environment is configured), so untested logic inside a `.svelte` file is
+  untested, full stop.
+
+- **Types import from `types.ts`, not `units.server.ts`.** Client components must never
+  import the server module — even `import type` from it is a smell, because the next
+  person turns it into a value import and leaks `DISPATCH_SVC_URL` into the bundle.
+
+- **Status summary tiles are the filter.** `StatusFilter` is a `ToggleGroup`; its counts
+  are computed over the full roster on purpose. Don't "fix" them to reflect the filtered
+  list.
+
 - **An unassigned unit has no `assignment` key at all.** Branch on presence; the service
   omits it rather than sending an empty object.
 

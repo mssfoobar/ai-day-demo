@@ -195,6 +195,35 @@ priority remain conveyed by badge **text**, never colour alone.
 
 Listed under Open Questions.
 
+### 9. Iteration 2 — interactivity (facilitator feedback: "too plain, make it sharper")
+
+Applied after the first cut shipped. All of it is client-side state over the same
+server-loaded roster; nothing fetches, navigates, or mutates. Composition stays inside
+`@mssfoobar/ui`:
+
+| Behaviour | Primitive | Notes |
+|---|---|---|
+| Search across call sign, id, type, station, sector, radio, incident, crew, capabilities | `Input` (`@mssfoobar/ui/input`) | `/` focuses it from anywhere; `Esc` clears. Every whitespace term must match. |
+| Status filter | `ToggleGroup type="multiple"` (`@mssfoobar/ui/toggle-group`) | The three status **summary tiles are the toggles**. Counts stay fleet-wide while filtering — the summary is about the fleet, the list about what you are looking at. An empty selection means "no filter", never "nothing". |
+| Sort | `Select` (`@mssfoobar/ui/select`) | Call sign / Status (En route → Available → Idle) / Priority (P1 first, unassigned last) / Last contact (newest first). Ties fall back to call sign so order never flickers. |
+| Keyboard navigation | native `<ul>` keydown | `↑ ↓ Home End` move selection through the **visible** list and move focus with it; `Enter`/`Space` still come from `Button`. A key-hint strip sits under the list. |
+| Live recency | `$effect` + 30 s interval | "3 min ago" labels re-render without refetching. A fresh/ageing/stale dot (<10 / <30 / ≥30 min) sits under each status badge. |
+| Full-height console | layout only | `h-dvh` flex column; each pane is a `Card` with an internal `ScrollArea` given a definite height by `flex-1 min-h-0` — the reason the earlier `ScrollArea` was removed (no definite height) no longer applies. |
+| Sharper rows | composition | A 4 px status **rail** (`bg-success` / `bg-info-strong` / muted), the type icon, priority chip on assigned units, incident on the second line. Status is still conveyed by the badge **text** — the rail and dots are reinforcement, never the only signal. |
+| Sharper selection | composition | `aria-current` + `bg-accent` + an inset 1 px `--ring` outline via `shadow-[inset_0_0_0_1px_var(--ring)]`. |
+| Empty-filter state | `Card` + `Button` | `No units match.` with a `Clear filters` action, distinct from the pre-selection empty state. |
+
+Pure logic (`filters.ts`, `format.ts`) is separated from rendering and unit-tested (28
+tests): search semantics, each sort order, fleet-wide counts, recency buckets, and that
+the rail classes are semantic tokens rather than raw colours.
+
+**Keycaps** (`<kbd class="kbd">`) are typography on semantic tokens in a scoped `<style>`;
+`@mssfoobar/ui` ships no keycap primitive, and this is not a re-implementation of one.
+
+Deliberately not done: persisting selection in the URL (the spec keeps selection
+client-side and non-navigating), tabs in the detail pane (a dispatcher wants everything
+visible at once), and any polling (RTUS is the AOH answer when live data arrives).
+
 ## Decisions
 
 **D1 — Hand-write the Go service to the `aoh-go-init` architecture instead of running the

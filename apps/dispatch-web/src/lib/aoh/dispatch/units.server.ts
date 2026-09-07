@@ -9,45 +9,17 @@
  * hardcoded array; now it calls the service. The page did not change to accommodate it.
  */
 import { env } from '$env/dynamic/private';
+import {
+	KNOWN_STATUSES,
+	type Assignment,
+	type Crew,
+	type FieldUnit,
+	type UnitStatus
+} from './types';
 
-/** A field unit's operational state. */
-export type UnitStatus = 'Available' | 'En route' | 'Idle';
-
-/**
- * The authoritative constraint is the CHECK on `dispatch.unit.status`. This list is the
- * frontend's runtime guard: values arrive over the wire, so a TypeScript union alone
- * cannot constrain them.
- */
-const KNOWN_STATUSES: readonly UnitStatus[] = ['Available', 'En route', 'Idle'];
-
-export interface Crew {
-	name: string;
-	role: string;
-}
-
-export interface Assignment {
-	incidentCode: string;
-	title: string;
-	priority: string;
-	location: string;
-	since: string;
-}
-
-export interface FieldUnit {
-	id: string;
-	callSign: string;
-	status: UnitStatus;
-	unitType: string;
-	station: string;
-	sector: string;
-	radioChannel: string;
-	shift: string;
-	capabilities: string[];
-	crew: Crew[];
-	/** Absent — not an empty object — when the unit is not committed to an incident. */
-	assignment?: Assignment;
-	lastContact: string;
-}
+// Re-exported so existing imports keep working; the definitions live in ./types so
+// client components can use them without touching this server-only module.
+export type { Assignment, Crew, FieldUnit, UnitStatus } from './types';
 
 /** Raised when the service cannot be reached or answers unusably. */
 export class DispatchServiceError extends Error {}
