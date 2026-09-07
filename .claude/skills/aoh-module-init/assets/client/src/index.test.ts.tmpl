@@ -1,0 +1,50 @@
+// Smoke tests for @mssfoobar/__AOH_MODULE_NAME__-client.
+//
+// Replace these with real per-endpoint tests as the client's resource
+// APIs are filled in. See modules/gis/client/src/index.test.ts for the
+// canonical mock-fetch + envelope-unwrap test pattern.
+
+import { describe, expect, it, vi } from "vitest";
+import { create__AOH_PASCAL_NAME__Client, __AOH_PASCAL_NAME__HttpError } from "./index.js";
+
+describe("create__AOH_PASCAL_NAME__Client", () => {
+	it("constructs without throwing when fetch is available", () => {
+		const c = create__AOH_PASCAL_NAME__Client({
+			baseUrl: "https://example.test",
+			getToken: () => "token",
+			fetch: vi.fn() as unknown as typeof fetch,
+		});
+		expect(c).toBeDefined();
+	});
+
+	it("throws if fetch is unavailable and the global is also unset", () => {
+		const orig = globalThis.fetch;
+		// @ts-expect-error — deliberate removal for the test
+		delete globalThis.fetch;
+		try {
+			expect(() =>
+				create__AOH_PASCAL_NAME__Client({
+					baseUrl: "https://example.test",
+					getToken: () => "token",
+				}),
+			).toThrow(/fetch is not available/);
+		} finally {
+			globalThis.fetch = orig;
+		}
+	});
+});
+
+describe("__AOH_PASCAL_NAME__HttpError", () => {
+	it("carries status + body + message", () => {
+		const err = new __AOH_PASCAL_NAME__HttpError(404, { detail: "missing" }, "not found");
+		expect(err.name).toBe("__AOH_PASCAL_NAME__HttpError");
+		expect(err.status).toBe(404);
+		expect(err.body).toEqual({ detail: "missing" });
+		expect(err.message).toBe("not found");
+	});
+
+	it("falls back to a default message", () => {
+		const err = new __AOH_PASCAL_NAME__HttpError(500, undefined);
+		expect(err.message).toBe("__AOH_MODULE_NAME__-client: HTTP 500");
+	});
+});

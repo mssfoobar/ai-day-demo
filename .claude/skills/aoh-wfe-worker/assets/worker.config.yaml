@@ -1,0 +1,22 @@
+## workflow-worker config — a user-owned Temporal activity worker for WFE.
+##
+## `cp worker.config.yaml config.yaml` then `go run ./cmd/worker` (Viper looks
+## for `config.yaml`). In containers, prefer env vars (TEMPORAL_*, ...).
+##
+## Add your own sections here as your activities need them (external service
+## URLs, credentials, etc.).
+
+log:
+  level: "debug"
+
+http:
+  # Port for the /livez + /readyz health endpoints.
+  port: 8080
+
+temporal:
+  host: "localhost"
+  port: 7233
+  namespace: "default"
+  # MUST match the WFE workflow-engine's task queue, or the engine's scheduled
+  # activities will never reach this worker.
+  task_queue: "wfe"

@@ -1,0 +1,36 @@
+# Agent rules — `@mssfoobar/__AOH_MODULE_NAME__-web-sdk`
+
+This package is a Svelte SDK published to GitHub Packages. Consumers
+add it as `pnpm add @mssfoobar/__AOH_MODULE_NAME__-web-sdk` and import components
+directly.
+
+## Conventions
+
+* **Svelte 5 runes only**: `$state`, `$derived`, `$effect`,
+  `$props`. No legacy reactive syntax.
+* **UI primitives**: always from `@mssfoobar/ui`. Never hand-roll a
+  `<button>`, `<input>`, dialog, etc. with raw Tailwind.
+* **Auth / HTTP**: consumers pass a `getToken` callback or auth
+  adapter to the SDK's provider component. The SDK doesn't read
+  cookies, doesn't call Keycloak directly, doesn't import host-app
+  internals.
+* **No host-app coupling**: do not import from `$lib/aoh/...` or any
+  consumer-app path. The SDK is self-contained.
+
+## Workspace dependencies
+
+* `@mssfoobar/__AOH_MODULE_NAME__-client` (workspace:*) — the wire layer
+* `@mssfoobar/__AOH_MODULE_NAME__-types` (workspace:*) — DTOs (typically transitive)
+* `@mssfoobar/ui` (workspace:*) — UI primitives
+* `@mssfoobar/logger` (workspace:*) — structured logging
+
+All four are declared as **peerDependencies**. The consumer's
+workspace provides them; we don't bundle them.
+
+## Per-subpath exports
+
+Each user-facing component gets its own `exports` entry in
+`package.json` so consumers can tree-shake. See `modules/gis/web`'s
+`package.json` (published as `@mssfoobar/gis-web-sdk`) for the worked-out
+pattern (one entry per component directory under
+`sdk/components/<Name>/index.svelte`).

@@ -1,0 +1,32 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+  body { padding: 24px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; line-height: 18px; border: 1px solid transparent; }
+  .solid-primary { background: #0369A1; color: #fff; }
+  .solid-blue { background: #3B82F6; color: #fff; }
+  .solid-red  { background: #DC2626; color: #fff; }
+  .solid-green{ background: #16A34A; color: #fff; }
+  .outline { background: #fff; color: #18181B; border-color: #E4E4E7; }
+  .secondary { background: #F4F4F5; color: #3F3F46; }
+  .destructive { background: #FEE2E2; color: #B91C1C; }
+  .ok { background: #D1FAE5; color: #047857; }
+  .warn { background: #FEF3C7; color: #B45309; }
+  .info { background: #DBEAFE; color: #1D4ED8; }
+  .tag-dismiss { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 4px 0 10px; background: #F4F4F5; border-radius: 4px; font-size: 12px; color: #18181B; }
+  .x { width: 18px; height: 18px; border-radius: 3px; display:inline-flex; align-items:center; justify-content:center; color:#71717A; }
+  .ico { width: 10px; height: 10px; stroke: currentColor; stroke-width: 2.5; fill: none; stroke-linecap: round; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+</style></head><body>
+  <span class="badge solid-primary">Default</span>
+  <span class="badge secondary">Secondary</span>
+  <span class="badge outline">Outline</span>
+  <span class="badge destructive">Destructive</span>
+  <span class="badge ok"><span class="dot"></span>Operational</span>
+  <span class="badge warn"><span class="dot"></span>Degraded</span>
+  <span class="badge info"><span class="dot"></span>Maintenance</span>
+  <span class="badge solid-red">P1</span>
+  <span class="badge solid-blue">v1.4.2</span>
+  <span class="tag-dismiss">Tan Tock Seng<span class="x"><svg class="ico" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></span></span>
+  <span class="tag-dismiss">Channel: Ops<span class="x"><svg class="ico" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></span></span>
+</body></html>

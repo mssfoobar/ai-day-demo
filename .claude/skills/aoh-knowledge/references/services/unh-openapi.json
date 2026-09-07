@@ -1,0 +1,2744 @@
+{
+    "schemes": [
+        "http",
+        "https"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "Universal Notification Hub API provides endpoints for managing notification channels, distribution lists, notification templates, and dispatch. All endpoints are served under the /v1 prefix.\n\nAUTHORIZATION. A valid bearer token authorizes nothing on its own. Every /v1 endpoint is gated on a UNH capability, and the capability is determined BY PATH PREFIX:\n\n* `/v1/admin/*` — the **administration** capability. Granted to any tenant role listed in the service's `authz.admin_roles` (env `AUTHZ_ADMIN_ROLES`); recommended name `unh_admin`.\n* `/v1/notification/*` — the **send** capability. Granted to any tenant role listed in `authz.sender_roles` (env `AUTHZ_SENDER_ROLES`, recommended `unh_sender`), and also conferred by the administration capability so an administrator can test-send.\n\nBoth lists FAIL CLOSED: an empty or absent list denies that capability outright, so a service deployed without `authz` configuration answers 403 to everything. Liveness/readiness probes and this documentation are the only unauthenticated surfaces.\n\nA 403 response names the missing capability and the configuration key that grants it, so the message is actionable without consulting these docs. It does not echo the configured role names.",
+        "title": "UNH API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "basePath": "/",
+    "paths": {
+        "/livez": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Liveness check",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/readyz": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Readiness check",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/v1/admin/custom_channel": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CustomChannel"
+                ],
+                "summary": "List custom channels",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order",
+                        "name": "sort",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.PaginationResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/service.CustomChannel"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "A custom channel POSTs a mapped JSON payload to its endpoint at send time. UNH stores no provider credentials.\nRequires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CustomChannel"
+                ],
+                "summary": "Create a custom channel",
+                "parameters": [
+                    {
+                        "description": "Custom channel",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.customChannelRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.CustomChannel"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    }
+                }
+            }
+        },
+        "/v1/admin/custom_channel/{channel_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CustomChannel"
+                ],
+                "summary": "Get a custom channel",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Custom channel id",
+                        "name": "channel_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.CustomChannel"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CustomChannel"
+                ],
+                "summary": "Update a custom channel",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Custom channel id",
+                        "name": "channel_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Custom channel (must include occ_lock)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.customChannelRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.CustomChannel"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CustomChannel"
+                ],
+                "summary": "Delete a custom channel",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Custom channel id",
+                        "name": "channel_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            }
+        },
+        "/v1/admin/custom_channel/{channel_id}/parameter": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CustomChannelParam"
+                ],
+                "summary": "List custom channel parameters",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Custom channel id",
+                        "name": "channel_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order",
+                        "name": "sort",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.PaginationResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/service.CustomChannelParam"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CustomChannelParam"
+                ],
+                "summary": "Create a custom channel parameter",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Custom channel id",
+                        "name": "channel_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Parameter",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.customChannelParamRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.CustomChannelParam"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    }
+                }
+            }
+        },
+        "/v1/admin/custom_channel/{channel_id}/parameter/{parameter_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CustomChannelParam"
+                ],
+                "summary": "Get a custom channel parameter",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Custom channel id",
+                        "name": "channel_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Parameter id",
+                        "name": "parameter_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.CustomChannelParam"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CustomChannelParam"
+                ],
+                "summary": "Update a custom channel parameter",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Custom channel id",
+                        "name": "channel_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Parameter id",
+                        "name": "parameter_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Parameter (must include occ_lock)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.customChannelParamRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.CustomChannelParam"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CustomChannelParam"
+                ],
+                "summary": "Delete a custom channel parameter",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Custom channel id",
+                        "name": "channel_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Parameter id",
+                        "name": "parameter_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            }
+        },
+        "/v1/admin/distribution_list": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DistributionList"
+                ],
+                "summary": "List distribution lists",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order",
+                        "name": "sort",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.PaginationResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/service.DistributionList"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DistributionList"
+                ],
+                "summary": "Create a distribution list",
+                "parameters": [
+                    {
+                        "description": "Distribution list",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.distributionListRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.DistributionList"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    }
+                }
+            }
+        },
+        "/v1/admin/distribution_list/{list_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DistributionList"
+                ],
+                "summary": "Get a distribution list",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Distribution list id",
+                        "name": "list_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.DistributionList"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DistributionList"
+                ],
+                "summary": "Update a distribution list",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Distribution list id",
+                        "name": "list_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Distribution list (must include occ_lock)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.distributionListRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.DistributionList"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Cascade-deletes the list's members.\nRequires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DistributionList"
+                ],
+                "summary": "Delete a distribution list",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Distribution list id",
+                        "name": "list_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            }
+        },
+        "/v1/admin/distribution_list/{list_id}/member": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DistributionListMember"
+                ],
+                "summary": "List distribution list members",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Distribution list id",
+                        "name": "list_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order",
+                        "name": "sort",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.PaginationResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/service.DistributionListMember"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "member_type ∈ {user,role,group,email,phone}; delivery_mode ∈ {to,cc,bcc} (email + user/role/group; phone is always to; default to).\nRequires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DistributionListMember"
+                ],
+                "summary": "Add a distribution list member",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Distribution list id",
+                        "name": "list_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Member",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.distributionListMemberRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.DistributionListMember"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    }
+                }
+            }
+        },
+        "/v1/admin/distribution_list/{list_id}/member/{member_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DistributionListMember"
+                ],
+                "summary": "Remove a distribution list member",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Distribution list id",
+                        "name": "list_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Member id",
+                        "name": "member_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            }
+        },
+        "/v1/admin/email_channel": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "EmailChannel"
+                ],
+                "summary": "List email channels",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order",
+                        "name": "sort",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.PaginationResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/service.EmailChannel"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create an SMTP email channel. The password is encrypted at rest and never returned.\nRequires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "EmailChannel"
+                ],
+                "summary": "Create an email channel",
+                "parameters": [
+                    {
+                        "description": "Email channel",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.emailChannelRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.EmailChannel"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    }
+                }
+            }
+        },
+        "/v1/admin/email_channel/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "EmailChannel"
+                ],
+                "summary": "Get an email channel",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Email channel id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.EmailChannel"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Optimistic concurrency: the current occ_lock must be sent in the body.\nRequires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "EmailChannel"
+                ],
+                "summary": "Update an email channel",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Email channel id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Email channel (must include occ_lock)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.emailChannelRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.EmailChannel"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "EmailChannel"
+                ],
+                "summary": "Delete an email channel",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Email channel id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            }
+        },
+        "/v1/admin/notification_template": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "NotificationTemplate"
+                ],
+                "summary": "List notification templates",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order",
+                        "name": "sort",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.PaginationResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/service.NotificationTemplate"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "A template carries optional per-channel payloads (email/push/custom) and an optional distribution list. Subject/body/title may contain {{key}} placeholders.\nRequires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "NotificationTemplate"
+                ],
+                "summary": "Create a notification template",
+                "parameters": [
+                    {
+                        "description": "Template",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.notificationTemplateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.NotificationTemplate"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    }
+                }
+            }
+        },
+        "/v1/admin/notification_template/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "NotificationTemplate"
+                ],
+                "summary": "Get a notification template",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Notification template id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.NotificationTemplate"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Optimistic concurrency: the current occ_lock must be sent in the body. The payload set is replaced — omit a channel payload to remove it.\nRequires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "NotificationTemplate"
+                ],
+                "summary": "Update a notification template",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Notification template id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Template (must include occ_lock)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.notificationTemplateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.NotificationTemplate"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Cascade-deletes the template's channel payloads and distribution linkage.\nRequires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "NotificationTemplate"
+                ],
+                "summary": "Delete a notification template",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Notification template id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            }
+        },
+        "/v1/admin/push_channel": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "PushChannel"
+                ],
+                "summary": "List push channels",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order",
+                        "name": "sort",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.PaginationResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/service.PushChannel"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create an FCM push channel. The service_account_key is encrypted at rest and never returned.\nRequires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "PushChannel"
+                ],
+                "summary": "Create a push channel",
+                "parameters": [
+                    {
+                        "description": "Push channel",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.pushChannelRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.PushChannel"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    }
+                }
+            }
+        },
+        "/v1/admin/push_channel/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "PushChannel"
+                ],
+                "summary": "Get a push channel",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Push channel id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.PushChannel"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Optimistic concurrency: the current occ_lock must be sent in the body.\nRequires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "PushChannel"
+                ],
+                "summary": "Update a push channel",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Push channel id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Push channel (must include occ_lock)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.pushChannelRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.PushChannel"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Requires the **administration** capability — a tenant role listed in `authz.admin_roles`, which gates the whole `/v1/admin/` prefix.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "PushChannel"
+                ],
+                "summary": "Delete a push channel",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Push channel id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            }
+        },
+        "/v1/notification/send/template/{template_id}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Binds data into the template, resolves its distribution list (via UNH's own IAMS service identity — the caller needs no IAMS privilege), and dispatches to each enabled channel. Per-channel fire-and-report; one channel failing does not fail the request. A failure to read IAMS at all does fail it: 500 when IAMS rejects UNH's credentials, 503 when IAMS is unreachable.\nRequires the **send** capability — a tenant role listed in `authz.sender_roles`, which gates the whole `/v1/notification/` prefix. The administration capability also confers it.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notification"
+                ],
+                "summary": "Send a templated notification",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Notification template id",
+                        "name": "template_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Binding data",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/handler.notificationSendRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.SendResult"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    },
+                    "503": {
+                        "description": "Service Unavailable"
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "aohhttp.PageResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "number": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "sort": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "total_records": {
+                    "type": "integer"
+                }
+            }
+        },
+        "aohhttp.PaginationResponsePayload": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "message": {
+                    "type": "string"
+                },
+                "page": {
+                    "$ref": "#/definitions/aohhttp.PageResponse"
+                },
+                "sent_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "aohhttp.ResponsePayload": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "message": {
+                    "type": "string"
+                },
+                "sent_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.customChannelParamRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "is_multi_value": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "regexp_validation": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.customChannelRequest": {
+            "type": "object",
+            "properties": {
+                "endpoint": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.customPayloadBody": {
+            "type": "object",
+            "properties": {
+                "parameter_id": {
+                    "type": "string"
+                },
+                "parameter_value": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.distributionListMemberRequest": {
+            "type": "object",
+            "properties": {
+                "delivery_mode": {
+                    "type": "string"
+                },
+                "member_type": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.distributionListRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.emailChannelRequest": {
+            "type": "object",
+            "required": [
+                "host",
+                "name",
+                "port",
+                "send_from"
+            ],
+            "properties": {
+                "auth_method": {
+                    "description": "none|plain. 'plain' requires an encrypted connection and credentials.",
+                    "type": "string",
+                    "default": "plain",
+                    "enum": [
+                        "none",
+                        "plain"
+                    ]
+                },
+                "ca_cert": {
+                    "description": "Optional PEM trust material for this channel's relay. Public, so unlike\nPassword it is returned on read. Rejected when encryption is none.",
+                    "type": "string"
+                },
+                "encryption": {
+                    "description": "none|starttls|tls. 'starttls' REQUIRES the upgrade; 'none' is for a local\nrelay that originates TLS upstream. The port never influences it.",
+                    "type": "string",
+                    "default": "tls",
+                    "enum": [
+                        "none",
+                        "starttls",
+                        "tls"
+                    ]
+                },
+                "host": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "password": {
+                    "description": "Password is required when auth_method is plain, and MUST be empty when it\nis none. Write-only: never returned on read.",
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "send_from": {
+                    "type": "string"
+                },
+                "sender_name": {
+                    "description": "SenderName is the optional From-header display name (e.g. \"Ops Team\").",
+                    "type": "string"
+                },
+                "username": {
+                    "description": "Username is required when auth_method is plain, and MUST be empty when it\nis none. Note auth_method defaults to plain, so omitting both this and\nauth_method is rejected rather than treated as an unauthenticated relay.",
+                    "type": "string"
+                }
+            }
+        },
+        "handler.emailPayloadBody": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "channel_id": {
+                    "type": "string"
+                },
+                "editor_json": {
+                    "description": "EditorJSON is the visual-editor source for the body —\nan arbitrary JSON object, stored verbatim and read back to re-hydrate\nthe editor. Optional; the rendered HTML in `body` is what gets sent.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "subject": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.notificationSendRequest": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "object",
+                    "additionalProperties": {}
+                }
+            }
+        },
+        "handler.notificationTemplateRequest": {
+            "type": "object",
+            "properties": {
+                "custom_notification": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.customPayloadBody"
+                    }
+                },
+                "distribution_list_id": {
+                    "type": "string"
+                },
+                "email_notification": {
+                    "$ref": "#/definitions/handler.emailPayloadBody"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "push_notification": {
+                    "$ref": "#/definitions/handler.pushPayloadBody"
+                }
+            }
+        },
+        "handler.pushChannelRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "service_account_key": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "handler.pushPayloadBody": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "channel_id": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "iams.UnresolvedMember": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.ChannelResult": {
+            "type": "object",
+            "properties": {
+                "channel": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "failed_tokens": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.CustomChannel": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "endpoint": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.CustomChannelParam": {
+            "type": "object",
+            "properties": {
+                "channel_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_multi_value": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "regexp_validation": {
+                    "type": "string"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.DistributionList": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.DistributionListMember": {
+            "type": "object",
+            "properties": {
+                "delivery_mode": {
+                    "type": "string"
+                },
+                "distribution_list_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "member_type": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.EmailChannel": {
+            "type": "object",
+            "properties": {
+                "auth_method": {
+                    "type": "string"
+                },
+                "ca_cert": {
+                    "description": "Public trust material, so unlike password it IS returned on read (D8).",
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "encryption": {
+                    "type": "string"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "send_from": {
+                    "type": "string"
+                },
+                "sender_name": {
+                    "type": "string"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.NotificationTemplate": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "custom_notification": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "distribution_list_id": {
+                    "type": "string"
+                },
+                "email_notification": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "push_notification": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.PushChannel": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.SendResult": {
+            "type": "object",
+            "properties": {
+                "channels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.ChannelResult"
+                    }
+                },
+                "unresolved": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/iams.UnresolvedMember"
+                    }
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Type \"Bearer\" followed by a space and JWT token.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

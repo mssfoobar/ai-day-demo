@@ -1,0 +1,107 @@
+package handler
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
+	aohhttp "github.com/mssfoobar/ops-hub/packages/aoh-golib/http"
+	aohlog "github.com/mssfoobar/ops-hub/packages/aoh-golib/logger"
+	aohotel "github.com/mssfoobar/ops-hub/packages/aoh-golib/otel"
+	_ "__AOH_MODULE__/docs" // generated swagger docs
+	"__AOH_MODULE__/internal/config"
+	"__AOH_MODULE__/internal/repo"
+	"__AOH_MODULE__/internal/service"
+	httpswagger "github.com/swaggo/http-swagger"
+	"go.uber.org/zap"
+)
+
+type HTTPServer struct {
+	server     *http.Server
+	cfg        config.Config
+	db         *repo.DB
+	exampleSvc service.ExampleService // TODELETE(scaffold): replace with real services
+}
+
+func NewHTTPServer(cfg config.Config, db *repo.DB, exampleSvc service.ExampleService) *HTTPServer {
+	return &HTTPServer{
+		cfg:        cfg,
+		db:         db,
+		exampleSvc: exampleSvc,
+	}
+}
+
+func (s *HTTPServer) Start() error {
+	aohlog.Info("http server starting",
+		zap.Int("port", s.cfg.HTTP.Port),
+		zap.Any("allowed_origins", s.cfg.HTTP.AllowedOrigins))
+
+	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", s.cfg.HTTP.Port))
+	if err != nil {
+		return err
+	}
+
+	s.server = &http.Server{
+		Addr:    fmt.Sprintf(":%d", s.cfg.HTTP.Port),
+		Handler: s.newHandler(),
+	}
+
+	go func() {
+		if err := s.server.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			aohlog.Error("http server error", zap.Error(err))
+		}
+	}()
+
+	return nil
+}
+
+func (s *HTTPServer) Stop() {
+	if err := s.server.Shutdown(context.Background()); err != nil {
+		aohlog.Error("failed to shutdown http server", zap.Error(err))
+	}
+}
+
+func (s *HTTPServer) newHandler() http.Handler {
+	r := chi.NewRouter()
+
+	// OpenTelemetry (AOH-7540), outermost so it wraps every route: open the
+	// server span + record RED/HTTP metrics, rename the span to the matched
+	// chi route pattern (low cardinality), then a trace-correlated access log.
+	// All no-op on traces when OTEL_EXPORTER_OTLP_ENDPOINT is unset.
+	r.Use(aohotel.HTTPMiddleware("__AOH_NAME__"))
+	r.Use(aohotel.ChiRouteSpanName)
+	r.Use(traceRequestLogger(aohlog.Get()))
+
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   s.cfg.HTTP.AllowedOrigins,
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
+
+	r.Get("/swagger-ui/*", httpswagger.WrapHandler)
+
+	// Health endpoints — no auth required
+	r.Mount("/", getHealthHandler(s.db))
+
+	// TODELETE(scaffold): Replace example route with real entity routes
+	r.Mount("/examples", getExampleHandler(s.exampleSvc, s.cfg.IAMS))
+
+	// Conformant JSON for the two router-level failures — chi's defaults write
+	// the plain-text bodies "404 page not found" / "405 method not allowed",
+	// which no client can parse as an error.
+	//
+	// Registered *after* the mounts on purpose: chi propagates these handlers to
+	// already-mounted sub-routers that have none of their own, and the health
+	// router mounted at "/" is the catch-all for every unmatched path.
+	r.NotFound(aohhttp.NotFoundHandler())
+	r.MethodNotAllowed(aohhttp.MethodNotAllowedHandler())
+
+	return r
+}

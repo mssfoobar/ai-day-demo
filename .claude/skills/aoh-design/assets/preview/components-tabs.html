@@ -1,0 +1,37 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+  body { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+  .crumb { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #71717A; }
+  .crumb .here { color: #18181B; font-weight: 500; }
+  .sep { color: #D4D4D8; }
+  .tabs-line { display: flex; gap: 24px; border-bottom: 1px solid #E4E4E7; }
+  .tabs-line .t { padding: 10px 0; font-size: 14px; font-weight: 500; color: #71717A; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tabs-line .t.active { color: #0369A1; border-color: #0369A1; }
+  .tabs-pill { display: inline-flex; padding: 4px; background: #F4F4F5; border-radius: 8px; gap: 2px; }
+  .tabs-pill .t { padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; color: #71717A; }
+  .tabs-pill .t.active { background: #fff; color: #18181B; box-shadow: 0 1px 2px 0 rgba(16,24,40,.05); }
+  .ico { width: 14px; height: 14px; stroke: #D4D4D8; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+</style></head><body>
+  <div class="crumb">
+    <span>Dashboards</span>
+    <svg class="ico" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+    <span>Starred</span>
+    <svg class="ico" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+    <span class="here">Incident Management</span>
+  </div>
+  <div class="tabs-line">
+    <div class="t active">Overview</div>
+    <div class="t">Incidents</div>
+    <div class="t">Channels</div>
+    <div class="t">Settings</div>
+  </div>
+  <div>
+    <div class="tabs-pill">
+      <div class="t active">Day</div>
+      <div class="t">Week</div>
+      <div class="t">Month</div>
+      <div class="t">Quarter</div>
+    </div>
+  </div>
+</body></html>

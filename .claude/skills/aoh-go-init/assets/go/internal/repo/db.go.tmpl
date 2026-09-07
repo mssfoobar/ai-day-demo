@@ -1,0 +1,70 @@
+package repo
+
+import (
+	"context"
+	"fmt"
+	"net/url"
+
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq" // PostgreSQL driver
+	aohlog "github.com/mssfoobar/ops-hub/packages/aoh-golib/logger"
+	"__AOH_MODULE__/internal/config"
+	"go.uber.org/zap"
+)
+
+type DB struct {
+	conn *sqlx.DB
+}
+
+func NewDB(cfg config.SQL) (*DB, error) {
+	dsn := fmt.Sprintf(
+		"postgres://%s:%s@%s:%d/%s?sslmode=%s&search_path=%s",
+		cfg.User, url.QueryEscape(cfg.Password), cfg.Host, cfg.Port,
+		cfg.DatabaseName, cfg.SslMode, cfg.SchemaName,
+	)
+
+	conn, err := sqlx.Connect("postgres", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("unable to connect to DB: %w", err)
+	}
+
+	if cfg.MaxConns > 0 {
+		conn.SetMaxOpenConns(cfg.MaxConns)
+	}
+	if cfg.MaxIdleConns > 0 {
+		conn.SetMaxIdleConns(cfg.MaxIdleConns)
+	}
+	if cfg.MaxConnLifetime > 0 {
+		conn.SetConnMaxLifetime(cfg.MaxConnLifetime)
+	}
+
+	return &DB{conn: conn}, nil
+}
+
+func (db *DB) Ping(ctx context.Context) error {
+	return db.conn.PingContext(ctx)
+}
+
+func (db *DB) Close() {
+	if err := db.conn.Close(); err != nil {
+		aohlog.Error("failed to close DB connection", zap.Error(err))
+	}
+}
+
+// TxExecute runs f inside a transaction. Rolls back on error, commits on success.
+func (db *DB) TxExecute(ctx context.Context, operation string, f func(tx *sqlx.Tx) error) error {
+	tx, err := db.conn.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to start transaction: %w", err)
+	}
+	if err = f(tx); err != nil {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			aohlog.Error("failed to rollback transaction", zap.Error(rollbackErr))
+		}
+		return fmt.Errorf("%s failed: %w", operation, err)
+	}
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	return nil
+}

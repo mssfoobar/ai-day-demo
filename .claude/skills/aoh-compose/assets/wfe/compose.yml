@@ -1,0 +1,143 @@
+name: aoh
+
+include:
+    - ../traefik/compose.yml
+    - ../iams/compose.yml
+    - ./temporal/compose.yml
+
+# Compose wiring for the WFE services. For what each service is and how WFE
+# works, see the aoh-knowledge skill (references/services/wfe.md).
+
+services:
+    # Postgres for the manager. The manager migrates the schema on boot, so it
+    # starts empty — no db-init mount; seed the catalog after boot (wfe-init below).
+    wfe-db:
+        image: postgres:17.0
+        restart: always
+        environment:
+            - POSTGRES_DB=wfe
+            - POSTGRES_USER=${DEV_USER}
+            - POSTGRES_PASSWORD=${DEV_PASSWORD}
+        expose:
+            - 5432
+        deploy:
+            replicas: 1
+            restart_policy:
+                condition: on-failure
+                delay: 3s
+        volumes:
+            - wfe-db-volume:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ${DEV_USER} -d wfe"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    # workflow-manager — WFE REST API, routed at wfm.${DEV_DOMAIN}. Needs Postgres
+    # + Temporal at boot; restart:on-failure retries until both are up.
+    wfe-manager:
+        image: ghcr.io/mssfoobar/ops-hub/wfe-manager:${WFE_MANAGER_TAG}
+        restart: on-failure
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.wfe-manager.rule=Host(`wfm.${DEV_DOMAIN}`)
+            - traefik.http.routers.wfe-manager.entrypoints=web
+            - traefik.http.routers.wfe-manager.middlewares=permissive-headers@docker
+            - traefik.http.services.wfe-manager.loadBalancer.server.port=8080
+        depends_on:
+            wfe-db:
+                condition: service_healthy
+            temporal:
+                condition: service_started
+        environment:
+            - LOG_LEVEL=info
+            - HTTP_PORT=8080
+            - SQL_HOST=wfe-db
+            - SQL_PORT=5432
+            - SQL_USER=${DEV_USER}
+            - SQL_PASSWORD=${DEV_PASSWORD}
+            - SQL_DATABASE_NAME=wfe
+            - SQL_SCHEMA_NAME=wfe
+            - SQL_SSL_MODE=disable
+            - IAMS_KEYCLOAK_HOST=http://iams-keycloak
+            - IAMS_KEYCLOAK_PORT=8080
+            - IAMS_KEYCLOAK_REALM=aoh
+            - TEMPORAL_HOST=temporal
+            - TEMPORAL_PORT=7233
+            - TEMPORAL_NAMESPACE=default
+            # Must match the engine and any activity worker.
+            - TEMPORAL_TASK_QUEUE=wfe
+            # Export to the core gateway OTEL collector (aoh-golib/otel reads these);
+            # safe no-op if the endpoint is unreachable.
+            - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+            - OTEL_RESOURCE_ATTRIBUTES=${OTEL_RESOURCE_ATTRIBUTES:-}
+        expose:
+            - 8080
+
+    # workflow-engine — needs Temporal, not Postgres.
+    wfe-engine:
+        image: ghcr.io/mssfoobar/ops-hub/wfe-engine:${WFE_ENGINE_TAG}
+        restart: on-failure
+        depends_on:
+            temporal:
+                condition: service_started
+        environment:
+            - LOG_LEVEL=info
+            - HTTP_PORT=8080
+            - TEMPORAL_HOST=temporal
+            - TEMPORAL_PORT=7233
+            - TEMPORAL_NAMESPACE=default
+            - TEMPORAL_TASK_QUEUE=wfe
+            # Export to the core gateway OTEL collector (aoh-golib/otel reads these);
+            # safe no-op if the endpoint is unreachable.
+            - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+            - OTEL_RESOURCE_ATTRIBUTES=${OTEL_RESOURCE_ATTRIBUTES:-}
+
+    # ── OPTIONAL activity worker (off by default) ────────────────────────────
+    # Build your worker with the `aoh-wfe-worker` skill, then set `image:` below.
+    # No depends_on: the worker only needs Temporal (which buffers the queue), so
+    # restart:on-failure lets it come up in any order — with the stack, or
+    # `docker compose up wfe-worker` on its own later.
+    #
+    # wfe-worker:
+    #     image: <your-worker-image>:<tag>
+    #     restart: on-failure
+    #     environment:
+    #         - LOG_LEVEL=info
+    #         - HTTP_PORT=8080
+    #         - TEMPORAL_HOST=temporal
+    #         - TEMPORAL_PORT=7233
+    #         - TEMPORAL_NAMESPACE=default
+    #         # MUST match the engine + the manager.
+    #         - TEMPORAL_TASK_QUEUE=wfe
+
+    # ── OPTIONAL catalog seed (off by default) ───────────────────────────────
+    # Registers your worker's activities/events in the manager's catalog so the
+    # designer offers them on a fresh `down -v && up`. Edit ./init/catalog.yaml
+    # with your worker's activities/events (see the `aoh-wfe-worker` skill). Skip
+    # it if you seed by hand. See ./init/README.md.
+    #
+    # wfe-init:
+    #     build:
+    #         context: ../wfe/init
+    #     restart: on-failure
+    #     environment:
+    #         SQL_HOST: wfe-db
+    #         SQL_PORT: 5432
+    #         SQL_DATABASE_NAME: wfe
+    #         SQL_SCHEMA_NAME: wfe
+    #         DEV_USER: ${DEV_USER}
+    #         DEV_PASSWORD: ${DEV_PASSWORD}
+    #     depends_on:
+    #         wfe-db:
+    #             condition: service_healthy
+    #         # service_started is enough — the seed waits for the migrated table itself.
+    #         wfe-manager:
+    #             condition: service_started
+
+    # No WFE web service runs here — the designer + monitor are an SDK a host app
+    # mounts (the `aoh-wfe-designer` skill). Workflows with human-in-the-loop Form
+    # steps also need the `form` service in the stack.
+
+volumes:
+    wfe-db-volume:

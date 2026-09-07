@@ -1,0 +1,120 @@
+package service
+
+// TODELETE(scaffold): Delete this file — example entity for reference only.
+// Demonstrates the canonical Create flow:
+//   1. Trim + validate inputs, returning one detail entry per bad field.
+//   2. Delegate persistence to the repo layer.
+//   3. Emit a structured audit log entry on success.
+//
+// Note what this layer does NOT do with failures: it classifies them and returns
+// them. It never logs them and never picks an HTTP status — aoherr.Render in the
+// handler owns both, so a failure is reported exactly once.
+
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/mssfoobar/ops-hub/packages/aoh-golib/aoherr"
+	aohlog "github.com/mssfoobar/ops-hub/packages/aoh-golib/logger"
+	"__AOH_MODULE__/internal/repo"
+	"go.uber.org/zap"
+)
+
+type exampleService struct {
+	exampleRepo repo.ExampleRepository
+}
+
+func NewExampleService(exampleRepo repo.ExampleRepository) ExampleService {
+	return &exampleService{exampleRepo: exampleRepo}
+}
+
+func (s *exampleService) Create(ctx context.Context, in CreateExampleInput) (Example, error) {
+	name := strings.TrimSpace(in.Name)
+	description := strings.TrimSpace(in.Description)
+
+	// One detail entry per failing field, so the client can fix them all at
+	// once. details is an array of objects on the wire, never a map.
+	var details []aoherr.Detail
+	if name == "" {
+		details = append(details, aoherr.FieldDetail("name", "name must not be empty"))
+	} else if len(name) > ExampleNameMaxLen {
+		details = append(details, aoherr.FieldDetail("name",
+			fmt.Sprintf("name must be at most %d characters", ExampleNameMaxLen)))
+	}
+	if len(description) > ExampleDescriptionMaxLen {
+		details = append(details, aoherr.FieldDetail("description",
+			fmt.Sprintf("description must be at most %d characters", ExampleDescriptionMaxLen)))
+	}
+	if in.ReportedBy == "" {
+		details = append(details, aoherr.FieldDetail("reported_by", "reporter is required"))
+	}
+	if in.TenantID == "" {
+		details = append(details, aoherr.FieldDetail("tenant_id", "tenant is required"))
+	}
+	if len(details) > 0 {
+		return Example{}, NewValidationError("invalid example", details...)
+	}
+
+	row, err := s.exampleRepo.Create(ctx, repo.ExampleRow{
+		Name:        name,
+		Description: description,
+		ReportedBy:  in.ReportedBy,
+		TenantID:    in.TenantID,
+	})
+	if err != nil {
+		// Classified so the response carries this service's code; the cause
+		// reaches the log record and never the body.
+		return Example{}, NewInternalError("could not persist the example", err)
+	}
+
+	aohlog.Info("example created",
+		zap.String("event", "example.created"),
+		zap.String("example_id", row.ID.String()),
+		zap.String("reported_by", row.ReportedBy),
+		zap.String("tenant_id", row.TenantID),
+	)
+
+	return Example{
+		ID:          row.ID.String(),
+		Name:        row.Name,
+		Description: row.Description,
+		ReportedBy:  row.ReportedBy,
+		TenantID:    row.TenantID,
+		CreatedAt:   row.CreatedAt,
+	}, nil
+}
+
+func (s *exampleService) List(ctx context.Context, in ListExamplesInput) ([]Example, int64, error) {
+	if in.TenantID == "" {
+		return nil, 0, NewValidationError("invalid list",
+			aoherr.FieldDetail("tenant_id", "tenant is required"))
+	}
+	if in.Page.Number < 1 {
+		in.Page.Number = 1
+	}
+	if in.Page.Size < 1 {
+		in.Page.Size = 10
+	}
+
+	rows, total, err := s.exampleRepo.List(ctx, repo.ExampleFilter{
+		TenantID: in.TenantID,
+		Page:     in.Page,
+	})
+	if err != nil {
+		return nil, 0, NewInternalError("could not list examples", err)
+	}
+
+	out := make([]Example, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, Example{
+			ID:          row.ID.String(),
+			Name:        row.Name,
+			Description: row.Description,
+			ReportedBy:  row.ReportedBy,
+			TenantID:    row.TenantID,
+			CreatedAt:   row.CreatedAt,
+		})
+	}
+	return out, total, nil
+}

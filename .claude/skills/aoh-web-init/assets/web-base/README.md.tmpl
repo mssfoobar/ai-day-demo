@@ -1,0 +1,26 @@
+# {APP_NAME}
+
+{APP_DESCRIPTION}
+
+## Development
+
+```sh
+cp .env.template .env.development
+pnpm run dev
+```
+
+Then open http://127.0.0.1.nip.io:5173.
+
+## Scripts
+
+- `pnpm run dev` — development server with pino-pretty log formatting
+- `pnpm run build` — production build (SvelteKit adapter-node)
+- `pnpm run preview` — preview the production build
+- `pnpm run check` — type-check with svelte-check
+- `pnpm run lint` — prettier + eslint
+- `pnpm run format` — prettier write
+- `pnpm run test` — integration (Playwright) + unit (Vitest)
+
+## Architecture
+
+See `AGENTS.md` for the sidebar navigation, auth flow, gateway config, and conventions.

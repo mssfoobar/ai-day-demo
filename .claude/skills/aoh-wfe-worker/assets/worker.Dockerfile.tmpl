@@ -1,0 +1,54 @@
+# syntax=docker/dockerfile:1
+#
+# __AOH_TITLE__ — a user-owned Temporal activity worker for WFE.
+#
+# Build from this service directory. Run `go mod tidy` first so go.sum exists.
+# aoh-golib is a private module — build with ONE of:
+#
+#   1. Access token with repo read access, in a file (`.secrets/` is gitignored):
+#        podman build --secret id=access_token,src=.secrets/access_token -f worker.Dockerfile .
+#   2. Registry mirror (air-gapped spokes):
+#        podman build --build-arg GOPROXY=<mirror-url> --build-arg GOSUMDB=off -f worker.Dockerfile .
+FROM --platform=$BUILDPLATFORM golang:1.26 AS builder
+
+ARG GOPROXY
+ARG GOSUMDB
+ARG GONOSUMDB=github.com/mssfoobar/*
+ENV CGO_ENABLED=0 GOPROXY=${GOPROXY} GOSUMDB=${GOSUMDB} GONOSUMDB=${GONOSUMDB}
+WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN --mount=type=secret,id=access_token,required=false \
+    if [ -f /run/secrets/access_token ]; then \
+      printf 'machine github.com login x-access-token password %s\n' \
+        "$(cat /run/secrets/access_token)" > /root/.netrc; \
+    fi; \
+    go mod download; rc=$?; rm -f /root/.netrc; exit $rc
+
+# Worker source.
+COPY internal/ internal/
+COPY cmd/ cmd/
+
+ARG TARGETOS
+ARG TARGETARCH
+RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -v -a -o /build/worker ./cmd/worker
+
+FROM alpine:3.24
+
+ARG REVISION
+
+LABEL "org.opencontainers.image.title"="__AOH_TITLE__"
+LABEL "org.opencontainers.image.description"="__AOH_DESC__"
+LABEL "org.opencontainers.image.revision"="${REVISION}"
+
+RUN addgroup -g 1000 wfe && \
+    adduser -u 1000 -G wfe -D wfe && \
+    mkdir /app && \
+    chown -R wfe:wfe /app
+USER wfe
+
+WORKDIR /app
+
+COPY --from=builder /build/worker .
+
+CMD ["/app/worker"]

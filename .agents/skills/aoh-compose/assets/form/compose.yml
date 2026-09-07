@@ -1,0 +1,56 @@
+name: aoh
+
+include:
+    - ../traefik/compose.yml
+    - ../iams/compose.yml
+    - ../amm/compose.yml
+
+# Compose wiring for the FORM service. The form authoring Creator + renderer are
+# an SDK a host app embeds (aoh-form-integration skill), so no form web service
+# runs here. For what FORM is and how it works, see the aoh-knowledge skill.
+
+services:
+    form-db:
+        image: postgres:17.0
+        restart: always
+        environment:
+            - POSTGRES_DB=form
+            - POSTGRES_USER=${DEV_USER}
+            - POSTGRES_PASSWORD=${DEV_PASSWORD}
+        expose:
+            - 5432
+        deploy:
+            replicas: 1
+            restart_policy:
+                condition: on-failure
+                delay: 3s
+        volumes:
+            - form-db-volume:/var/lib/postgresql/data
+
+    form-service:
+        image: ghcr.io/mssfoobar/ops-hub/form-service:${FORM_SERVICE_TAG}
+        restart: always
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.form-service.rule=Host(`form.${DEV_DOMAIN}`)
+            - traefik.http.routers.form-service.middlewares=permissive-headers@docker
+            - traefik.http.routers.form-service.entrypoints=web
+        depends_on:
+            form-db:
+                condition: service_started
+        environment:
+            - SQL_USER=${DEV_USER}
+            - SQL_PASSWORD=${DEV_PASSWORD}
+            - IAMS_KEYCLOAK_CLIENT_ID=sds
+            - IAMS_KEYCLOAK_CLIENT_SECRET=${DEV_PASSWORD}
+            # Export to the core gateway collector (aoh-golib/otel reads these);
+            # a no-op when the endpoint is unset.
+            - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+            - OTEL_RESOURCE_ATTRIBUTES=${OTEL_RESOURCE_ATTRIBUTES:-}
+        volumes:
+            - ../form/config.yaml:/app/config.yaml
+        expose:
+            - 8080
+
+volumes:
+    form-db-volume:

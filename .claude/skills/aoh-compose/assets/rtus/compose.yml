@@ -1,0 +1,102 @@
+name: aoh
+
+include:
+    - ../traefik/compose.yml
+    - ../iams/compose.yml
+
+services:
+    rtus-db:
+        image: postgres:17.0
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 3s
+        command: postgres -c wal_level=logical
+        environment:
+            - POSTGRES_DB=rtus
+            - POSTGRES_USER=${DEV_USER}
+            - POSTGRES_PASSWORD=${DEV_PASSWORD}
+        volumes:
+            - rtus-db-volume:/var/lib/postgresql/data
+
+    rtus-pms:
+        image: ghcr.io/mssfoobar/rtus/rtus-pms:${RTUS_PMS_TAG}
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 5s
+        environment:
+            - server.port=8080
+            - server.error.include-message=always
+            - spring.datasource.url=jdbc:postgresql://rtus-db:5432/rtus
+            - spring.datasource.username=${DEV_USER}
+            - spring.datasource.password=${DEV_PASSWORD}
+            - spring.jpa.properties.hibernate.default_schema=rtus
+            - spring.liquibase.default-schema=rtus
+            - spring.liquibase.change-log=classpath:liquibase/rtus-pms-changelog-master.xml
+            - rtus.clustername=aoh_rtus
+            - rtus.service-dns.enable=true
+            - rtus.service-dns=rtus-pms
+            - rtus.service-dns-timeout=55
+            - rtus.service-port=5701
+            - rtus.admin.security.roles=tenant-admin,system-admin
+            - rtus.keycloak.url=http://iams-keycloak:8080/
+            - rtus.active-tenant.claimname=active_tenant
+            - rtus.topic.time-to-live-seconds=0
+            - rtus.topic.capacity=1
+            - rtus.map.max-idle-seconds=0
+            - rtus.map.capacity=0
+            - rtus.map.eviction-policy=NONE
+            - KUBERNETES_SERVICE_HOST=true
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.rtus-pms.rule=Host(`rtus-pms.${DEV_DOMAIN}`)
+            - traefik.http.routers.rtus-pms.entrypoints=web
+            - traefik.http.routers.rtus-pms.middlewares=permissive-headers@docker
+            - traefik.http.services.rtus-pms.loadBalancer.server.port=8080
+        depends_on:
+            rtus-db:
+                condition: service_started
+            iams-keycloak:
+                condition: service_healthy
+
+    rtus-seh:
+        image: ghcr.io/mssfoobar/rtus/rtus-seh:${RTUS_SEH_TAG}
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 5s
+        environment:
+            - server.port=8080
+            - server.http2.enabled=true
+            - rtus.clustername=aoh_rtus
+            - rtus.service-name=rtus-pms
+            - rtus.sse.keepalive.interval=5
+            - rtus.keycloak.url=http://iams-keycloak:8080/
+            - rtus.iams.aas.url=http://iams-aas:8080/
+            - rtus.sds.url=http://sds-server:5080/
+            - rtus.session-id.cookienames=web_auth_session_id
+            - rtus.access-token.cookienames=web_access_token,ian_access_token,gis_access_token
+            - rtus.topic.read-batch-size=1
+            - rtus.active-tenant.claimname=active_tenant
+            - KUBERNETES_SERVICE_HOST=true
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.rtus-seh.rule=Host(`rtus-seh.${DEV_DOMAIN}`)
+            - traefik.http.routers.rtus-seh.entrypoints=web
+            - traefik.http.middlewares.rtus-seh-cors.headers.accesscontrolallowmethods=GET,OPTIONS,PUT,POST,DELETE,PATCH,HEAD
+            - traefik.http.middlewares.rtus-seh-cors.headers.accesscontrolallowheaders=*
+            - traefik.http.middlewares.rtus-seh-cors.headers.accesscontrolalloworiginlist=http://${DEV_DOMAIN}:5173,http://${DEV_DOMAIN}:4173,http://gis-web.${DEV_DOMAIN},http://ian-web.${DEV_DOMAIN},http://${DEV_DOMAIN}:8082
+            - traefik.http.middlewares.rtus-seh-cors.headers.accesscontrolallowcredentials=true
+            - traefik.http.middlewares.rtus-seh-cors.headers.accesscontrolmaxage=100
+            - traefik.http.middlewares.rtus-seh-cors.headers.addvaryheader=true
+            - traefik.http.routers.rtus-seh.middlewares=rtus-seh-cors@docker
+            - traefik.http.services.rtus-seh.loadBalancer.server.port=8080
+        depends_on:
+            rtus-db:
+                condition: service_started
+            iams-keycloak:
+                condition: service_healthy
+
+volumes:
+    rtus-db-volume:

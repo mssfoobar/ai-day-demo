@@ -1,0 +1,85 @@
+# Compose entry for a Go service under `apps/<name>/`.
+# Replace `<name>` placeholders with the actual app name; `<NAME>` is the same
+# uppercased with `-` → `_` (e.g. `incident-svc` → `INCIDENT_SVC`).
+# For the native-dev vs container-packaging workflow + the `podman build`
+# incantation, see `aoh-compose` SKILL.md → "Verify".
+
+name: aoh
+
+include:
+    - ../traefik/compose.yml
+    - ../iams/compose.yml
+
+services:
+    <name>:
+        # `profiles: [apps]` matches the Turborepo `apps/<name>/` convention.
+        # Bare `compose up` brings up infra only — apps/* services are not
+        # implicitly pulled (their `:local` image only exists after
+        # `podman build`). Normal dev runs the service natively
+        # (`go run ./cmd/server`) against composed-up infra. To test the
+        # packaged image:
+        #   podman compose --profile apps up -d <name>
+        profiles: [apps]
+        image: <name>:${<NAME>_TAG:-local}
+        restart: on-failure
+        environment:
+            # --- Core ---
+            LOG_LEVEL: info
+            HTTP_PORT: 8080
+            # --- Observability (OpenTelemetry) ---
+            # Export to the core gateway collector (aoh-golib/otel reads these);
+            # a no-op in the SDK when the endpoint is unset.
+            OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+            OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES:-}
+            # --- IAMS / Keycloak ---
+            # aoh-go-init services use Docker DNS; the iams compose sets
+            # KC_HOSTNAME_BACKCHANNEL_DYNAMIC=true so this resolves correctly.
+            IAMS_KEYCLOAK_HOST: http://iams-keycloak
+            IAMS_KEYCLOAK_PORT: 8080
+            IAMS_KEYCLOAK_REALM: aoh
+            # Uncomment if you added a confidential Keycloak client for this service:
+            # IAMS_KEYCLOAK_CLIENT_ID: <name>
+            # IAMS_KEYCLOAK_CLIENT_SECRET: ${DEV_PASSWORD}
+            # --- Database (uncomment with the <name>-db block below if needed) ---
+            # SQL_HOST: <name>-db
+            # SQL_PORT: 5432
+            # SQL_USER: ${DEV_USER}
+            # SQL_PASSWORD: ${DEV_PASSWORD}
+            # SQL_DATABASE_NAME: <name>
+            # SQL_SCHEMA_NAME: public
+            # SQL_SSL_MODE: disable
+        depends_on:
+            iams-keycloak:
+                condition: service_healthy
+            # Uncomment with the <name>-db block below:
+            # <name>-db:
+            #     condition: service_healthy
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.<name>.rule=Host(`<name>.${DEV_DOMAIN}`)
+            - traefik.http.routers.<name>.entrypoints=web
+            - traefik.http.routers.<name>.middlewares=permissive-headers@docker
+            - traefik.http.services.<name>.loadbalancer.server.port=8080
+
+    # --- Database (optional) ---
+    # Uncomment this block AND the SQL_* env vars AND the <name>-db depends_on
+    # entry above if your service needs its own Postgres.
+    # <name>-db:
+    #     image: postgres:17
+    #     restart: on-failure
+    #     environment:
+    #         POSTGRES_USER: ${DEV_USER}
+    #         POSTGRES_PASSWORD: ${DEV_PASSWORD}
+    #         POSTGRES_DB: <name>
+    #     volumes:
+    #         - <name>-db-data:/var/lib/postgresql/data
+    #     healthcheck:
+    #         test: ["CMD-SHELL", "pg_isready -U ${DEV_USER} -d <name>"]
+    #         interval: 5s
+    #         timeout: 5s
+    #         retries: 10
+
+# --- Volumes ---
+# Uncomment if you enabled the <name>-db block above:
+# volumes:
+#     <name>-db-data:

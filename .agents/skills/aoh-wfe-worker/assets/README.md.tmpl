@@ -1,0 +1,79 @@
+# __AOH_TITLE__
+
+A WFE **activity worker** — the user-owned process that runs your workflow
+activities. Scaffolded from the `aoh-wfe-worker` skill.
+
+## Where this fits
+
+```
+workflow-manager  (REST API)   ──starts──▶  Temporal
+workflow-engine   (runs the DSL) ──schedules activities on a task queue──┐
+                                                                          ▼
+this worker  ──registers your activities, consumes the task queue, runs them
+```
+
+The engine and this worker are decoupled purely by the **Temporal task queue**.
+You own and deploy your activities independently of the platform.
+
+## The two contracts that must line up
+
+1. **Task queue** — `temporal.task_queue` here must equal the WFE engine's
+   (default `wfe`). Mismatch → the engine schedules activities that never run.
+2. **Activity names** — each exported method on a registered `Activities` struct
+   becomes a Temporal activity addressable by its **method name**. That string is
+   exactly what a DSL `Activity` step puts in its `Type` (and what the WFE
+   `service_activity` registry advertises to the designer). Rename a method →
+   update the seed + the registry to match.
+
+## First run
+
+```bash
+go mod tidy                          # resolve deps + write go.sum
+cp worker.config.yaml config.yaml    # edit temporal.* (task_queue must match the engine)
+go run ./cmd/worker                  # or: make run
+```
+
+## Make it yours
+
+1. Replace the `HelloWorld` starter under `internal/activities/` with your own
+   methods (and register additional `Activities` structs in `cmd/worker/main.go`
+   with `w.RegisterActivity(&yourpkg.Activities{})` if you split them up).
+2. Keep each activity cancellable — heartbeat (`activity.RecordHeartbeat`) and
+   honour `ctx.Done()` for any long-running work.
+3. Register them in the WFE designer (below).
+
+## Register them in the WFE designer
+
+The designer lists what this worker offers from the **manager's** catalog —
+`service_activity` (activity nodes) and `service_event` (event nodes). This worker
+has no database, so run the example seed against the WFE **workflow-manager's**
+Postgres so the types become selectable:
+
+```bash
+psql "$WFE_MANAGER_DSN" -f sql/seed_catalog.sql
+```
+
+It's idempotent (re-run to re-sync). Keep each row's `activity_type` / `event_type`
+equal to your Go method name, and adjust `*_param` / `*_result` whenever you add,
+rename, or change a method. The file documents the expected shapes.
+
+## Build / test / lint
+
+| Command | Purpose |
+|---|---|
+| `make build` | Build the worker binary |
+| `make run` | Build + run with debug logging |
+| `make test` | `go test ./...` (uses Temporal's activity test env) |
+| `make lint-code` | golangci-lint (ships AOH conventions in `.golangci.yml`) |
+
+Container: `go mod tidy` first (so `go.sum` exists). The private `aoh-golib`
+fetch needs auth — an access token in a file (file-sourced secrets work in
+podman AND docker; `.secrets/` is gitignored) or a spoke registry mirror:
+
+```bash
+podman build --secret id=access_token,src=.secrets/access_token -f worker.Dockerfile .
+# or, air-gapped spoke:
+podman build --build-arg GOPROXY=<mirror-url> --build-arg GOSUMDB=off -f worker.Dockerfile .
+```
+
+(`docker build` takes the same flags.)

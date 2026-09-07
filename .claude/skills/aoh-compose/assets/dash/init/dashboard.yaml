@@ -1,0 +1,40 @@
+# OPTIONAL dashboard seed for dash-service.
+#
+# ── When you need this ───────────────────────────────────────────────────────
+# Only when dashboards must exist BEFORE first use — e.g. a default operations
+# dashboard every user sees on login, provisioned reproducibly on a fresh
+# `down -v && up`. If your dashboards are instead created by an admin in the UI
+# at runtime, you do NOT need any of this: leave the `dash-init` block in
+# ../compose.yml commented out (and you may delete this ./init dir).
+#
+# ── How it runs ──────────────────────────────────────────────────────────────
+# The `dash-init` one-shot ships commented out in ../compose.yml. Uncomment that
+# block to enable it; it then runs on EVERY `compose up` (no profile). It
+# reconciles this file into dash-service: registers the widget types, then creates
+# each dashboard by name. Idempotent — existing dashboards are left as-is, so
+# re-running (or a fresh stack) converges to the same state.
+#
+# ── Editing ──────────────────────────────────────────────────────────────────
+# Customize this file with YOUR widget types and layout. The `widget_type_id`s
+# MUST match the `defineWidget` types your consumer app registers, and each
+# `config` blob MUST match that widget's config schema (see the aoh-dashboard
+# skill for widget authoring + the 42-column grid sizing). The dashboards land
+# in the seeding user's active tenant (the dev user is a member of `tenant`
+# below via iams-init).
+
+tenant: development
+
+# Widget types registered first so the dashboards' widget foreign keys resolve.
+# `icon` is a Lucide icon name (kebab-case). 409 (already registered) = success.
+widget_types:
+  - { id: metric, name: Metric, icon: trending-up, min_width: 8, min_height: 4 }
+  # - { id: my-widget, name: My Widget, icon: chart-column, min_width: 14, min_height: 8 }
+
+# Dashboards created by name (idempotent). Widgets are placed on the 42-column
+# grid; `config` holds each widget's persisted options.
+dashboards:
+  - name: Overview
+    description: Example seeded dashboard — replace with your own.
+    favourite: false
+    widgets:
+      - { widget_type_id: metric, row: 0, column: 0, width: 14, height: 5, config: { label: Example, value: 0 } }

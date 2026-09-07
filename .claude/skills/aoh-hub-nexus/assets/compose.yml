@@ -1,0 +1,29 @@
+# AOH Hub Nexus — base compose
+#
+# This file declares what hub Nexus runs. It is incomplete on its own — a profile
+# overlay (compose.laptop.yml, or the future Helm chart for prod) supplies storage,
+# networking, memory, and hardening defaults appropriate to the target environment.
+#
+# Do not run this file directly. Use scripts/up.sh <profile>.
+
+name: aoh-hub-nexus
+
+services:
+  nexus:
+    image: docker.io/sonatype/nexus3:3.79.0
+    container_name: aoh-hub-nexus
+    restart: unless-stopped
+    volumes:
+      - nexus_data:/nexus-data
+    healthcheck:
+      # Nexus's /service/rest/v1/status/writable returns 200 only once the
+      # DB + blob store are ready; /service/rest/v1/status is too permissive
+      # and flips to healthy before the UI is actually reachable.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/service/rest/v1/status/writable || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 40
+      start_period: 60s
+
+volumes:
+  nexus_data:

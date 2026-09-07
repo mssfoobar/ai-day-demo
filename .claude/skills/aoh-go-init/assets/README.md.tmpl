@@ -1,0 +1,137 @@
+# __AOH_NAME__
+
+__AOH_DESCRIPTION__
+
+A Go microservice in the AOH (Agil Ops Hub) platform. Layered architecture
+(handler → service → repo), chi router, sqlx + PostgreSQL, Viper config,
+Keycloak/JWT auth via `aoh-golib`.
+
+This service lives inside a Turborepo monorepo. Depending on the monorepo
+shape, that's either `apps/<service-name>/` (consumer-app shape) or
+`modules/<module-name>/service/` (ops-hub platform-monorepo shape). The
+service-internal layout below is the same either way.
+
+## Quick start
+
+From the repo root:
+
+```bash
+# Bring up shared platform infrastructure (Traefik, IAMS, SDS, this service's DB).
+# In the consumer-app shape this lives at `compose/`; in ops-hub it's the hub stack
+# wired via `modules/<name>/deploy/compose.snippet.yml`.
+cd compose && docker compose up -d
+
+# Install workspace deps (first time, or after pnpm-lock.yaml changes).
+pnpm install
+
+# Run the service.
+cd <this-service-directory> && make run
+```
+
+Once the stack is healthy, the service is reachable at
+`http://__AOH_NAME__.${DEV_DOMAIN}` (Traefik routes by host header). Swagger
+UI is at `/swagger-ui/index.html`.
+
+## Observability
+
+This service is **born instrumented** with OpenTelemetry via `aoh-golib/otel`:
+every request gets a server span (named by chi route pattern), RED/HTTP +
+Go-runtime metrics, and a trace-correlated access log (`trace_id`/`span_id`).
+It is a no-op until you point it at a Collector:
+
+```bash
+# the per-spoke OTEL gateway (the `otel` aoh-compose fragment)
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 make run
+```
+
+`service.name` is `__AOH_NAME__`; `service.namespace=aoh` and the W3C
+propagators are set automatically. Logs stay on zap (stdout) with trace IDs
+injected — no backend lock-in.
+
+> **Container build:** the `Dockerfile` is a standalone single-module build —
+> `aoh-golib` is fetched from the private ops-hub repo, so run
+> `go mod tidy` first (go.sum must exist) and build from **this service
+> directory**. Authenticate the private-module fetch one of two ways:
+>
+> ```bash
+> # 1. Access token in a file (file-sourced secrets work in podman AND docker;
+> #    .secrets/ is gitignored — a path outside the repo works too)
+> podman build --secret id=access_token,src=.secrets/access_token -t __AOH_NAME__:local -f Dockerfile .
+>
+> # 2. Spoke registry mirror — no token
+> podman build --build-arg GOPROXY=<mirror-url> --build-arg GOSUMDB=off -t __AOH_NAME__:local -f Dockerfile .
+> ```
+>
+> (`docker build` takes the same flags.) The token is mounted only for the
+> dependency-download step and never lands in an image layer.
+
+## Layout inside this service
+
+```
+├── cmd/server/             # Entry point: main.go (startup/shutdown), init.go (DI wiring)
+├── internal/
+│   ├── handler/            # HTTP layer — chi sub-routers, swag annotations, BearerAuth
+│   ├── service/            # Business logic — interfaces.go, errors.go, per-entity files
+│   ├── repo/               # Data access — sqlx queries, per-entity files
+│   └── config/             # Viper config (CLI flags > env > YAML > defaults)
+├── schema/                 # SQL migrations — golang-migrate NNNN_{title}.up.sql / .down.sql
+├── docs/                   # swag-generated swagger.json/yaml/docs.go
+├── Makefile                # Build, test, lint, mock, swag, migration targets
+└── Dockerfile              # Multi-stage Go build
+```
+
+In an ops-hub module, sibling directories at `modules/<module-name>/` (e.g.
+`sdk/`, `client/`, `types/`, `deploy/`) wire this service into a published
+Svelte SDK, a typed REST client, TS types, and deployment artifacts. See
+the module-level `README.md` for the cross-cutting view.
+
+## Build & development commands
+
+From this service's directory:
+
+| Command | Purpose |
+|---------|---------|
+| `make build` | Build the server binary |
+| `make run` | Build and run with debug logging |
+| `make lint-code` | Run golangci-lint |
+| `make mock` | Regenerate mockery mocks |
+| `make swag` | Regenerate Swagger docs (writes `docs/`) |
+| `make migrate-create NAME={title}` | Generate numbered migration files in `schema/` |
+| `go test ./...` | Run all tests |
+| `go test -run TestName ./path/to/package` | Run a single test |
+
+From the repo root via Turbo:
+
+```bash
+turbo run build --filter=__AOH_NAME__
+turbo run test --filter=__AOH_NAME__
+turbo run dev --filter=__AOH_NAME__
+```
+
+## Authentication
+
+All entity endpoints require a valid Keycloak Bearer token. The auth middleware
+stack runs `aohhttp.BearerAuth` (validates JWT against Keycloak's userinfo
+endpoint), then `withUserInfo` (extracts JWT claims into request context).
+
+Health endpoints (`/livez`, `/readyz`) and Swagger UI (`/swagger-ui/`) are
+unauthenticated.
+
+IAMS configuration (in `config.yaml` or env vars):
+
+| Key | Env var | Default |
+|-----|---------|---------|
+| `iams.keycloak_host` | `IAMS_KEYCLOAK_HOST` | `http://iams-keycloak` |
+| `iams.keycloak_port` | `IAMS_KEYCLOAK_PORT` | `8080` |
+| `iams.keycloak_realm` | `IAMS_KEYCLOAK_REALM` | `aoh` |
+
+When testing with cURL or Postman, request tokens with `scope=openid` — the
+userinfo endpoint returns 403 without it. See the `aoh-conventions` skill's
+`references/go.md` → "Testing with cURL" for the full incantation.
+
+## Working in this codebase
+
+For project-wide agent rules see `AGENTS.md`. For conventions, anti-patterns,
+response envelope semantics, and the procedural checklist for adding a new
+entity, see the `aoh-conventions` skill's `references/go.md` — it's the source
+of truth for "how code in this repo should be written."

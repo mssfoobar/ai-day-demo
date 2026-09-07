@@ -1,0 +1,24 @@
+# Agent rules — `__AOH_MODULE_NAME__` module
+
+Module-level agent context. Sub-packages have their own `AGENTS.md`
+with package-specific rules; consult them when working inside a
+specific sub-package.
+
+## Cross-package invariants
+
+* **Wire contract**: changes to `service/internal/dto/*.go` MUST be
+  mirrored in `types/src/index.ts` in the same PR. The `client/`
+  integration tests catch drift.
+* **One-way dependency chain**: `web → client → types → service`. Do
+  not introduce a back-edge. The service must remain consumable from
+  any TS context; the SDK is the topmost layer.
+* **Workspace pinning**: `client/` depends on `types/` via
+  `workspace:*`. `web/` depends on `client/` via `workspace:*`. Do not
+  pin to a specific version inside this module — pnpm resolves these
+  at install time.
+
+## Scope
+
+This module is part of the **ops-hub platform-monorepo**. See
+`aoh-conventions/references/project.md` for the broader monorepo
+shape and how this module fits.

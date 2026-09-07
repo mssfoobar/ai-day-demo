@@ -1,0 +1,81 @@
+name: aoh
+
+include:
+    - ../traefik/compose.yml
+    - ../iams/compose.yml
+
+# Compose wiring for the UNH service. For what UNH is and how it works, see the
+# aoh-knowledge skill (references/services/unh.md).
+
+services:
+    # Postgres for unh-service. The service migrates its own schema on boot
+    # (golang-migrate; repo.ensureSearchPathSchema creates the search_path
+    # schema), so it starts empty — no db-init mount.
+    unh-db:
+        image: postgres:17.0
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 3s
+        environment:
+            - POSTGRES_DB=unh
+            - POSTGRES_USER=${DEV_USER}
+            - POSTGRES_PASSWORD=${DEV_PASSWORD}
+        volumes:
+            - unh-db-volume:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ${DEV_USER} -d unh"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    # unh-service — the Unified Notification Hub REST API (channels, distribution
+    # lists, templates, dispatch), routed at unh.${DEV_DOMAIN}. The notification
+    # admin/authoring UI is an SDK a host app mounts (the aoh-unh-integration
+    # skill), so no unh web service runs here.
+    unh-service:
+        image: ghcr.io/mssfoobar/ops-hub/unh-service:${UNH_SERVICE_TAG}
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 5s
+        environment:
+            - LOG_LEVEL=debug
+            - HTTP_PORT=8080
+            - SQL_HOST=unh-db
+            - SQL_PORT=5432
+            - SQL_USER=${DEV_USER}
+            - SQL_PASSWORD=${DEV_PASSWORD}
+            - SQL_DATABASE_NAME=unh
+            - SQL_SCHEMA_NAME=unh
+            - SQL_SSL_MODE=disable
+            - IAMS_KEYCLOAK_HOST=http://iams-keycloak
+            - IAMS_KEYCLOAK_PORT=8080
+            - IAMS_KEYCLOAK_REALM=aoh
+            - IAMS_KEYCLOAK_CLIENT_ID=unh
+            - IAMS_KEYCLOAK_CLIENT_SECRET=${DEV_PASSWORD}
+            - IAMS_AAS_HOST=http://iams-aas
+            - IAMS_AAS_PORT=8080
+            - AUTHZ_ADMIN_ROLES=unh_admin
+            - AUTHZ_SENDER_ROLES=unh_sender
+            - ENCRYPT_AES_256_KEY=cef394f4929cabbbcf19abb643720be38853fa0c75b677260ceb90245820f496
+            - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+            - OTEL_RESOURCE_ATTRIBUTES=${OTEL_RESOURCE_ATTRIBUTES:-}
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.unh-service.rule=Host(`unh.${DEV_DOMAIN}`)
+            - traefik.http.routers.unh-service.entrypoints=web
+            - traefik.http.routers.unh-service.middlewares=permissive-headers@docker
+            - traefik.http.services.unh-service.loadBalancer.server.port=8080
+        expose:
+            - 8080
+        depends_on:
+            unh-db:
+                condition: service_healthy
+            iams-keycloak:
+                condition: service_healthy
+            iams-aas:
+                condition: service_healthy
+
+volumes:
+    unh-db-volume:

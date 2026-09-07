@@ -1,0 +1,45 @@
+## Local-native dev defaults. Match the `aoh-compose` infra so that a fresh
+## `cp config.yaml.example config.yaml && go run ./cmd/server` works against
+## the composed-up stack on rootful podman with Traefik routing.
+##
+## - sql.user / sql.password come from compose/.env (DEV_USER / DEV_PASSWORD).
+## - sql.database_name is the per-service DB the dev's local Postgres has
+##   created (see compose/postgres/init/*.sql or your equivalent).
+## - iams.keycloak_host points at the Traefik route — works because the
+##   project assumes a rootful podman machine with Traefik bound on :80.
+
+log:
+  level: "debug"
+
+http:
+  port: 8080
+  allowed_origins:
+    - "http://localhost:5173"
+
+sql:
+  host: "localhost"
+  port: 5432
+  user: admin
+  password: P@ssw0rd
+  plugin_name: "postgres"
+  database_name: "__AOH_NAME__"
+  schema_name: "public"
+  max_conns: 10
+  max_idle_conns: 5
+  max_conn_lifetime: "5m"
+  ssl_mode: "disable"
+
+iams:
+  # Traefik route on the host. Works because the AOH platform assumes a
+  # rootful podman machine; Traefik is healthy and binds :80 of the host.
+  # Inside the container, you'd instead set `iams-keycloak` / 8080 (direct
+  # docker DNS) — see compose/<name>/compose.yml.
+  keycloak_host: "http://iams-keycloak.127.0.0.1.nip.io"
+  keycloak_port: 80
+  keycloak_realm: aoh
+  keycloak_client_id: ""
+  keycloak_client_secret: ""
+  # Uncomment only if this service calls the AAS authorization API. Most
+  # services only need Keycloak for JWT validation and don't need AAS.
+  # aas_host: "http://iams-aas.127.0.0.1.nip.io"
+  # aas_port: 80

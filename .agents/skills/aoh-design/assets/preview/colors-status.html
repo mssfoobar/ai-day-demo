@@ -1,0 +1,27 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+  body { padding: 24px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; line-height: 18px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .info     { background: #DBEAFE; color: #1D4ED8; }
+  .info .dot{ background: #3B82F6; }
+  .success  { background: #D1FAE5; color: #047857; }
+  .success .dot{ background: #10B981; }
+  .warning  { background: #FEF3C7; color: #B45309; }
+  .warning .dot{ background: #F59E0B; }
+  .danger   { background: #FEE2E2; color: #B91C1C; }
+  .danger .dot{ background: #EF4444; }
+  .neutral  { background: #F4F4F5; color: #3F3F46; }
+  .neutral .dot{ background: #71717A; }
+  .solid-danger { background: #DC2626; color: #fff; }
+  .ring { box-shadow: 0 0 0 2px #3B82F6, 0 0 0 4px #fff; padding: 8px 14px; border-radius: 6px; background: #F4F4F5; color: #09090B; font-size: 13px; font-weight: 500; }
+</style></head><body>
+  <span class="pill info"><span class="dot"></span>Acknowledged</span>
+  <span class="pill success"><span class="dot"></span>Resolved</span>
+  <span class="pill warning"><span class="dot"></span>Investigating</span>
+  <span class="pill danger"><span class="dot"></span>Critical</span>
+  <span class="pill neutral"><span class="dot"></span>Draft</span>
+  <span class="pill solid-danger">P1 Incident</span>
+  <span class="ring">Focused element</span>
+</body></html>

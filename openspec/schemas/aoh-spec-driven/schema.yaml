@@ -1,0 +1,337 @@
+name: aoh-spec-driven
+version: 1
+description: AOH-flavored spec-driven workflow — proposal → specs → design → tasks → lint → apply, with AOH platform constraints (IAMS-AAS authz, @mssfoobar/ui, response envelope, compose stack, scaffolding skills) baked into per-artifact instructions. The `lint` artifact is a mechanical pre-apply gate that lints every prior artifact — including tasks.md — against known wrong-by-default patterns. Apply requires lint, so the implementing agent never starts against broken assumptions.
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Initial proposal document outlining the change
+    template: proposal.md
+    instruction: |
+      Create the proposal document that establishes WHY this change is needed.
+
+      Sections:
+
+      - **Why**: 1-2 sentences on the problem or opportunity. What problem does
+        this solve? Why now?
+      - **What Changes**: Bullet list of changes. Be specific about new
+        capabilities, modifications, or removals. Mark breaking changes with
+        **BREAKING**.
+      - **Capabilities**: Identify which specs will be created or modified:
+        - **New Capabilities**: kebab-case names, each becomes a new
+          `specs/<name>/spec.md` (e.g., `user-auth`, `data-export`).
+        - **Modified Capabilities**: existing capabilities whose REQUIREMENTS
+          are changing (not implementation details). Each needs a delta spec
+          file. Check `openspec/specs/` for existing names. Leave empty if no
+          requirement changes.
+      - **Existing AOH services considered** (REQUIRED): 2-3 closest candidate
+        services from the platform survey, with one line each on why each was
+        selected, extended, or ruled out. Without this section the proposal is
+        returned to be redone — not patched forward.
+      - **Impact**: Affected code, APIs, dependencies, or systems.
+
+      Before writing What Changes, run a platform-capability survey via the
+      `aoh-knowledge` skill (`references/service-catalogue.md` for the decision
+      tree, `references/services/<svc>.md` for matching candidates). If an
+      existing service covers the capability — even partially — the proposal
+      EXTENDS or CONFIGURES that service rather than introducing a new one.
+      Skipping this is the most common, most costly failure mode in AOH
+      proposals; the "Existing AOH services considered" section above is the
+      workflow gate that makes the survey load-bearing.
+
+      IMPORTANT: The Capabilities section is the contract between proposal and
+      specs phases — each capability becomes a spec file. Research existing
+      specs before filling it in.
+
+      Keep the proposal concise (1-2 pages). Focus on the "why" not the
+      "how" — implementation details belong in design.md.
+
+      AOH-platform defaults that proposals get wrong by default — `iams-aas`
+      vs Keycloak authz attribution, `/v{N}` paths with no `/api` prefix,
+      SDS for session storage, custom-vs-platform-service decisions — are
+      cross-checked by the `lint` artifact (§1, §3, §5). The reasoning and
+      taxonomy live in `aoh-knowledge/services/<svc>.md` and
+      `aoh-conventions/api.md`. Engage those skills before stating defaults;
+      don't re-derive from generic OIDC / REST priors.
+
+      This is the foundation — specs, design, and tasks all build on this.
+    requires: []
+  - id: specs
+    generates: specs/**/*.md
+    description: Detailed specifications for the change
+    template: spec.md
+    instruction: |
+      Create specification files that define WHAT the system should do.
+
+      Create one spec file per capability listed in the proposal's Capabilities
+      section.
+
+      - New capabilities: use the exact kebab-case name from the proposal
+        (specs/<capability>/spec.md).
+      - Modified capabilities: use the existing spec folder name from
+        openspec/specs/<capability>/ when creating the delta spec at
+        specs/<capability>/spec.md.
+
+      Delta operations (use ## headers):
+
+      - **ADDED Requirements**: New capabilities
+      - **MODIFIED Requirements**: Changed behavior — MUST include full updated
+        content
+      - **REMOVED Requirements**: Deprecated features — MUST include **Reason**
+        and **Migration**
+      - **RENAMED Requirements**: Name changes only — use FROM:/TO: format
+
+      Format requirements:
+
+      - Each requirement: `### Requirement: <name>` followed by description
+      - Use SHALL/MUST for normative requirements (avoid should/may)
+      - Each scenario: `#### Scenario: <name>` with WHEN/THEN format
+      - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3
+        hashtags or bullets will fail silently.
+      - Every requirement MUST have at least one scenario.
+
+      MODIFIED requirements workflow:
+
+      1. Locate the existing requirement in openspec/specs/<capability>/spec.md
+      2. Copy the ENTIRE requirement block (from `### Requirement:` through all
+         scenarios)
+      3. Paste under `## MODIFIED Requirements` and edit to reflect new behavior
+      4. Ensure header text matches exactly (whitespace-insensitive)
+
+      Common pitfall: Using MODIFIED with partial content loses detail at
+      archive time. If adding new concerns without changing existing behavior,
+      use ADDED instead. See `templates/spec.md` for the canonical example
+      shape.
+
+      Specs should be testable — each scenario is a potential test case.
+
+      AOH wire-format conventions (response envelope, pagination, OCC,
+      `/v{N}/<resource>` paths) live in `aoh-conventions/api.md`. Authorization
+      attribution (AAS owns roles + permissions; Keycloak issues tokens) lives
+      in `aoh-knowledge/services/iams.md`. The `lint` artifact (§1, §3)
+      catches the common defaults — wrong envelope shape,
+      `active_tenant.permissions` assertions, `/api` prefix, Keycloak-attributed
+      application roles — so the author does not need to memorise the list here.
+    requires:
+      - proposal
+  - id: design
+    generates: design.md
+    description: Technical design document with implementation details
+    template: design.md
+    instruction: |
+      Create the design document that explains HOW to implement the change.
+
+      When to include design.md (create only if any apply):
+
+      - Cross-cutting change (multiple services/modules) or new architectural
+        pattern
+      - New external dependency or significant data model changes
+      - Security, performance, or migration complexity
+      - Ambiguity that benefits from technical decisions before coding
+
+      Sections — required unless marked otherwise:
+
+      - **Context**: Background, current state, constraints, stakeholders. Pull
+        in the platform constraints that shape the design — typically from the
+        `aoh-knowledge` skill (`references/platform-overview.md`,
+        `references/services/<service>.md`) and the `aoh-conventions` skill
+        (`references/api.md`, `references/database.md`, etc.).
+
+        Before proceeding past Context, verify the proposal contains the
+        "Existing AOH services considered" section. If it doesn't, STOP and
+        return the change to the proposal phase — the design must not be the
+        first place a custom-vs-platform-service decision is made.
+      - **Goals / Non-Goals**: What this design achieves and explicitly excludes.
+      - **Runtime dependencies** (REQUIRED): Enumerate every container/service
+        the change touches (databases, IAMS, message brokers, object stores,
+        peer AOH services, Traefik). This list drives the compose section of
+        `tasks.md` — anything missing here will not be composed. When the
+        change uses auth, list `iams-keycloak` and `iams-aas` as SEPARATE
+        entries (never bundled as "IAMS"); their distinct responsibilities are
+        documented in `aoh-knowledge/services/iams.md` and the split is
+        cross-checked by `lint` §1.
+      - **API surface** (REQUIRED): Every new/modified/removed endpoint with
+        method, path, auth posture (BearerAuth / PKCE / unauthenticated), and
+        the fronting SvelteKit gateway route if any. Path conventions
+        (`/v{N}/<resource>`, no `/api` prefix, envelope shape) live in
+        `aoh-conventions/api.md` and are cross-checked by `lint` §3.
+      - **UI / Design System** (REQUIRED when the change touches a user-facing
+        surface; delete this section entirely if backend-only). Acceptance
+        rules — `@mssfoobar/ui` primitives only (no raw HTML / shadcn /
+        hand-rolled Tailwind), tenant-aware tokens, dark-mode parity, and a
+        clickable HTML mockup at
+        `openspec/changes/<change>/design/<surface>-mock.html` — live in the
+        `aoh-design` skill and `aoh-conventions/web.md`. Engage those before
+        writing the section; `lint` §4 cross-checks the output. If the surface
+        is built by a UI-builder skill (a platform SDK for that surface type —
+        e.g. `aoh-dashboard` for a `@mssfoobar/dash-web-sdk` `<Grid>` of widgets)
+        ALSO engage that skill; the design and tasks build on its SDK, not a
+        hand-rolled equivalent.
+      - **Decisions**: Key technical choices with rationale (why X over Y?).
+        Include alternatives considered for each decision.
+      - **Risks / Trade-offs**: Format `[Risk] → Mitigation`.
+      - **Migration Plan**: Steps to deploy, rollback strategy (if applicable).
+      - **Open Questions**: Outstanding decisions or unknowns to resolve.
+
+      Focus on architecture and approach, not line-by-line implementation.
+      Reference the proposal for motivation and specs for requirements.
+
+      AOH-platform defaults that designs get wrong by default — `iams-aas`
+      vs Keycloak authz attribution, SDS for session storage,
+      `/v{N}/<resource>` paths with no `/api` prefix, `@mssfoobar/ui`
+      primitives for web surfaces — are cross-checked by the `lint` artifact
+      (§1, §2, §3, §4). The rationale + taxonomy live in
+      `aoh-knowledge/services/iams.md`, `aoh-knowledge/services/sds.md`,
+      `aoh-conventions/api.md`, `aoh-conventions/web.md`, and the
+      `aoh-design` skill. Engage those skills before writing — don't
+      re-derive from generic OIDC / REST / shadcn priors.
+
+      Good design docs explain the "why" behind technical decisions.
+    requires:
+      - proposal
+  - id: tasks
+    generates: tasks.md
+    description: Implementation checklist with trackable tasks
+    template: tasks.md
+    instruction: |
+      Create the task list that breaks down the implementation work.
+
+      **IMPORTANT: Follow the template structure.** The apply phase parses
+      checkbox format to track progress. Tasks not using `- [ ]` won't be
+      tracked.
+
+      Universal formatting:
+
+      - Group related tasks under `##` numbered headings.
+      - Each task MUST be a checkbox: `- [ ] X.Y Task description`.
+      - Tasks should be small enough to complete in one session.
+      - Order tasks so any runtime dependency is composed up BEFORE the first
+        task that exercises it.
+
+      ─────────────────────────────────────────────────────────────────
+      CHOOSING SECTIONS
+      ─────────────────────────────────────────────────────────────────
+      The template's section types are a MENU, not a recipe. Drop the sections
+      that don't apply, and renumber the remaining ones so they stay 1, 2, 3,
+      … in order. Do NOT keep an empty section and do NOT invent work to fill
+      one.
+
+      | Section | Use when | Driving skill (name in backticks in the task) |
+      |---|---|---|
+      | Scaffold | Introducing a NEW service or app. Skip when extending. | `aoh-go-init` (Go) / `aoh-web-init` (SvelteKit) |
+      | Compose runtime dependencies | Adding/reconfiguring infra (DB, IAMS, broker, object store, peer AOH services). | `aoh-compose` |
+      | Seed / resource creation | Seeding state into external systems (AAS roles, MinIO buckets, RTUS topics, UNH templates, WFE workflows, DB reference rows). | `aoh-knowledge` (`references/services/<svc>.md` for the per-service seed surface) + `aoh-compose` |
+      | Implement `<app-name>` | **One section per app under `apps/` this change touches**, ordered by dependency: producers before consumers. Each app gets its own verification at the end of its section. | `aoh-conventions` (first task); UI tasks also name `aoh-design` AND the mockup path; tasks editing IAMS authz also name `aoh-knowledge` |
+      | End-to-end verification + reproducibility gate | Any change with user-observable behavior. The reproducibility gate (the final task) is conditional on infra being composed — drop it for changes with no infra delta. | — |
+
+      The lint artifact (§7, §8) enforces section ordering and that each
+      "driving skill" appears in backticks; restating the per-skill mapping
+      in prose here would only drift.
+
+      ─────────────────────────────────────────────────────────────────
+      UNIVERSAL CONVENTIONS
+      ─────────────────────────────────────────────────────────────────
+      - Custom application services (anything under `apps/<name>/`) are
+        exercised NATIVELY via `go run` / `pnpm dev` against composed-up infra
+        — NOT by `compose up` of the app service itself.
+      - Every numbered section MUST end with a concrete, runnable verification
+        step naming the exact command. No "verify it works".
+      - Render every compose command in the dual `podman compose <args>
+        (or docker compose <args>)` form — Podman first, Docker as inline
+        fallback.
+      - The reproducibility gate (when present) is a SINGLE task appended to
+        the E2E section — NOT a separate trailing section. It tears infra with
+        `down -v`, brings it back with `up -d`, restarts the native dev
+        processes, and re-runs the SAME E2E command from the previous task.
+
+      Seed artifacts MUST be idempotent and checked in (YAML/JSON consumed by
+      an init container, a DB migration, or a one-shot bootstrap script run by
+      compose). The reproducibility gate depends on every seed artifact
+      converging to the same end state on a fresh `down -v && up -d`. The
+      per-service seed mechanics (which file/endpoint to edit), forbidden
+      defaults (application roles in `realm-import.json`, per-app OIDC clients,
+      ad-hoc cURL as the means of creation), and the `project-aas-init`
+      reconciler pattern are cross-checked by the `lint` artifact (§1, §7, §8,
+      §10) and documented in `aoh-knowledge/services/iams.md`,
+      `aoh-knowledge/keycloak-realm-guide.md`, and the `aoh-compose` skill —
+      consult those before editing seed artifacts; do not infer from generic
+      OIDC / S3 / MQ priors.
+
+      Reference specs for what needs to be built, design for how to build it.
+      Each task should be verifiable — you know when it's done.
+    requires:
+      - specs
+      - design
+  - id: lint
+    generates: lint.md
+    description: Mechanical pre-apply lint over every prior artifact (proposal + design + specs + tasks) to catch wrong-by-default patterns before /opsx:apply starts implementing.
+    template: lint.md
+    instruction: |
+      Lint the full set of assembled artifacts — `proposal.md`, `design.md`,
+      `specs/**/*.md`, AND `tasks.md` — against the known wrong-by-default
+      patterns. Every check in the template is mechanical (string search,
+      structural match, or cross-artifact reference); none require judgment
+      about whether the change is "good." The point is to catch issues
+      that would otherwise only surface during `/opsx:apply` when they cost
+      an order of magnitude more to fix.
+
+      The lint runs AFTER tasks.md is generated so it can lint tasks.md
+      itself — the implementation contract is too important to leave
+      uninspected. Yes, this means an upstream FAIL forces tasks.md
+      regeneration; the alternative (running lint before tasks) leaves the
+      most error-prone artifact unchecked. Tasks regeneration is cheap
+      relative to apply-time debugging.
+
+      Procedure:
+
+      1. For every checkbox in the template, mark it **PASS**, **FAIL**, or
+         **N/A** (with a one-line reason for N/A — typically "no UI surface"
+         or "no auth surface"). Do not leave any item unchecked.
+      2. For **FAIL** items, quote the offending line from the artifact AND
+         name the artifact path (e.g. `design.md:32`,
+         `specs/incident-reporting/spec.md:14`, `tasks.md:47`). Vague FAILs
+         don't help the author fix the artifact.
+      3. If any item is **FAIL**, STOP. Do NOT proceed to `/opsx:apply`.
+         Fix the offending artifact and re-run the lint. If a fix is to an
+         upstream artifact (proposal/design/specs), also regenerate
+         tasks.md before re-linting, since tasks may inherit the broken
+         assumption.
+      4. If every item is **PASS** or **N/A**, the lint has passed. The
+         change is apply-ready.
+
+      The lint's checks are organized by failure family — authorization
+      model, session storage, API contract, UI surfaces, cross-artifact
+      consistency, verification feasibility, tasks structure, skill
+      triggering, native dev env, reproducibility gate. The categories
+      reflect the classes of issue that have historically been caught
+      only at apply time (the JWT permissions claim that doesn't exist,
+      the missing `sds-server` runtime dependency, the `/api/` path
+      prefix, the hand-rolled Button, the spec scenario with no scenario
+      header, the `compose up <app>` that needs a pre-built image, the
+      missing `aoh-conventions` backtick that lets the implementing agent
+      hand-roll). The template documents WHY each check exists and points
+      at the canonical `aoh-knowledge` / `aoh-conventions` reference —
+      when the author hits an unfamiliar **FAIL**, the citation tells
+      them where to read.
+
+      The lint does NOT duplicate the per-artifact rules (SHALL/MUST,
+      `####` scenario headers, kebab-case capability names) that the
+      individual artifact templates+instructions already enforce. It
+      catches cross-artifact mismatches and AOH-platform-specific
+      assumptions that no single template can spot.
+    requires:
+      - proposal
+      - specs
+      - design
+      - tasks
+apply:
+  requires:
+    - lint
+  tracks: tasks.md
+  instruction: |
+    Read context files, work through pending tasks, mark complete as you go.
+    Pause if you hit blockers or need clarification.
+
+    The `lint` artifact MUST be present and every check PASS or N/A before
+    apply starts. If the lint shows any FAIL, fix the cited artifact and
+    re-run the lint — do NOT begin implementation against known-broken
+    upstream assumptions.

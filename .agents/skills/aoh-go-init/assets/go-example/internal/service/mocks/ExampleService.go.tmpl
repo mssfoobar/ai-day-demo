@@ -1,0 +1,56 @@
+package mocks
+
+// TODELETE(scaffold): Delete this file — placeholder mock, overwritten by `make mock`.
+// Kept as a hand-written stub so `go build` works before mockery runs the
+// first time.
+
+import (
+	"context"
+
+	"__AOH_MODULE__/internal/service"
+	"github.com/stretchr/testify/mock"
+)
+
+type ExampleService struct {
+	mock.Mock
+}
+
+type ExampleServiceExpectation struct {
+	mock *ExampleService
+}
+
+func NewExampleService(t interface {
+	mock.TestingT
+	Cleanup(func())
+}) *ExampleService {
+	m := &ExampleService{}
+	m.Mock.Test(t)
+	t.Cleanup(func() { m.AssertExpectations(t) })
+	return m
+}
+
+func (m *ExampleService) EXPECT() *ExampleServiceExpectation {
+	return &ExampleServiceExpectation{mock: m}
+}
+
+func (e *ExampleServiceExpectation) Create(ctx interface{}, in interface{}) *mock.Call {
+	return e.mock.On("Create", ctx, in)
+}
+
+func (e *ExampleServiceExpectation) List(ctx interface{}, in interface{}) *mock.Call {
+	return e.mock.On("List", ctx, in)
+}
+
+func (m *ExampleService) Create(ctx context.Context, in service.CreateExampleInput) (service.Example, error) {
+	args := m.Called(ctx, in)
+	return args.Get(0).(service.Example), args.Error(1)
+}
+
+func (m *ExampleService) List(ctx context.Context, in service.ListExamplesInput) ([]service.Example, int64, error) {
+	args := m.Called(ctx, in)
+	var results []service.Example
+	if v := args.Get(0); v != nil {
+		results = v.([]service.Example)
+	}
+	return results, args.Get(1).(int64), args.Error(2)
+}

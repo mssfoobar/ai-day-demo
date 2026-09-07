@@ -1,0 +1,30 @@
+# AGENTS.md — __AOH_TITLE__
+
+A user-owned Temporal **activity** worker for WFE (scaffolded from the
+`aoh-wfe-worker` skill). It runs the activities a WFE workflow schedules; it is
+not the WFE engine or manager.
+
+## Load-bearing rules
+
+- **Activities only.** The worker runs with `DisableWorkflowWorker` — the mirror
+  of the engine's `LocalActivityWorkerOnly`. Do not register workflows here;
+  workflows live in the WFE workflow-engine.
+- **Two contracts with the engine:** (1) `temporal.task_queue` must match the
+  engine's (default `wfe`); (2) an activity is addressed by its Go **method
+  name**, which is the string a DSL `Activity.Type` (and the `service_activity` /
+  `service_event` registry) uses. Renaming a method is a contract change — mirror
+  it in `sql/seed_catalog.sql`.
+- **Keep activities cancellable.** Long-running activities must heartbeat
+  (`activity.RecordHeartbeat`) and return on `ctx.Done()`, so a workflow can
+  cancel them.
+- **One starter activity + one starter event out of the box.** `HelloWorld` (an
+  activity) and `Timer` (a long-running, cancellable timer event) in
+  `internal/activities/activities.go` are illustrative — events are worker methods
+  too, just catalogued in `service_event`. Replace them with yours, keep them
+  registered in `cmd/worker/main.go`, and seed them.
+
+## Conventions
+
+Standard AOH Go service conventions apply (Viper config, `aoh-golib` logger +
+health + Temporal client, the shipped `.golangci.yml`). The `aoh-conventions`
+skill's `references/go.md` is the source of truth.

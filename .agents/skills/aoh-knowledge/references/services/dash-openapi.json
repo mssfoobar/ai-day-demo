@@ -1,0 +1,2890 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "contact": {}
+    },
+    "paths": {
+        "/category": {
+            "get": {
+                "tags": [
+                    "category"
+                ],
+                "summary": "List categories",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Sort by column,direction",
+                        "name": "sort",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.PaginationResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/internal_service_handler.PaginatedCategoryResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "category"
+                ],
+                "summary": "Create category",
+                "parameters": [
+                    {
+                        "description": "Category data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_service_handler.CreateCategoryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_service_handler.CategoryResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/category/id/{id}": {
+            "get": {
+                "tags": [
+                    "category"
+                ],
+                "summary": "Get category by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Category ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_service_handler.CategoryResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "category"
+                ],
+                "summary": "Delete category by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Category ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.CategoryRowSpecific"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "category"
+                ],
+                "summary": "Update category by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Category ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Category update data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_service_handler.PatchCategoryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_service_handler.CategoryResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/category/name/{name}": {
+            "get": {
+                "tags": [
+                    "category"
+                ],
+                "summary": "Get category by name",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Category name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_service_handler.CategoryResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "category"
+                ],
+                "summary": "Delete category by name",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Category name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/aohhttp.ResponsePayload"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "category"
+                ],
+                "summary": "Update category by name",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Category name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Category update data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_service_handler.PatchCategoryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_service_handler.CategoryResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/dashboard": {
+            "get": {
+                "tags": [
+                    "dashboard"
+                ],
+                "summary": "List dashboards",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Sort by column,direction",
+                        "name": "sort",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.PaginationResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.DashboardRow"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "dashboard"
+                ],
+                "summary": "Create dashboard",
+                "parameters": [
+                    {
+                        "description": "Dashboard data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_service_handler.CreateDashboardWithWidgetsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.DashboardRow"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/dashboard/id/{id}": {
+            "get": {
+                "tags": [
+                    "dashboard"
+                ],
+                "summary": "Get dashboard by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Dashboard ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.DashboardResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "dashboard"
+                ],
+                "summary": "Delete dashboard by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Dashboard ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/aohhttp.ResponsePayload"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "dashboard"
+                ],
+                "summary": "Update dashboard by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Dashboard ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dashboard update data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_service_handler.PatchDashboardRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.DashboardRow"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/dashboard/name/{name}": {
+            "get": {
+                "tags": [
+                    "dashboard"
+                ],
+                "summary": "Get dashboard by name",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Dashboard name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.DashboardResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "dashboard"
+                ],
+                "summary": "Delete dashboard by name",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Dashboard name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/aohhttp.ResponsePayload"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "dashboard"
+                ],
+                "summary": "Update dashboard by name",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Dashboard name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dashboard update data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_service_handler.PatchDashboardRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.DashboardRow"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/dashboard/tag": {
+            "get": {
+                "tags": [
+                    "dashboard-tag"
+                ],
+                "summary": "List dashboard tag mappings",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Sort by column,direction",
+                        "name": "sort",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.PaginationResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.DashboardTagMappingRow"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "dashboard-tag"
+                ],
+                "summary": "Create dashboard tag mapping",
+                "parameters": [
+                    {
+                        "description": "Tag mapping data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_service_handler.CreateDashboardTagMappingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.DashboardTagMappingRow"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/dashboard/tag/dashboard_id/{id}": {
+            "get": {
+                "tags": [
+                    "dashboard-tag"
+                ],
+                "summary": "Get dashboard tag mappings by dashboard ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Dashboard ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/aohhttp.ResponsePayload"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "dashboard-tag"
+                ],
+                "summary": "Create multiple dashboard tag mappings",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Dashboard ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "List of tag IDs",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/aohhttp.ResponsePayload"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "dashboard-tag"
+                ],
+                "summary": "Delete dashboard tag mappings by dashboard ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Dashboard ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/aohhttp.ResponsePayload"
+                        }
+                    }
+                }
+            }
+        },
+        "/dashboard/tag/id/{id}": {
+            "get": {
+                "tags": [
+                    "dashboard-tag"
+                ],
+                "summary": "Get dashboard tag mapping by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Mapping ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.DashboardTagMappingRow"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "dashboard-tag"
+                ],
+                "summary": "Delete dashboard tag mapping by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Mapping ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/aohhttp.ResponsePayload"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "dashboard-tag"
+                ],
+                "summary": "Update dashboard tag mapping by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Mapping ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Mapping update data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_service_handler.PatchDashboardTagMappingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.DashboardTagMappingRow"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/dashboard/user_id/{id}": {
+            "get": {
+                "tags": [
+                    "dashboard"
+                ],
+                "summary": "List dashboards with user favourites",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Sort by column,direction",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by dashboard name (partial match)",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "When true, return only dashboards favourited by the user",
+                        "name": "favourite",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/aohhttp.PaginationResponsePayload"
+                        }
+                    }
+                }
+            }
+        },
+        "/favourite": {
+            "get": {
+                "tags": [
+                    "favourite"
+                ],
+                "summary": "List favourites",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Sort by column,direction",
+                        "name": "sort",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.PaginationResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.FavouriteRow"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "favourite"
+                ],
+                "summary": "Create favourite",
+                "parameters": [
+                    {
+                        "description": "Favourite data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_service_handler.CreateFavouriteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.FavouriteRow"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "favourite"
+                ],
+                "summary": "Delete favourite by composite key",
+                "parameters": [
+                    {
+                        "description": "Favourite composite key",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_service_handler.DeleteFavouriteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/aohhttp.ResponsePayload"
+                        }
+                    }
+                }
+            }
+        },
+        "/favourite/id/{id}": {
+            "get": {
+                "tags": [
+                    "favourite"
+                ],
+                "summary": "Get favourite by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Favourite ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.FavouriteRow"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "favourite"
+                ],
+                "summary": "Delete favourite by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Favourite ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/aohhttp.ResponsePayload"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "favourite"
+                ],
+                "summary": "Update favourite by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Favourite ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Favourite update data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_service_handler.PatchFavouriteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.FavouriteRow"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/health/live": {
+            "get": {
+                "tags": [
+                    "health"
+                ],
+                "summary": "Health check endpoints",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/health/ready": {
+            "get": {
+                "tags": [
+                    "health"
+                ],
+                "summary": "Health check endpoints",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/widget": {
+            "get": {
+                "tags": [
+                    "widget"
+                ],
+                "summary": "List widgets",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Sort by column,direction",
+                        "name": "sort",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.PaginationResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.WidgetRow"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "widget"
+                ],
+                "summary": "Upsert widget",
+                "parameters": [
+                    {
+                        "description": "Widget data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_service_handler.UpsertWidgetRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.WidgetRow"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "widget"
+                ],
+                "summary": "Create widget",
+                "parameters": [
+                    {
+                        "description": "Widget data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_service_handler.CreateWidgetRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.WidgetRow"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/widget/id/{id}": {
+            "get": {
+                "tags": [
+                    "widget"
+                ],
+                "summary": "Get widget by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Widget ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.WidgetRow"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "widget"
+                ],
+                "summary": "Delete widget by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Widget ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/aohhttp.ResponsePayload"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "widget"
+                ],
+                "summary": "Update widget by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Widget ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Widget update data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_service_handler.PatchWidgetRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.WidgetRow"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/widget/shared_config": {
+            "get": {
+                "tags": [
+                    "shared-config"
+                ],
+                "summary": "List shared configs",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Sort by column,direction",
+                        "name": "sort",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.PaginationResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.SharedConfigRow"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "shared-config"
+                ],
+                "summary": "Create shared config",
+                "parameters": [
+                    {
+                        "description": "Shared config data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_service_handler.CreateSharedConfigRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.SharedConfigRow"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/widget/shared_config/id/{id}": {
+            "get": {
+                "tags": [
+                    "shared-config"
+                ],
+                "summary": "Get shared config by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Shared config ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.SharedConfigRow"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "shared-config"
+                ],
+                "summary": "Delete shared config by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Shared config ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/aohhttp.ResponsePayload"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "shared-config"
+                ],
+                "summary": "Update shared config by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Shared config ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Shared config update data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_service_handler.PatchSharedConfigRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.SharedConfigRow"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/widget/shared_config/name/{name}": {
+            "delete": {
+                "tags": [
+                    "shared-config"
+                ],
+                "summary": "Delete shared config by name",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Shared config name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/aohhttp.ResponsePayload"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "shared-config"
+                ],
+                "summary": "Update shared config by name",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Shared config name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Shared config update data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_service_handler.PatchSharedConfigRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.SharedConfigRow"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/widget/type": {
+            "get": {
+                "tags": [
+                    "widget-type"
+                ],
+                "summary": "List widget types",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Sort by column,direction",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter by enabled status",
+                        "name": "enabled",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.PaginationResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.WidgetTypeRow"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "widget-type"
+                ],
+                "summary": "Create widget type",
+                "parameters": [
+                    {
+                        "description": "Widget type data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_service_handler.CreateWidgetTypeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.WidgetTypeRow"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/widget/type/id/{id}": {
+            "get": {
+                "tags": [
+                    "widget-type"
+                ],
+                "summary": "Get widget type by ID or name",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Widget type ID or name",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.WidgetTypeRow"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "widget-type"
+                ],
+                "summary": "Delete widget type by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Widget type ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/aohhttp.ResponsePayload"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "widget-type"
+                ],
+                "summary": "Update widget type by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Widget type ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Widget type update data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_service_handler.PatchWidgetTypeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.WidgetTypeRow"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/widget/type/id/{id}/toggle-enabled": {
+            "patch": {
+                "tags": [
+                    "widget-type"
+                ],
+                "summary": "Toggle widget type enabled status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Widget type ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Enabled status",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_service_handler.ToggleEnabledRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.WidgetTypeRow"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/widget/type/name/{name}": {
+            "delete": {
+                "tags": [
+                    "widget-type"
+                ],
+                "summary": "Delete widget type by name",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Widget type name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/aohhttp.ResponsePayload"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "widget-type"
+                ],
+                "summary": "Update widget type by name",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Widget type name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Widget type update data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_service_handler.PatchWidgetTypeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/aohhttp.ResponsePayload"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.WidgetTypeRow"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "aohhttp.PageResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "number": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "sort": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "total_records": {
+                    "type": "integer"
+                }
+            }
+        },
+        "aohhttp.PaginationResponsePayload": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "message": {
+                    "type": "string"
+                },
+                "page": {
+                    "$ref": "#/definitions/aohhttp.PageResponse"
+                },
+                "sent_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "aohhttp.ResponsePayload": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "message": {
+                    "type": "string"
+                },
+                "sent_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_service_handler.CategoryResponse": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_service_handler.CreateCategoryRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_service_handler.CreateDashboardTagMappingRequest": {
+            "type": "object",
+            "properties": {
+                "dashboard_id": {
+                    "type": "string"
+                },
+                "tag_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_service_handler.CreateDashboardWithWidgetsRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "widgets": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "column": {
+                                "type": "integer",
+                                "minimum": 0
+                            },
+                            "config": {
+                                "type": "array",
+                                "items": {
+                                    "type": "integer"
+                                }
+                            },
+                            "height": {
+                                "type": "integer",
+                                "minimum": 1
+                            },
+                            "row": {
+                                "type": "integer",
+                                "minimum": 0
+                            },
+                            "shared_config_id": {
+                                "type": "string"
+                            },
+                            "widget_type_id": {
+                                "type": "string"
+                            },
+                            "width": {
+                                "type": "integer",
+                                "minimum": 1
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "internal_service_handler.CreateFavouriteRequest": {
+            "type": "object",
+            "required": [
+                "dashboard_id",
+                "user_id"
+            ],
+            "properties": {
+                "dashboard_id": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_service_handler.CreateSharedConfigRequest": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "widget_type_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_service_handler.CreateWidgetRequest": {
+            "type": "object",
+            "properties": {
+                "column": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "config": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "dashboard_id": {
+                    "type": "string"
+                },
+                "height": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "row": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "shared_config_id": {
+                    "type": "string"
+                },
+                "widget_type_id": {
+                    "type": "string"
+                },
+                "width": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            }
+        },
+        "internal_service_handler.CreateWidgetTypeRequest": {
+            "type": "object",
+            "properties": {
+                "category_id": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "max_height": {
+                    "type": "integer"
+                },
+                "max_width": {
+                    "type": "integer"
+                },
+                "min_height": {
+                    "type": "integer"
+                },
+                "min_width": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_service_handler.DeleteFavouriteRequest": {
+            "type": "object",
+            "required": [
+                "dashboard_id",
+                "user_id"
+            ],
+            "properties": {
+                "dashboard_id": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_service_handler.PaginatedCategoryResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_service_handler.PatchCategoryRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_service_handler.PatchDashboardRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "tenant_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_service_handler.PatchDashboardTagMappingRequest": {
+            "type": "object",
+            "properties": {
+                "dashboard_id": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "tag_id": {
+                    "type": "string"
+                },
+                "tenant_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_service_handler.PatchFavouriteRequest": {
+            "type": "object",
+            "required": [
+                "dashboard_id"
+            ],
+            "properties": {
+                "dashboard_id": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_service_handler.PatchSharedConfigRequest": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "widget_type_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_service_handler.PatchWidgetRequest": {
+            "type": "object",
+            "properties": {
+                "column": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "config": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "dashboard_id": {
+                    "type": "string"
+                },
+                "height": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "row": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "shared_config_id": {
+                    "type": "string"
+                },
+                "widget_type_id": {
+                    "type": "string"
+                },
+                "width": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            }
+        },
+        "internal_service_handler.PatchWidgetTypeRequest": {
+            "type": "object",
+            "properties": {
+                "category_id": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "max_height": {
+                    "type": "integer"
+                },
+                "max_width": {
+                    "type": "integer"
+                },
+                "min_height": {
+                    "type": "integer"
+                },
+                "min_width": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_service_handler.ToggleEnabledRequest": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_service_handler.UpsertWidgetRequest": {
+            "type": "object",
+            "properties": {
+                "column": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "config": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "dashboard_id": {
+                    "type": "string"
+                },
+                "height": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "id": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "row": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "shared_config_id": {
+                    "type": "string"
+                },
+                "widget_type_id": {
+                    "type": "string"
+                },
+                "width": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            }
+        },
+        "mssfoobar_dash_internal_model_sqlplugin.CategoryRowSpecific": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "mssfoobar_dash_internal_model_sqlplugin.DashboardResponse": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "favourite": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/mssfoobar_dash_internal_model_sqlplugin.DashboardResponseTag"
+                    }
+                },
+                "widgets": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "column": {
+                                "type": "integer"
+                            },
+                            "config": {
+                                "type": "array",
+                                "items": {
+                                    "type": "integer"
+                                }
+                            },
+                            "height": {
+                                "type": "integer"
+                            },
+                            "id": {
+                                "type": "string"
+                            },
+                            "occ_lock": {
+                                "description": "OccLock must be present so the frontend can echo it back on widget\nupserts — the `set_occ_lock_and_timestamp` trigger rejects UPDATEs\nwhose lock value doesn't match the row's current value. The SQL\naggregate in SELECT_DASHBOARD_WITH_TAGS_BY_*_QUERY returns it; if this\nfield is missing here, Go silently drops it during unmarshaling and\nthe API responds with widgets that have no lock, which breaks save.",
+                                "type": "integer"
+                            },
+                            "path": {
+                                "type": "string"
+                            },
+                            "row": {
+                                "type": "integer"
+                            },
+                            "widget_type_id": {
+                                "type": "string"
+                            },
+                            "width": {
+                                "type": "integer"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "mssfoobar_dash_internal_model_sqlplugin.DashboardResponseTag": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "mssfoobar_dash_internal_model_sqlplugin.DashboardRow": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                }
+            }
+        },
+        "mssfoobar_dash_internal_model_sqlplugin.DashboardTagMappingRow": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "dashboard_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "tag_id": {
+                    "type": "string"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                }
+            }
+        },
+        "mssfoobar_dash_internal_model_sqlplugin.FavouriteRow": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "dashboard_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "mssfoobar_dash_internal_model_sqlplugin.SharedConfigRow": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                },
+                "widget_type_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "mssfoobar_dash_internal_model_sqlplugin.WidgetRow": {
+            "type": "object",
+            "properties": {
+                "column": {
+                    "type": "integer"
+                },
+                "config": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "dashboard_id": {
+                    "type": "string"
+                },
+                "height": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "row": {
+                    "type": "integer"
+                },
+                "shared_config_id": {
+                    "type": "string"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                },
+                "widget_type_id": {
+                    "type": "string"
+                },
+                "width": {
+                    "type": "integer"
+                }
+            }
+        },
+        "mssfoobar_dash_internal_model_sqlplugin.WidgetTypeRow": {
+            "type": "object",
+            "properties": {
+                "category_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "id": {
+                    "description": "Standard fields (but with TEXT id)",
+                    "type": "string"
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "max_height": {
+                    "type": "integer"
+                },
+                "max_width": {
+                    "type": "integer"
+                },
+                "min_height": {
+                    "type": "integer"
+                },
+                "min_width": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "occ_lock": {
+                    "type": "integer"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

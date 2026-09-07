@@ -1,0 +1,44 @@
+package handler
+
+import (
+	"context"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	aohhttp "github.com/mssfoobar/ops-hub/packages/aoh-golib/http"
+	"__AOH_MODULE__/internal/repo"
+)
+
+func getHealthHandler(db *repo.DB) http.Handler {
+	r := chi.NewRouter()
+	// aohhttp.Recoverer, not chi's middleware.Recoverer: chi's writes a bare 500
+	// with a zero-length body, while this one renders the AOH error contract and
+	// logs the panic once with its stack.
+	r.Use(aohhttp.Recoverer)
+	health := aohhttp.NewHealthCheck(r)
+	health.AddReadinessCheck("database", readyCheck(db))
+	health.AddLivenessCheck("liveness check", liveCheck())
+	return r
+}
+
+// @Summary      Readiness check
+// @Tags         Health
+// @Produce      json
+// @Success      200
+// @Router       /readyz [get]
+func readyCheck(db *repo.DB) func() error {
+	return func() error {
+		return db.Ping(context.Background())
+	}
+}
+
+// @Summary      Liveness check
+// @Tags         Health
+// @Produce      json
+// @Success      200
+// @Router       /livez [get]
+func liveCheck() func() error {
+	return func() error {
+		return nil
+	}
+}

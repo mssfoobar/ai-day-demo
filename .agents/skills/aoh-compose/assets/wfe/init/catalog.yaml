@@ -1,0 +1,34 @@
+# OPTIONAL WFE catalog seed.
+#
+# Registers a worker's activities/events with the WFE manager so the designer
+# offers them. Enable the `wfe-init` block in ../compose.yml to apply it.
+#
+# ── Editing ──────────────────────────────────────────────────────────────────
+# The entries below are an EXAMPLE — replace them with YOUR worker's
+# activities/events. Each `type` MUST equal the exported Go method name your
+# worker registers (the engine dispatches on it). `param` is an ORDERED list of
+# single-key {name: sample} objects, one per Go parameter — the sample's TYPE
+# picks the designer widget (string->text, number->number, boolean->true/false,
+# object/array->JSON editor). `result` is an example return value (its type
+# informs downstream variables; error-only methods use null). The aoh-wfe-worker
+# skill scaffolds a worker and documents these shapes.
+#
+# Activities may also set the optional lifecycle defaults (else the DB defaults
+# apply): `timeout_in_second` (300, start-to-close), `heartbeat_timeout_in_second`
+# (60), `maximum_retry` (10 = Temporal max attempts incl. the first). These are
+# baked into a workflow by the designer at save; events run a fixed policy and
+# take none of them.
+
+service_name: workflow-worker
+
+# Activities — service_activity (BPMN activity nodes).
+activities:
+  - { type: HelloWorld, icon: script, param: [{name: ""}], result: "" }
+  # With lifecycle defaults — a slow, single-attempt activity:
+  # - { type: BigExport, icon: service, param: [{path: ""}], result: "",
+  #     timeout_in_second: 1800, heartbeat_timeout_in_second: 120, maximum_retry: 1 }
+
+# Events — service_event (BPMN event nodes). `icon` is an enum_event_icon id
+# (timer1, message1, signal1, error1, …).
+events:
+  - { type: Timer, icon: timer1, param: [{seconds: 0}], result: null }

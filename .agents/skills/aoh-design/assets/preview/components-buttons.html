@@ -1,0 +1,70 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+  body { padding: 24px; background: #fff; }
+  .grid { display: grid; grid-template-columns: 110px 1fr 1fr 1fr; gap: 12px 14px; align-items: center; }
+  .meta  { font-family: var(--font-mono); font-size: 10px; color: #71717A; }
+  .hdr   { font-family: var(--font-mono); font-size: 10px; color: #A1A1AA; text-transform: uppercase; letter-spacing: .04em; padding-bottom: 4px; }
+  /* AOH Size=md symbol: 40h, padding 8 16, label Inter 500 16/24, radius 6 */
+  .btn { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 8px 16px; border-radius: 6px; border: 1px solid transparent; font-family: Inter, system-ui, sans-serif; font-size: 16px; font-weight: 500; line-height: 24px; cursor: default; }
+  /* Filled primary — bg sky-700, NO border */
+  .primary { background: #0369A1; color: #fff; }
+  .primary.hover { background: #035E91; }
+  .primary.dis   { background: #F4F4F5; color: #A1A1AA; }
+  /* Outline-primary — white bg, sky-600 border, sky-600 text (Figma SizeMdTypeOutlinePrimary) */
+  .outline-primary { background: #fff; color: #0284C7; border-color: #0284C7; }
+  .outline-primary.hover { background: #F0F9FF; }
+  .outline-primary.dis   { background: #fff; color: #A1A1AA; border-color: #E5E7EB; }
+  /* Secondary — zinc-100 fill, dark text */
+  .secondary { background: #F4F4F5; color: #18181B; }
+  .secondary.hover { background: #E4E4E7; }
+  .secondary.dis   { background: #F4F4F5; color: #A1A1AA; }
+  /* Outline (default) — white bg, zinc-200 border, dark text */
+  .outline { background: #fff; color: #18181B; border-color: #E4E4E7; box-shadow: 0 1px 2px 0 rgba(16,24,40,.05); }
+  .outline.hover { background: #F1F5F9; }
+  .outline.dis   { background: #fff; color: #A1A1AA; border-color: #E5E7EB; box-shadow: none; }
+  /* Ghost — transparent */
+  .ghost { background: transparent; color: #18181B; }
+  .ghost.hover { background: #F1F5F9; }
+  .ghost.dis   { background: transparent; color: #A1A1AA; }
+  /* Destructive */
+  .destructive { background: #DC2626; color: #fff; }
+  .destructive.hover { background: #B91C1C; }
+  .destructive.dis   { background: #F4F4F5; color: #A1A1AA; }
+
+  .focused { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #0284C7; }
+</style></head><body>
+  <div class="grid">
+    <div></div><div class="hdr">Default</div><div class="hdr">Hover / focus</div><div class="hdr">Disabled</div>
+
+    <span class="meta">primary</span>
+    <span><button class="btn primary">Create</button></span>
+    <span><button class="btn primary focused">Focused</button></span>
+    <span><button class="btn primary dis">Disabled</button></span>
+
+    <span class="meta">outline-primary</span>
+    <span><button class="btn outline-primary">Acknowledge</button></span>
+    <span><button class="btn outline-primary focused">Focused</button></span>
+    <span><button class="btn outline-primary dis">Disabled</button></span>
+
+    <span class="meta">secondary</span>
+    <span><button class="btn secondary">Save draft</button></span>
+    <span><button class="btn secondary hover">Hover</button></span>
+    <span><button class="btn secondary dis">Disabled</button></span>
+
+    <span class="meta">outline</span>
+    <span><button class="btn outline">Cancel</button></span>
+    <span><button class="btn outline hover">Hover</button></span>
+    <span><button class="btn outline dis">Disabled</button></span>
+
+    <span class="meta">ghost</span>
+    <span><button class="btn ghost">Reset</button></span>
+    <span><button class="btn ghost hover">Hover</button></span>
+    <span><button class="btn ghost dis">Disabled</button></span>
+
+    <span class="meta">destructive</span>
+    <span><button class="btn destructive">Delete</button></span>
+    <span><button class="btn destructive hover">Hover</button></span>
+    <span><button class="btn destructive dis">Disabled</button></span>
+  </div>
+</body></html>

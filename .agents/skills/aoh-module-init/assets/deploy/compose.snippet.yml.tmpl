@@ -1,0 +1,51 @@
+# __AOH_MODULE_NAME__ module compose snippet.
+#
+# This is a SKELETON — designed to be included from a hub-level compose
+# stack (e.g., docker compose -f core.yml -f modules/__AOH_MODULE_NAME__/deploy/compose.snippet.yml up).
+# It does not stand alone: it assumes the hub stack provides:
+#
+#   * `iams-keycloak` service on http://iams-keycloak:8080
+#   * a shared user-defined network (override `networks:` below if you
+#     name it differently)
+#
+# Fill in the service-specific env vars + ports as the service grows.
+# See modules/gis/deploy/compose.snippet.yml for a reference.
+
+services:
+  __AOH_MODULE_NAME__-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: __AOH_MODULE_NAME__
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d __AOH_MODULE_NAME__"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  __AOH_MODULE_NAME__-service:
+    build:
+      # Repo-root context so the internalized packages/aoh-golib is in scope;
+      # aoh-golib resolves via the go.mod `replace` directive (no token needed).
+      context: ../../..
+      dockerfile: modules/__AOH_MODULE_NAME__/service/Dockerfile
+    depends_on:
+      __AOH_MODULE_NAME__-db:
+        condition: service_healthy
+    environment:
+      LOG_LEVEL: info
+      HTTP_PORT: 8080
+      SQL_HOST: __AOH_MODULE_NAME__-db
+      SQL_PORT: 5432
+      SQL_USER: postgres
+      SQL_PASSWORD: postgres
+      SQL_DATABASE_NAME: __AOH_MODULE_NAME__
+      SQL_SCHEMA_NAME: __AOH_MODULE_NAME__
+      IAMS_KEYCLOAK_HOST: ${IAMS_KEYCLOAK_HOST:-http://iams-keycloak}
+      IAMS_KEYCLOAK_PORT: ${IAMS_KEYCLOAK_PORT:-8080}
+      IAMS_KEYCLOAK_REALM: ${IAMS_KEYCLOAK_REALM:-aoh}
+      # OpenTelemetry: point at the per-spoke gateway Collector to enable
+      # traces/metrics/logs (unset = no-op). See the otel aoh-compose fragment.
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES:-}

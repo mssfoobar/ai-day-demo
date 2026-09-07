@@ -1,0 +1,251 @@
+name: aoh
+
+# AOH default bundled observability backend: SigNoz.
+# Vendored from SigNoz's upstream `deploy/docker/docker-compose.yaml`
+# (signoz v0.129.0, signoz-otel-collector v0.144.5, ClickHouse 25.5.6,
+# zookeeper 3.7.1). Single-store: ClickHouse holds traces + metrics + logs.
+#
+# Adaptations from upstream:
+#   - joins the shared `aoh` network (name: aoh) — upstream's private
+#     `signoz-net` is dropped so the AOH gateway collector can reach
+#     signoz-otel-collector in-network.
+#   - the SigNoz UI is exposed through Traefik at signoz.${DEV_DOMAIN}
+#     instead of a host 8080 port (matches every other AOH web surface).
+#     UI auth is SigNoz's own built-in accounts + basic RBAC by default (no
+#     Keycloak gate -> no double login); to put it behind platform SSO, add a
+#     Traefik + Keycloak forwardAuth middleware on this route -- opt-in, not the
+#     default. See aoh-conventions > observability (Deployment).
+#   - signoz-otel-collector does NOT publish 4317/4318 to the host — those
+#     belong to the AOH gateway collector (the otel fragment). Apps target
+#     the gateway; the gateway forwards to signoz-otel-collector:4317
+#     in-network (see assets/otel/otel-collector-config.yaml otlp/signoz).
+#   - outbound usage telemetry (phone-home) is disabled on the signoz
+#     service — SIGNOZ_ANALYTICS_ENABLED / TELEMETRY_ENABLED = false.
+#   - config files (ClickHouse XMLs, collector + opamp config) are vendored
+#     alongside this file rather than under a shared common/ dir.
+#
+# Bring-up is heavy (ClickHouse + ZooKeeper + UI + collector + migrator,
+# multi-GB images, plan for ~4 GB RAM headroom, ~1-2 min to healthy).
+# ClickHouse retention is unbounded by default (no TTL, S3 cold-tiering in
+# storage.xml left commented out) — for long-lived spokes set a ClickHouse
+# TTL and watch the signoz-clickhouse volume.
+#
+# AIR-GAP: init-clickhouse fetches the histogram-quantile binary at first run.
+# The download base is overridable via HISTOGRAM_QUANTILE_BASE_URL (default:
+# GitHub releases) — point it at a mirror (Nexus/Harbor) on an air-gapped
+# spoke. The container images themselves must also be mirrored.
+#
+# FIRST-RUN: on a fresh `up`, signoz-otel-collector waits for the schema
+# migrator to finish (depends_on: service_completed_successfully), so it no
+# longer crash-loops while migrations run.
+#
+# FIRST-RUN SETUP IS REQUIRED before any telemetry is ingested. SigNoz gates
+# its collector on an organisation existing: until you create the first
+# account at http://signoz.${DEV_DOMAIN}, the OpAMP server refuses to
+# configure signoz-otel-collector ("cannot create agent without orgId"), so
+# it never opens its OTLP receiver. During that window the AOH gateway logs
+# harmless connection-retry errors and buffers (sending_queue) — telemetry is
+# delivered once you sign up and the collector registers. This is expected.
+
+include:
+    - ../traefik/compose.yml
+
+x-common: &common
+    restart: unless-stopped
+    logging:
+        options:
+            max-size: 50m
+            max-file: "3"
+
+x-clickhouse-defaults: &clickhouse-defaults
+    <<: *common
+    image: clickhouse/clickhouse-server:${CLICKHOUSE_TAG:-25.5.6}
+    tty: true
+    labels:
+        signoz.io/scrape: "true"
+        signoz.io/port: "9363"
+        signoz.io/path: "/metrics"
+    depends_on:
+        init-clickhouse:
+            condition: service_completed_successfully
+        zookeeper-1:
+            condition: service_healthy
+    healthcheck:
+        test:
+            - CMD
+            - wget
+            - --spider
+            - -q
+            - 0.0.0.0:8123/ping
+        interval: 30s
+        timeout: 5s
+        retries: 3
+    ulimits:
+        nproc: 65535
+        nofile:
+            soft: 262144
+            hard: 262144
+    environment:
+        - CLICKHOUSE_SKIP_USER_SETUP=1
+
+x-zookeeper-defaults: &zookeeper-defaults
+    <<: *common
+    image: signoz/zookeeper:3.7.1
+    user: root
+    labels:
+        signoz.io/scrape: "true"
+        signoz.io/port: "9141"
+        signoz.io/path: "/metrics"
+    healthcheck:
+        test:
+            - CMD-SHELL
+            - curl -s -m 2 http://localhost:8080/commands/ruok | grep error | grep null
+        interval: 30s
+        timeout: 5s
+        retries: 3
+
+x-db-depend: &db-depend
+    <<: *common
+    depends_on:
+        clickhouse:
+            condition: service_healthy
+
+services:
+    init-clickhouse:
+        <<: *common
+        image: clickhouse/clickhouse-server:${CLICKHOUSE_TAG:-25.5.6}
+        container_name: signoz-init-clickhouse
+        command:
+            - bash
+            - -c
+            - |
+                version="v0.0.1"
+                node_os=$$(uname -s | tr '[:upper:]' '[:lower:]')
+                node_arch=$$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/)
+                echo "Fetching histogram-binary for $${node_os}/$${node_arch}"
+                cd /tmp
+                wget -O histogram-quantile.tar.gz "$${HISTOGRAM_QUANTILE_BASE_URL}/histogram-quantile%2F$${version}/histogram-quantile_$${node_os}_$${node_arch}.tar.gz"
+                tar -xvzf histogram-quantile.tar.gz
+                mv histogram-quantile /var/lib/clickhouse/user_scripts/histogramQuantile
+        restart: on-failure
+        environment:
+            # Override with an internal mirror for air-gapped spokes.
+            - HISTOGRAM_QUANTILE_BASE_URL=${HISTOGRAM_QUANTILE_BASE_URL:-https://github.com/SigNoz/signoz/releases/download}
+        volumes:
+            - ../signoz/clickhouse/user_scripts:/var/lib/clickhouse/user_scripts/
+
+    zookeeper-1:
+        <<: *zookeeper-defaults
+        container_name: signoz-zookeeper-1
+        volumes:
+            - zookeeper-1:/bitnami/zookeeper
+        environment:
+            - ZOO_SERVER_ID=1
+            - ALLOW_ANONYMOUS_LOGIN=yes
+            - ZOO_AUTOPURGE_INTERVAL=1
+            - ZOO_ENABLE_PROMETHEUS_METRICS=yes
+            - ZOO_PROMETHEUS_METRICS_PORT_NUMBER=9141
+
+    clickhouse:
+        <<: *clickhouse-defaults
+        container_name: signoz-clickhouse
+        volumes:
+            - ../signoz/clickhouse/config.xml:/etc/clickhouse-server/config.xml
+            - ../signoz/clickhouse/users.xml:/etc/clickhouse-server/users.xml
+            - ../signoz/clickhouse/custom-function.xml:/etc/clickhouse-server/custom-function.xml
+            - ../signoz/clickhouse/user_scripts:/var/lib/clickhouse/user_scripts/
+            - ../signoz/clickhouse/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml
+            - clickhouse:/var/lib/clickhouse/
+            # - ../signoz/clickhouse/storage.xml:/etc/clickhouse-server/config.d/storage.xml
+
+    signoz:
+        <<: *db-depend
+        image: signoz/signoz:${SIGNOZ_VERSION:-v0.129.0}
+        container_name: signoz
+        volumes:
+            - sqlite:/var/lib/signoz/
+        environment:
+            - SIGNOZ_ALERTMANAGER_PROVIDER=signoz
+            - SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN=tcp://clickhouse:9000
+            - SIGNOZ_SQLSTORE_SQLITE_PATH=/var/lib/signoz/signoz.db
+            - SIGNOZ_TOKENIZER_JWT_SECRET=${SIGNOZ_JWT_SECRET:-secret}
+            # Disable SigNoz's outbound usage telemetry (air-gap friendly).
+            # SIGNOZ_ANALYTICS_ENABLED is the current key;
+            # TELEMETRY_ENABLED is the back-compat alias.
+            - SIGNOZ_ANALYTICS_ENABLED=false
+            - TELEMETRY_ENABLED=false
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.signoz.rule=Host(`signoz.${DEV_DOMAIN}`)
+            - traefik.http.routers.signoz.entrypoints=web
+            - traefik.http.routers.signoz.middlewares=permissive-headers@docker
+            - traefik.http.services.signoz.loadBalancer.server.port=8080
+        healthcheck:
+            test:
+                - CMD
+                - wget
+                - --spider
+                - -q
+                - localhost:8080/api/v1/health
+            interval: 30s
+            timeout: 5s
+            retries: 3
+
+    signoz-otel-collector:
+        <<: *db-depend
+        image: signoz/signoz-otel-collector:${SIGNOZ_OTELCOL_TAG:-v0.144.5}
+        container_name: signoz-otel-collector
+        # Override *db-depend's clickhouse-only depends_on: also wait for the
+        # schema migrator to finish, so the collector's `migrate sync check`
+        # doesn't lose the race and crash-loop on first up.
+        depends_on:
+            clickhouse:
+                condition: service_healthy
+            signoz-telemetrystore-migrator:
+                condition: service_completed_successfully
+        entrypoint:
+            - /bin/sh
+        command:
+            - -c
+            - |
+                /signoz-otel-collector migrate sync check &&
+                /signoz-otel-collector --config=/etc/otel-collector-config.yaml --manager-config=/etc/manager-config.yaml --copy-path=/var/tmp/collector-config.yaml
+        volumes:
+            - ../signoz/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+            - ../signoz/signoz/otel-collector-opamp-config.yaml:/etc/manager-config.yaml
+        environment:
+            - OTEL_RESOURCE_ATTRIBUTES=host.name=signoz-host,os.type=linux
+            - LOW_CARDINAL_EXCEPTION_GROUPING=false
+            - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_DSN=tcp://clickhouse:9000
+            - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_CLUSTER=cluster
+            - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_REPLICATION=true
+            - SIGNOZ_OTEL_COLLECTOR_TIMEOUT=10m
+        # No host ports — the AOH gateway collector (otel fragment) owns
+        # 4317/4318 on the host. The gateway forwards here in-network.
+
+    signoz-telemetrystore-migrator:
+        <<: *db-depend
+        image: signoz/signoz-otel-collector:${SIGNOZ_OTELCOL_TAG:-v0.144.5}
+        container_name: signoz-telemetrystore-migrator
+        environment:
+            - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_DSN=tcp://clickhouse:9000
+            - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_CLUSTER=cluster
+            - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_REPLICATION=true
+            - SIGNOZ_OTEL_COLLECTOR_TIMEOUT=10m
+        entrypoint:
+            - /bin/sh
+        command:
+            - -c
+            - |
+                /signoz-otel-collector migrate bootstrap &&
+                /signoz-otel-collector migrate sync up &&
+                /signoz-otel-collector migrate async up
+        restart: on-failure
+
+volumes:
+    clickhouse:
+        name: signoz-clickhouse
+    sqlite:
+        name: signoz-sqlite
+    zookeeper-1:
+        name: signoz-zookeeper-1

@@ -1,0 +1,55 @@
+# `__AOH_MODULE_NAME__` module
+
+__AOH_MODULE_DESCRIPTION__
+
+An ops-hub feature module: Go backend service, typed REST client,
+TypeScript types, and Svelte SDK colocated for atomic cross-package
+changes.
+
+## Packages
+
+| Package | Path | Purpose |
+|---|---|---|
+| `__AOH_MODULE_NAME__-service` | `service/` | Go service (the backend) — see `service/README.md` |
+| `@mssfoobar/__AOH_MODULE_NAME__-types` | `types/` | TypeScript mirrors of the wire DTOs |
+| `@mssfoobar/__AOH_MODULE_NAME__-client` | `client/` | Typed `fetch`-based REST client |
+| `@mssfoobar/__AOH_MODULE_NAME__-web-sdk` | `web/` | Svelte UI components / providers |
+
+Plus operational artifacts:
+
+| Artifact | Path | Purpose |
+|---|---|---|
+| Compose snippet | `deploy/compose.snippet.yml` | Hub-stack include for the Go service + its DB |
+
+## Architecture
+
+Consumer apps depend on the SDK; the SDK depends on the client; the
+client depends on the types; the service runs independently:
+
+```
+consumer apps
+    │
+    ▼
+@mssfoobar/__AOH_MODULE_NAME__-web-sdk        (Svelte components, providers)
+    │
+    ▼
+@mssfoobar/__AOH_MODULE_NAME__-client     (typed fetch wrapper)
+    │
+    ▼  HTTP/JSON
+__AOH_MODULE_NAME__-service               (Go, chi + sqlx)
+    │
+    ▼  SQL
+Postgres
+```
+
+The TS-side dependency chain is one-way: `web → client → types`.
+`types` is consumed by the client and re-exported through the SDK.
+`service` has no dependency on the TS packages — it's the runtime, the
+TS side is the consumption surface.
+
+## Where to start as a contributor
+
+* Backend feature: `service/AGENTS.md` (agent rules + conventions)
+* Wire types: edit `service/internal/dto/*.go` + `types/src/index.ts` in lockstep
+* Operational change: `deploy/compose.snippet.yml`
+* UI components: `web/`

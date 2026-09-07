@@ -1,0 +1,34 @@
+admin_roles:
+  - "form_admin"
+
+log:
+  level: "debug"
+
+http:
+  port: 8080
+  allowed_origins:
+    - "*"
+
+sql:
+  host: "form-db"
+  port: 5432
+  plugin_name: "postgres"
+  database_name: "form"
+  schema_name: "public"
+  max_conns: 10
+  max_idle_conns: 5
+  max_conn_lifetime: "5m"
+  ssl_mode: "disable"
+
+iams:
+  keycloak_host: "http://iams-keycloak"
+  keycloak_port: 8080
+  keycloak_realm: aoh
+  aas_host: "http://iams-aas"
+  aas_port: 8080
+
+amm:
+  host: "http://amm-app"
+  port: 8080
+  hard_delete: true
+  stale_duration: 12h

@@ -1,0 +1,660 @@
+{
+  "openapi" : "3.0.3",
+  "info" : {
+    "title" : "Keycloak Multi-Tenancy",
+    "version" : "1.5.1"
+  },
+  "servers" : [ {
+    "url" : "{{keycloakUrl}}/realms/{{realmName}}"
+  } ],
+  "paths" : {
+    "/password-resources/reset-password" : {
+      "post" : {
+        "summary" : "Reset password if the current password is valid. Requires a valid access token of the user in the Authorization header.",
+        "operationId" : "resetPassword",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PasswordResetRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Ok"
+          },
+          "401" : {
+            "description" : "Unauthorized"
+          }
+        }
+      }
+    },
+    "/password-resources/validate-password" : {
+      "post" : {
+        "summary" : "Validate if password is valid. Requires a valid access token of the user in the Authorization header.",
+        "operationId" : "validatePassword",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PasswordValidationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Ok",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PasswordValidationResponse"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Unauthorized"
+          }
+        }
+      }
+    },
+    "/totp-resources/generate" : {
+      "get" : {
+        "summary" : "Generates a new TOTP secret and QR code for a user.",
+        "operationId" : "generateTOTP",
+        "responses" : {
+          "200" : {
+            "description" : "Ok",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GenerateTOTPResponse"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Unauthorized"
+          }
+        }
+      }
+    },
+    "/totp-resources/register" : {
+      "post" : {
+        "summary" : "Registers a TOTP credential for a user.",
+        "operationId" : "registerTOTP",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterTOTPCredentialRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created"
+          },
+          "400" : {
+            "description" : "Bad request"
+          },
+          "401" : {
+            "description" : "Unauthorized"
+          },
+          "409" : {
+            "description" : "Conflict"
+          },
+          "500" : {
+            "description" : "Internal Server Error."
+          }
+        }
+      }
+    },
+    "/totp-resources/verify" : {
+      "post" : {
+        "summary" : "Verifies a TOTP code for a user.",
+        "operationId" : "verifyTOTP",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/VerifyTOTPRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Ok"
+          },
+          "400" : {
+            "description" : "Bad request"
+          },
+          "401" : {
+            "description" : "Unauthorized"
+          }
+        }
+      }
+    },
+    "/user-security-resources/backfill-last-login" : {
+      "get" : {
+        "summary" : "Backfill lastLogin attribute based on login event logs. Can specify whether to backfill with account creation date if event missing.",
+        "operationId" : "backfillLastLogin",
+        "responses" : {
+          "200" : {
+            "description" : "Ok"
+          }
+        }
+      }
+    },
+    "/user-security-resources/disable-notification" : {
+      "get" : {
+        "summary" : "Send email notifications to users with pending disable notifications.",
+        "operationId" : "sendDisableNotifications",
+        "responses" : {
+          "200" : {
+            "description" : "Ok",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DisableNotificationResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "SMTP not configured"
+          }
+        }
+      }
+    },
+    "/user-security-resources/inactivity-disabling" : {
+      "get" : {
+        "summary" : "Disable inactive user account that exceeds the configured inactivity period.",
+        "operationId" : "inactivityDisabling",
+        "responses" : {
+          "200" : {
+            "description" : "Ok"
+          }
+        }
+      }
+    },
+    "/user-security-resources/inactivity-reminder" : {
+      "get" : {
+        "summary" : "Send email reminders to users approaching the inactivity disable threshold. Note that this endpoint does not support concurrent invocation.",
+        "operationId" : "sendInactivityReminders",
+        "responses" : {
+          "200" : {
+            "description" : "Ok",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InactivityReminderResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "SMTP not configured or inactivity checking not enabled"
+          }
+        }
+      }
+    },
+    "/user-security-resources/password-expiry-disabling" : {
+      "get" : {
+        "summary" : "Disabling account that password expiry exceeded the configured grace period.",
+        "operationId" : "passwordExpiryDisabling",
+        "responses" : {
+          "200" : {
+            "description" : "Ok"
+          }
+        }
+      }
+    },
+    "/user-security-resources/users" : {
+      "get" : {
+        "summary" : "List security status of the user. Require Access Token with admin right.",
+        "operationId" : "listUserSecurityInfo",
+        "parameters" : [ {
+          "name" : "page",
+          "in" : "query",
+          "description" : "Pagination offset",
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "description" : "Maximum results size (defaults to 100)",
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/UserSecurityInfoRepresentation"
+                  }
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "Unauthorized"
+          },
+          "403" : {
+            "description" : "Forbidden"
+          }
+        }
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "DisableNotificationResponse" : {
+        "type" : "object",
+        "properties" : {
+          "total" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sent" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "failed" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "skipped" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "failures" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/NotificationFailure"
+            }
+          }
+        }
+      },
+      "GenerateTOTPResponse" : {
+        "type" : "object",
+        "properties" : {
+          "encodedSecret" : {
+            "description" : "Encoded secret.",
+            "type" : "string",
+            "readOnly" : true
+          },
+          "qrCode" : {
+            "description" : "Base64-encoded image of the QR Code.",
+            "type" : "string",
+            "readOnly" : true
+          }
+        }
+      },
+      "GroupDefinition" : {
+        "description" : "Group definition for permission assignment",
+        "required" : [ "id" ],
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "description" : "Group ID",
+            "type" : "string"
+          },
+          "extendChildren" : {
+            "description" : "Whether to extend permission to child groups",
+            "type" : "boolean"
+          }
+        }
+      },
+      "GroupPermissionUpdateRequest" : {
+        "description" : "Request to update group-based permissions for a resource scope",
+        "required" : [ "groups" ],
+        "type" : "object",
+        "properties" : {
+          "groups" : {
+            "description" : "Set of group definitions to grant permission",
+            "uniqueItems" : true,
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/GroupDefinition"
+            }
+          }
+        }
+      },
+      "InactivityReminderResponse" : {
+        "type" : "object",
+        "properties" : {
+          "total" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sent" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "failed" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "skipped" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "failures" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ReminderFailure"
+            }
+          }
+        }
+      },
+      "NotificationFailure" : {
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          },
+          "error" : {
+            "type" : "string"
+          }
+        }
+      },
+      "PasswordResetRequest" : {
+        "required" : [ "currentPassword", "newPassword" ],
+        "type" : "object",
+        "properties" : {
+          "currentPassword" : {
+            "description" : "current password.",
+            "type" : "string"
+          },
+          "newPassword" : {
+            "description" : "new password.",
+            "type" : "string"
+          }
+        }
+      },
+      "PasswordValidationRequest" : {
+        "required" : [ "password" ],
+        "type" : "object",
+        "properties" : {
+          "password" : {
+            "description" : "Password to validate.",
+            "type" : "string"
+          }
+        }
+      },
+      "PasswordValidationResponse" : {
+        "type" : "object",
+        "properties" : {
+          "valid" : {
+            "description" : "true if valid, false otherwise.",
+            "type" : "boolean",
+            "readOnly" : true
+          }
+        }
+      },
+      "RegisterTOTPCredentialRequest" : {
+        "required" : [ "deviceName", "encodedSecret", "initialCode", "overwrite" ],
+        "type" : "object",
+        "properties" : {
+          "deviceName" : {
+            "description" : "Name of the device.",
+            "pattern" : "\\S",
+            "type" : "string"
+          },
+          "encodedSecret" : {
+            "description" : "Encoded secret.",
+            "pattern" : "\\S",
+            "type" : "string"
+          },
+          "initialCode" : {
+            "description" : "Initial TOTP code generated by OTP Client.",
+            "pattern" : "\\S",
+            "type" : "string"
+          },
+          "overwrite" : {
+            "description" : "Whether to replace existing TOTP credential.",
+            "type" : "boolean"
+          }
+        }
+      },
+      "ReminderFailure" : {
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          },
+          "error" : {
+            "type" : "string"
+          }
+        }
+      },
+      "RoleDefinition" : {
+        "description" : "Role definition for permission assignment",
+        "required" : [ "id" ],
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "description" : "Role ID",
+            "type" : "string"
+          },
+          "required" : {
+            "description" : "Whether the role is required",
+            "type" : "boolean"
+          }
+        }
+      },
+      "RolePermissionUpdateRequest" : {
+        "description" : "Request to update role-based permissions for a resource scope",
+        "required" : [ "roles" ],
+        "type" : "object",
+        "properties" : {
+          "roles" : {
+            "description" : "Set of role definitions to grant permission",
+            "uniqueItems" : true,
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/RoleDefinition"
+            }
+          }
+        }
+      },
+      "TenantMembershipRepresentation" : {
+        "required" : [ "user", "roles" ],
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "readOnly" : true
+          },
+          "user" : {
+            "type" : "object",
+            "properties" : {
+              "id" : {
+                "type" : "string"
+              },
+              "createdTimestamp" : {
+                "type" : "number"
+              },
+              "username" : {
+                "type" : "string"
+              },
+              "enabled" : {
+                "type" : "boolean"
+              },
+              "firstName" : {
+                "type" : "string"
+              },
+              "lastName" : {
+                "type" : "string"
+              },
+              "email" : {
+                "type" : "string"
+              },
+              "emailVerified" : {
+                "type" : "boolean"
+              },
+              "federationLink" : {
+                "type" : "string"
+              }
+            }
+          },
+          "tenant" : {
+            "type" : "object",
+            "allOf" : [ {
+              "$ref" : "#/components/schemas/TenantRepresentation"
+            } ],
+            "readOnly" : true
+          },
+          "roles" : {
+            "uniqueItems" : true,
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "TenantRepresentation" : {
+        "required" : [ "name" ],
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "readOnly" : true
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "realm" : {
+            "type" : "string",
+            "readOnly" : true
+          }
+        }
+      },
+      "UserPermissionUpdateRequest" : {
+        "description" : "Request to update user-based permissions for a resource scope",
+        "required" : [ "users" ],
+        "type" : "object",
+        "properties" : {
+          "users" : {
+            "description" : "Set of user IDs to grant permission",
+            "uniqueItems" : true,
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "UserSecurityInfoRepresentation" : {
+        "type" : "object",
+        "properties" : {
+          "userId" : {
+            "type" : "string",
+            "readOnly" : true
+          },
+          "username" : {
+            "type" : "string",
+            "readOnly" : true
+          },
+          "firstName" : {
+            "type" : "string",
+            "readOnly" : true
+          },
+          "lastName" : {
+            "type" : "string",
+            "readOnly" : true
+          },
+          "email" : {
+            "type" : "string",
+            "readOnly" : true
+          },
+          "enabled" : {
+            "type" : "boolean",
+            "readOnly" : true
+          },
+          "lastLoginTimestamp" : {
+            "format" : "int64",
+            "type" : "integer",
+            "readOnly" : true
+          },
+          "lastPasswordChangeTimestamp" : {
+            "format" : "int64",
+            "type" : "integer",
+            "readOnly" : true
+          },
+          "passwordExpiryRemainingDays" : {
+            "format" : "int64",
+            "type" : "integer",
+            "readOnly" : true
+          },
+          "emailVerified" : {
+            "type" : "boolean",
+            "readOnly" : true
+          },
+          "attributes" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            },
+            "readOnly" : true
+          },
+          "createdTimestamp" : {
+            "format" : "int64",
+            "type" : "integer",
+            "readOnly" : true
+          },
+          "totp" : {
+            "type" : "boolean",
+            "readOnly" : true
+          },
+          "requiredActions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "readOnly" : true
+          }
+        }
+      },
+      "VerifyTOTPRequest" : {
+        "required" : [ "deviceName", "code" ],
+        "type" : "object",
+        "properties" : {
+          "deviceName" : {
+            "description" : "Device Name.",
+            "type" : "string"
+          },
+          "code" : {
+            "description" : "TOTP Code.",
+            "type" : "string"
+          }
+        }
+      }
+    }
+  }
+}

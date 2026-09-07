@@ -1,0 +1,16 @@
+module __AOH_MODULE__
+
+go 1.25.0
+
+// Standalone WFE activity worker: aoh-golib is a normal registry dependency
+// (no local `replace` — this is a self-contained module). Run `go mod tidy`
+// after scaffolding to populate the indirect requirements + go.sum.
+require (
+	github.com/go-chi/chi/v5 v5.2.5
+	github.com/mssfoobar/ops-hub/packages/aoh-golib v0.2.0
+	github.com/spf13/pflag v1.0.10
+	github.com/spf13/viper v1.21.0
+	github.com/stretchr/testify v1.11.1
+	go.temporal.io/sdk v1.34.0
+	go.uber.org/zap v1.28.0
+)

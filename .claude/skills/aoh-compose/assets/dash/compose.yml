@@ -1,0 +1,98 @@
+name: aoh
+
+include:
+    - ../traefik/compose.yml
+    - ../iams/compose.yml
+
+services:
+    dash-db:
+        image: postgres:17.0
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 3s
+        environment:
+            - POSTGRES_DB=dash
+            - POSTGRES_USER=${DEV_USER}
+            - POSTGRES_PASSWORD=${DEV_PASSWORD}
+        volumes:
+            - dash-db-volume:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ${DEV_USER} -d dash"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    dash-service:
+        image: ghcr.io/mssfoobar/ops-hub/dash-service:${DASH_SERVICE_TAG}
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 5s
+        environment:
+            - LOG_LEVEL=debug
+            - APP_PORT=8080
+            - SQL_HOST=dash-db
+            - SQL_PORT=5432
+            - SQL_DATABASE_NAME=dash
+            - SQL_SCHEMA=dash
+            - SQL_USER=${DEV_USER}
+            - SQL_PASSWORD=${DEV_PASSWORD}
+            - SQL_PLUGIN_NAME=postgresql
+            - SQL_SSL_MODE=disable
+            - IAM_URL=http://iams-keycloak:8080/realms/aoh
+            # Export to the core gateway OTEL collector (aoh-golib/otel reads these);
+            # safe no-op if the endpoint is unreachable.
+            - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+            - OTEL_RESOURCE_ATTRIBUTES=${OTEL_RESOURCE_ATTRIBUTES:-}
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.dash-service.rule=Host(`dash.${DEV_DOMAIN}`)
+            - traefik.http.routers.dash-service.entrypoints=web
+            - traefik.http.routers.dash-service.middlewares=permissive-headers@docker
+            - traefik.http.services.dash-service.loadBalancer.server.port=8080
+        depends_on:
+            # service_healthy (not service_started): dash-service runs its schema
+            # migrations on startup (golang-migrate; it CREATEs the schema too) and
+            # FATAL-exits if dash-db isn't accepting connections yet — wait for the
+            # DB healthcheck. It bootstraps its own schema, so there is no db-init.
+            dash-db:
+                condition: service_healthy
+            iams-keycloak:
+                condition: service_healthy
+
+    # ── OPTIONAL dashboard seed (off by default) ─────────────────────────────
+    # Provisions dashboards from ./init/dashboard.yaml BEFORE first use, so they
+    # exist on a fresh `down -v && up`. NOT needed when dashboards are created by
+    # an admin in the UI at runtime — leave this commented (and you may delete
+    # the ./init dir). See ./init/README.md.
+    #
+    # To enable: uncomment the whole `dash-init` block below. It then runs on
+    # EVERY `compose up` (no profile), idempotently — re-runs and fresh stacks
+    # converge to the same dashboards, exactly like project-aas-init.
+    #
+    # dash-init:
+    #     build:
+    #         context: ../dash/init
+    #     restart: on-failure
+    #     environment:
+    #         IAM_ENDPOINT: http://iams-keycloak:8080
+    #         IAM_REALM: aoh
+    #         IAM_CLIENT_ID: iams
+    #         IAMS_AAS_ENDPOINT: http://iams-aas:8080
+    #         DASH_URL: http://dash-service:8080
+    #         SEED_TENANT: development
+    #         DEV_USER: ${DEV_USER}
+    #         DEV_PASSWORD: ${DEV_PASSWORD}
+    #     depends_on:
+    #         dash-service:
+    #             condition: service_started
+    #         iams-keycloak:
+    #             condition: service_healthy
+    #         # The seed authenticates as the dev user, whose tenant membership
+    #         # (→ active_tenant) is created by iams-init.
+    #         iams-init:
+    #             condition: service_completed_successfully
+
+volumes:
+    dash-db-volume:

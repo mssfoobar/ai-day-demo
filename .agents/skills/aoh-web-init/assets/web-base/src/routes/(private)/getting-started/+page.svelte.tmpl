@@ -1,0 +1,38 @@
+<svelte:options runes={true} />
+
+<!--
+  Worked example: composes @mssfoobar/ui primitives (Card + Button) by subpath.
+  Every visual primitive in AOH apps comes from @mssfoobar/ui — see
+  references/web.md ("UI primitives come exclusively from `@mssfoobar/ui`").
+  Inventory: `cat node_modules/@mssfoobar/ui/package.json | jq .exports`.
+-->
+
+<script lang="ts">
+	import { resolve } from '$app/paths';
+	import { Button } from '@mssfoobar/ui/button';
+	import {
+		Card,
+		CardContent,
+		CardDescription,
+		CardHeader,
+		CardTitle
+	} from '@mssfoobar/ui/card';
+
+	let { data } = $props();
+</script>
+
+<section class="mx-auto max-w-3xl space-y-4 p-8">
+	<Card>
+		<CardHeader>
+			<CardTitle>Welcome to {APP_NAME}</CardTitle>
+			<CardDescription>
+				Signed in as <span class="font-medium"
+					>{data.user?.preferred_username ?? data.user?.sub ?? 'unknown'}</span
+				>.
+			</CardDescription>
+		</CardHeader>
+		<CardContent class="flex gap-2">
+			<Button variant="outline" href={resolve('/aoh/api/auth/logout')}>Logout</Button>
+		</CardContent>
+	</Card>
+</section>

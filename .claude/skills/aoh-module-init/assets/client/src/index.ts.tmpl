@@ -1,0 +1,52 @@
+// @mssfoobar/__AOH_MODULE_NAME__-client
+//
+// Typed REST client for the __AOH_MODULE_NAME__-service backend.
+//
+// **Design**: thin wrapper around `fetch`, typed via
+// `@mssfoobar/__AOH_MODULE_NAME__-types`. No runtime dependencies — bring your own
+// fetch (browser, node 18+, undici, etc.).
+//
+// **Authentication**: pass a `getToken` callback to `create__AOH_PASCAL_NAME__Client`.
+// It's invoked on every request — implementations can return a cached
+// bearer token or refresh on demand.
+//
+// Skeleton — fill in resource APIs as the service grows. See
+// modules/gis/client/src/index.ts for a worked reference.
+
+export class __AOH_PASCAL_NAME__HttpError extends Error {
+	readonly status: number;
+	readonly body: unknown;
+
+	constructor(status: number, body: unknown, message?: string) {
+		super(message ?? `__AOH_MODULE_NAME__-client: HTTP ${status}`);
+		this.name = "__AOH_PASCAL_NAME__HttpError";
+		this.status = status;
+		this.body = body;
+	}
+}
+
+export interface __AOH_PASCAL_NAME__ClientConfig {
+	baseUrl: string;
+	getToken: () => Promise<string> | string;
+	fetch?: typeof fetch;
+}
+
+export interface __AOH_PASCAL_NAME__Client {
+	// Add resource APIs here as endpoints land.
+	// e.g.
+	//   widgets: WidgetApi;
+}
+
+export function create__AOH_PASCAL_NAME__Client(
+	cfg: __AOH_PASCAL_NAME__ClientConfig,
+): __AOH_PASCAL_NAME__Client {
+	const doFetch = cfg.fetch ?? globalThis.fetch;
+	if (!doFetch) {
+		throw new Error(
+			"__AOH_MODULE_NAME__-client: fetch is not available; pass `fetch` in config",
+		);
+	}
+	// Suppress unused-var lint while the resource APIs are stubs.
+	void cfg;
+	return {};
+}

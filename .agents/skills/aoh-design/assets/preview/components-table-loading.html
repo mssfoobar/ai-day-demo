@@ -1,0 +1,29 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_table.css">
+<style>
+  .skel { display: inline-block; height: 12px; background: linear-gradient(90deg,#F1F5F9,#E2E8F0,#F1F5F9); background-size: 200% 100%; border-radius: 3px; animation: shimmer 1.4s linear infinite; vertical-align: middle; }
+  .skel-sm { width: 70px; }
+  .skel-md { width: 130px; }
+  .skel-lg { width: 200px; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+</style></head>
+<body>
+  <div class="label">Loading skeleton · shimmer placeholders match final row layout</div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:36px;"><span class="check"></span></th>
+        <th>Name</th>
+        <th>Status</th>
+        <th>Owner</th>
+        <th>Last modified</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><span class="check"></span></td><td><span class="skel skel-lg"></span></td><td><span class="skel skel-sm"></span></td><td><span class="skel skel-sm"></span></td><td><span class="skel skel-md"></span></td></tr>
+      <tr><td><span class="check"></span></td><td><span class="skel skel-md"></span></td><td><span class="skel skel-sm"></span></td><td><span class="skel skel-sm"></span></td><td><span class="skel skel-md"></span></td></tr>
+      <tr><td><span class="check"></span></td><td><span class="skel skel-lg"></span></td><td><span class="skel skel-sm"></span></td><td><span class="skel skel-sm"></span></td><td><span class="skel skel-md"></span></td></tr>
+      <tr><td><span class="check"></span></td><td><span class="skel skel-md"></span></td><td><span class="skel skel-sm"></span></td><td><span class="skel skel-sm"></span></td><td><span class="skel skel-md"></span></td></tr>
+    </tbody>
+  </table>
+</body></html>

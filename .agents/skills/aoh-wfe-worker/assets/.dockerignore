@@ -1,0 +1,11 @@
+.secrets/
+secrets
+*.env
+.git/
+.idea
+.vscode/
+logs
+.bin
+bin/
+coverage.out
+config.yaml

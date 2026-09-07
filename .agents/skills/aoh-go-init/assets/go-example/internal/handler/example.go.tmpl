@@ -1,0 +1,198 @@
+package handler
+
+// TODELETE(scaffold): Delete this file — example entity for reference only.
+// Demonstrates:
+//   - JSON body decoding
+//   - JWT sub + active_tenant extraction from context
+//   - Role gate returning 403
+//   - Rendering a classified failure with aoherr.Render — the status comes from
+//     the error's class, the trace_id from the active span, and the single log
+//     record from the renderer. See the `aoh-error-handling` skill.
+
+import (
+	"encoding/json"
+	"io"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/render"
+	"github.com/mssfoobar/ops-hub/packages/aoh-golib/aoherr"
+	aohhttp "github.com/mssfoobar/ops-hub/packages/aoh-golib/http"
+	"__AOH_MODULE__/internal/config"
+	"__AOH_MODULE__/internal/service"
+)
+
+// Rename per the role this entity actually requires. Typically one role per
+// write endpoint, checked against claim.ActiveTenant.Roles or realm_access.roles.
+const roleExampleWriter = "example-writer"
+
+type exampleHandler struct {
+	svc service.ExampleService
+}
+
+func getExampleHandler(svc service.ExampleService, iamsConfig config.IAMS) http.Handler {
+	r := chi.NewRouter()
+	setMiddleware(r, iamsConfig)
+
+	h := exampleHandler{svc: svc}
+	r.Post("/", h.create)
+	r.Get("/", h.list)
+	return r
+}
+
+type createExampleRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+// @Summary      Create an example
+// @Description  Authenticated example-writer submits a new example.
+// @Tags         Examples
+// @Accept       json
+// @Produce      json
+// @Param        body body     createExampleRequest true "Example payload"
+// @Success      201  {object} aohhttp.ResponsePayload{data=service.Example}
+// @Failure      400
+// @Failure      401
+// @Failure      403
+// @Failure      500
+// @Security     BearerAuth
+// @Router       /examples [post]
+func (h *exampleHandler) create(w http.ResponseWriter, r *http.Request) {
+	reporter := getUserID(r.Context())
+	tenant := getTenantID(r.Context())
+	roles := getTenantRoles(r.Context())
+
+	// Cross-cutting guards use aoherr's shared codes — a rejected credential
+	// means the same thing in every service. Domain failures use this service's
+	// namespaced codes (see internal/service/errors.go).
+	if reporter == "" || tenant == "" {
+		aoherr.Render(w, r, unauthenticated())
+		return
+	}
+	if !hasRole(roles, roleExampleWriter) {
+		aoherr.Render(w, r, aoherr.New(aoherr.ClassAuthorization, aoherr.CodeForbidden,
+			"the caller lacks the "+roleExampleWriter+" role"))
+		return
+	}
+
+	var req createExampleRequest
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		aoherr.Render(w, r, malformedRequest("the request body could not be read", err))
+		return
+	}
+	defer func() { _ = r.Body.Close() }()
+	if len(body) > 0 {
+		if err := json.Unmarshal(body, &req); err != nil {
+			aoherr.Render(w, r, malformedRequest("the request body is not valid JSON", err))
+			return
+		}
+	}
+
+	created, err := h.svc.Create(r.Context(), service.CreateExampleInput{
+		Name:        req.Name,
+		Description: req.Description,
+		ReportedBy:  reporter,
+		TenantID:    tenant,
+	})
+	if err != nil {
+		// One call: status from the class, trace_id from the span, one log
+		// record at the right level, internal detail suppressed on 5xx. An
+		// unclassified error renders as a suppressed 500 rather than leaking.
+		aoherr.Render(w, r, err)
+		return
+	}
+
+	// Single-object response: wrap with aohhttp.Response() so the body has the
+	// canonical envelope `{data, message, sent_at}`. The matching swag annotation
+	// is `{object} aohhttp.ResponsePayload{data=<TYPE>}` (see @Success above).
+	_ = render.Render(w, r, aohhttp.Response(http.StatusCreated, "", created))
+}
+
+// @Summary      List examples
+// @Description  List examples for the caller's tenant with pagination.
+// @Tags         Examples
+// @Produce      json
+// @Param        page  query  int     false  "Page number"  default(1)
+// @Param        size  query  int     false  "Page size"    default(10)
+// @Param        sort  query  string  false  "Sort order"   example:"created_at,desc"
+// @Success      200 {object} aohhttp.PaginationResponsePayload{data=[]service.Example}
+// @Failure      400
+// @Failure      401
+// @Security     BearerAuth
+// @Router       /examples [get]
+func (h *exampleHandler) list(w http.ResponseWriter, r *http.Request) {
+	tenant := getTenantID(r.Context())
+	if tenant == "" {
+		aoherr.Render(w, r, unauthenticated())
+		return
+	}
+
+	// Parse `page`, `size`, and (repeatable) `sort` query params into a typed
+	// PageRequest. `sort=field,direction` is repeatable per the API contract;
+	// `aohhttp.GetQueryPagination` returns ErrInvalidPageNumber / ErrInvalidPageSize /
+	// ErrInvalidSort on bad input — surface those as 400.
+	pageReq, err := aohhttp.GetQueryPagination(r)
+	if err != nil {
+		aoherr.Render(w, r, malformedRequest("invalid pagination parameters", err))
+		return
+	}
+
+	results, total, err := h.svc.List(r.Context(), service.ListExamplesInput{
+		TenantID: tenant,
+		Page:     *pageReq,
+	})
+	if err != nil {
+		aoherr.Render(w, r, err)
+		return
+	}
+
+	// Paginated list response: use aohhttp.PaginationResponse() so the body has
+	// `{data: [...], message, sent_at, page: {number, size, total_records, count, sort}}`.
+	// DO NOT pass a map with a nested `data` key into aohhttp.Response() — that
+	// produces a `data.data` envelope wart. The matching swag annotation is
+	// `{object} aohhttp.PaginationResponsePayload{data=[]<TYPE>}` (see @Success above).
+
+	// Echo the applied sorts back as []string ("field,direction" entries).
+	// If the caller didn't supply any, echo the default the service applied.
+	sortEcho := make([]string, 0, len(pageReq.Sorts))
+	for _, s := range pageReq.Sorts {
+		sortEcho = append(sortEcho, s.Column+","+s.Direction)
+	}
+	if len(sortEcho) == 0 {
+		sortEcho = []string{"created_at,desc"}
+	}
+
+	_ = render.Render(w, r, aohhttp.PaginationResponse(http.StatusOK, "", aohhttp.PageResponse{
+		Number:       pageReq.Number,
+		Size:         pageReq.Size,
+		TotalRecords: int(total),
+		Count:        len(results),
+		Sort:         sortEcho,
+	}, results))
+}
+
+// unauthenticated is the shared 401 for a request that reached a handler without
+// a usable subject or tenant. It should not happen behind aohhttp.BearerAuth,
+// which renders its own conformant 401 — this is the belt-and-braces guard.
+func unauthenticated() *aoherr.Error {
+	return aoherr.New(aoherr.ClassAuthentication, aoherr.CodeUnauthenticated,
+		"the request carries no usable subject or tenant")
+}
+
+// malformedRequest is the shared 400 for input the endpoint could not decode.
+// The cause is attached, not formatted into the message: it reaches the log
+// record, and the renderer keeps it out of the response body.
+func malformedRequest(msg string, cause error) *aoherr.Error {
+	return aoherr.Wrap(aoherr.ClassValidation, aoherr.CodeMalformedRequest, msg, cause)
+}
+
+func hasRole(roles []string, role string) bool {
+	for _, r := range roles {
+		if r == role {
+			return true
+		}
+	}
+	return false
+}

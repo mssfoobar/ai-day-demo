@@ -1,0 +1,177 @@
+package handler
+
+// TODELETE(scaffold): Delete this file — example entity test for reference only.
+// Demonstrates the table: success (201), authz (403), validation (400 + the
+// error-contract body), and an unclassified failure (500, suppressed).
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/mssfoobar/ops-hub/packages/aoh-golib/aoherr"
+	"__AOH_MODULE__/internal/service"
+	"__AOH_MODULE__/internal/service/mocks"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+)
+
+func authedCtx(sub, tenant string, roles []string) context.Context {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, userID, sub)
+	ctx = context.WithValue(ctx, tenantID, tenant)
+	ctx = context.WithValue(ctx, tenantRoles, roles)
+	return ctx
+}
+
+func postExample(ctx context.Context, t *testing.T, h *exampleHandler, body any) *httptest.ResponseRecorder {
+	t.Helper()
+	buf := &bytes.Buffer{}
+	if body != nil {
+		require.NoError(t, json.NewEncoder(buf).Encode(body))
+	}
+	req := httptest.NewRequest(http.MethodPost, "/", buf).WithContext(ctx)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	h.create(rec, req)
+	return rec
+}
+
+func TestExampleCreate_Success(t *testing.T) {
+	svc := mocks.NewExampleService(t)
+	svc.EXPECT().
+		Create(mock.Anything, mock.MatchedBy(func(in service.CreateExampleInput) bool {
+			return in.Name == "Widget" && in.ReportedBy == "u-1" && in.TenantID == "t-1"
+		})).
+		Return(service.Example{
+			ID:         "01927a2f-0000-7000-a000-000000000001",
+			Name:       "Widget",
+			ReportedBy: "u-1",
+			TenantID:   "t-1",
+			CreatedAt:  time.Now().UTC(),
+		}, nil)
+
+	h := &exampleHandler{svc: svc}
+	rec := postExample(authedCtx("u-1", "t-1", []string{"example-writer"}), t, h,
+		map[string]string{"name": "Widget", "description": "desc"})
+
+	assert.Equal(t, http.StatusCreated, rec.Code)
+
+	// Assert the aohhttp.ResponsePayload envelope shape: `{data: {...}, sent_at: ..., message: ...}`.
+	// This catches regressions where someone unwraps the envelope or returns the entity directly.
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	data, ok := resp["data"].(map[string]any)
+	require.True(t, ok, "response must have a 'data' object (aohhttp.ResponsePayload envelope)")
+	assert.Equal(t, "Widget", data["name"])
+	assert.NotEmpty(t, resp["sent_at"], "envelope must include sent_at")
+}
+
+func TestExampleCreate_MissingRole_Forbidden(t *testing.T) {
+	svc := mocks.NewExampleService(t) // no expectations — service must NOT be called
+	h := &exampleHandler{svc: svc}
+	rec := postExample(authedCtx("u-1", "t-1", []string{"viewer"}), t, h,
+		map[string]string{"name": "Widget", "description": "desc"})
+
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+}
+
+func TestExampleCreate_Validation_400(t *testing.T) {
+	svc := mocks.NewExampleService(t)
+	svc.EXPECT().
+		Create(mock.Anything, mock.Anything).
+		Return(service.Example{}, service.NewValidationError("invalid",
+			aoherr.FieldDetail("name", "name must not be empty")))
+
+	h := &exampleHandler{svc: svc}
+	rec := postExample(authedCtx("u-1", "t-1", []string{"example-writer"}), t, h,
+		map[string]string{"name": "", "description": "desc"})
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+	// Pin the AOH error contract: exactly the five keys, errorCode namespaced,
+	// details an array of objects naming the offending field.
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	assert.Equal(t, string(service.CodeValidationFailed), body["errorCode"])
+	assert.NotEmpty(t, body["errorMessage"])
+	assert.NotEmpty(t, body["timestamp"])
+	details, ok := body["details"].([]any)
+	require.True(t, ok, "details must be an array of objects")
+	require.Len(t, details, 1)
+	assert.Equal(t, "name", details[0].(map[string]any)["field"])
+	assert.NotContains(t, body, "userMessage", "a service never emits presentation fields")
+	assert.NotContains(t, body, "isRetryable")
+}
+
+func TestExampleCreate_UnclassifiedFailure_500_Suppressed(t *testing.T) {
+	// An error the service did not classify still renders conformantly: 500,
+	// with the underlying text suppressed. That suppression is the renderer's
+	// property, not the call site's — a handler cannot opt out of it.
+	svc := mocks.NewExampleService(t)
+	svc.EXPECT().
+		Create(mock.Anything, mock.Anything).
+		Return(service.Example{}, errors.New("pq: connection refused to 10.0.0.4:5432"))
+
+	h := &exampleHandler{svc: svc}
+	rec := postExample(authedCtx("u-1", "t-1", []string{"example-writer"}), t, h,
+		map[string]string{"name": "Widget", "description": "desc"})
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	assert.NotContains(t, rec.Body.String(), "connection refused")
+	assert.NotContains(t, rec.Body.String(), "10.0.0.4")
+}
+
+func TestExampleList_PaginationEnvelope(t *testing.T) {
+	// This test pins down the aohhttp.PaginationResponsePayload shape:
+	//   - `data` is the array directly at the top level (NOT nested under data.data)
+	//   - `page` is a sibling object with {number, size, total_records, count, sort}
+	// If anyone reverts to `aohhttp.Response(http.StatusOK, "", map[string]any{"data": ..., ...})`
+	// this assertion catches it because `resp["data"]` would be a map, not an array.
+	svc := mocks.NewExampleService(t)
+	svc.EXPECT().
+		List(mock.Anything, mock.MatchedBy(func(in service.ListExamplesInput) bool {
+			if in.TenantID != "t-1" || in.Page.Number != 2 || in.Page.Size != 5 {
+				return false
+			}
+			// Verify the handler parsed `?sort=created_at,desc` and forwarded
+			// it as a single Sort entry on the embedded PageRequest.
+			if len(in.Page.Sorts) != 1 {
+				return false
+			}
+			return in.Page.Sorts[0].Column == "created_at" && in.Page.Sorts[0].Direction == "desc"
+		})).
+		Return([]service.Example{
+			{ID: "01927a2f-0000-7000-a000-000000000001", Name: "Widget"},
+		}, int64(11), nil)
+
+	h := &exampleHandler{svc: svc}
+	req := httptest.NewRequest(http.MethodGet, "/?page=2&size=5&sort=created_at,desc", nil).
+		WithContext(authedCtx("u-1", "t-1", []string{"example-writer"}))
+	rec := httptest.NewRecorder()
+	h.list(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+
+	data, ok := resp["data"].([]any)
+	require.True(t, ok, "response 'data' must be an array directly (PaginationResponsePayload envelope)")
+	require.Len(t, data, 1)
+	assert.Equal(t, "Widget", data[0].(map[string]any)["name"])
+
+	page, ok := resp["page"].(map[string]any)
+	require.True(t, ok, "response must have a sibling 'page' object")
+	assert.EqualValues(t, 2, page["number"])
+	assert.EqualValues(t, 5, page["size"])
+	assert.EqualValues(t, 11, page["total_records"])
+	assert.EqualValues(t, 1, page["count"])
+	// `sort` echoes back as []string in PageResponse — pin the shape.
+	assert.Equal(t, []any{"created_at,desc"}, page["sort"])
+}

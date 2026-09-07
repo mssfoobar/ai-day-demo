@@ -1,0 +1,99 @@
+package repo
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
+	"github.com/lib/pq"
+	aohlog "github.com/mssfoobar/ops-hub/packages/aoh-golib/logger"
+	"go.uber.org/zap"
+)
+
+// RunMigrations applies all pending .up migrations from the schema directory.
+// The directory is resolved in this order: $SCHEMA_DIR, then /app/schema
+// (container default — set by the Dockerfile COPY), then ./schema (relative
+// to cwd, for native `go run ./cmd/server` from apps/<name>/). This dual path
+// is why the same binary works both inside the container and natively against
+// compose-up'd infra without per-environment config.
+func RunMigrations(db *DB) error {
+	// golang-migrate's postgres driver reads `search_path` to locate the
+	// `schema_migrations` tracking table. If the configured schema does not
+	// yet exist (first deploy of a service that uses a non-`public` schema
+	// — i.e. every AOH service per the database conventions), the driver
+	// errors with "no schema" before our own DDL ever gets a chance to
+	// create it. Bootstrap the schema first.
+	if err := ensureSearchPathSchema(db); err != nil {
+		return err
+	}
+
+	driver, err := postgres.WithInstance(db.conn.DB, &postgres.Config{})
+	if err != nil {
+		return fmt.Errorf("failed to init migrate driver: %w", err)
+	}
+
+	dir, err := resolveSchemaDir()
+	if err != nil {
+		return err
+	}
+
+	src, err := iofs.New(os.DirFS(dir), ".")
+	if err != nil {
+		return fmt.Errorf("failed to open schema source %q: %w", dir, err)
+	}
+
+	m, err := migrate.NewWithInstance("iofs", src, "postgres", driver)
+	if err != nil {
+		return fmt.Errorf("failed to init migrate: %w", err)
+	}
+
+	aohlog.Info("running migrations", zap.String("dir", dir))
+
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		aohlog.Error("migration failed", zap.Error(err))
+		return fmt.Errorf("migration failed: %w", err)
+	}
+
+	aohlog.Info("database migrations applied")
+	return nil
+}
+
+// ensureSearchPathSchema creates the first schema in `search_path` if it
+// doesn't already exist. Idempotent. Skipped for `public` and `$user`.
+func ensureSearchPathSchema(db *DB) error {
+	row := db.conn.QueryRowx("SHOW search_path")
+	var sp string
+	if err := row.Scan(&sp); err != nil {
+		return nil // best-effort; let the migrator surface the real error
+	}
+	first := strings.SplitN(strings.TrimSpace(sp), ",", 2)[0]
+	first = strings.Trim(strings.TrimSpace(first), `"`)
+	if first == "" || first == "$user" || first == "public" {
+		return nil
+	}
+	if _, err := db.conn.Exec(`CREATE SCHEMA IF NOT EXISTS ` + pq.QuoteIdentifier(first)); err != nil {
+		return fmt.Errorf("ensure schema %q exists: %w", first, err)
+	}
+	return nil
+}
+
+func resolveSchemaDir() (string, error) {
+	if env := os.Getenv("SCHEMA_DIR"); env != "" {
+		return env, nil
+	}
+	for _, candidate := range []string{"/app/schema", "./schema"} {
+		abs, err := filepath.Abs(candidate)
+		if err != nil {
+			continue
+		}
+		if info, err := os.Stat(abs); err == nil && info.IsDir() {
+			return abs, nil
+		}
+	}
+	return "", errors.New("schema directory not found: set SCHEMA_DIR or run from a dir containing ./schema")
+}

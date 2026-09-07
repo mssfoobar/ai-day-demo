@@ -1,0 +1,37 @@
+services:
+    clamav:
+        image: clamav/clamav-debian:latest
+        container_name: clamav
+        hostname: clamav
+        restart: always
+        stop_grace_period: 5s
+        volumes:
+            - amm-clamav-db:/var/lib/clamav
+
+    amm-c-icap:
+        image: ghcr.io/mssfoobar/amm/icap-server
+        container_name: amm-c-icap
+        hostname: "amm-c-icap.loc"
+        restart: always
+        stop_grace_period: 5s
+
+        environment:
+          LOG_LEVEL: 2
+          ORG_NAME: "c-icap-server"
+          CA_NAME: "c-icap-ca"
+
+        ports:
+          - 1344:1344
+          - 11344:11344
+
+        volumes:
+          - amm-certs:/certs
+        depends_on:
+          clamav:
+            condition: service_started
+
+volumes:
+    amm-certs:
+        driver: local
+    amm-clamav-db:
+        driver: local

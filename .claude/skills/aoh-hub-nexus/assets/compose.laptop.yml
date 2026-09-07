@@ -1,0 +1,29 @@
+# AOH Hub Nexus — laptop profile overlay
+#
+# Target: platform developer dress-rehearsing the Nexus config on their own
+# machine. Characteristics: plaintext HTTP, localhost-only binds, single
+# container, reduced JVM memory footprint. DO NOT use on a shared server.
+
+services:
+  nexus:
+    environment:
+      # Constrain memory so Nexus fits alongside a typical dev laptop's other
+      # containers. Sonatype's defaults assume a dedicated VM (3+ GB heap).
+      # Fine for proxy-resolve + a handful of hosted artifacts; revisit for
+      # team-scale caches.
+      INSTALL4J_ADD_VM_PARAMS: "-Xms512m -Xmx1g -XX:MaxDirectMemorySize=1g -Djava.util.prefs.userRoot=/nexus-data/javaprefs"
+    ports:
+      # 8181 — web UI + REST API + non-Docker repository endpoints.
+      # 8181 not 8081 to avoid clash with a user's other JVM tooling / the
+      # Multica local stack. Repository URLs are port-agnostic (path-based
+      # routing inside Nexus), so tuning this is safe.
+      - "127.0.0.1:${NEXUS_HTTP_PORT:-8181}:8081"
+      # 8182 — dedicated Docker Hub pull-through connector. Docker clients
+      # need a separate port per docker repo (Docker Registry v2 protocol
+      # doesn't accept path-based routing), so proxy.golang.org / Maven /
+      # npm / etc. all share 8181 but Docker must be its own.
+      # Host side is tunable via NEXUS_DOCKER_PROXY_HOST_PORT; the container
+      # side is hardcoded to 8182 because bootstrap.sh pins the Nexus
+      # connector there (changing it in one place but not the other
+      # silently breaks Docker pulls — keep them in lockstep).
+      - "127.0.0.1:${NEXUS_DOCKER_PROXY_HOST_PORT:-8182}:8182"

@@ -1,0 +1,52 @@
+-- Example seed: register this worker's catalog entries with the WFE manager.
+--
+-- The WFE designer lists what a worker offers from the manager's catalog tables:
+--   * service_activity  (GET /v1/service_activity)  -> BPMN activity nodes
+--   * service_event     (GET /v1/service_event)     -> BPMN event nodes
+-- This worker only RUNS the handlers — it has no database — so run this script
+-- against the **WFE workflow-manager's Postgres** (the `wfe` schema), NOT the
+-- worker. After it runs, the designer offers these types with the right input
+-- fields and an example output.
+--
+-- Contract: `activity_type` / `event_type` MUST equal the Go method name on a
+-- registered receiver (the string the engine dispatches on — events are dispatched
+-- as activities too; see internal/activities). Rename/add/remove a method -> mirror
+-- it here.
+--
+-- Shapes the designer expects (identical for activities and events):
+--   * *_param   — an ORDERED array of single-key {name: sample} objects, one per
+--                 Go parameter in signature order. The sample's TYPE picks the
+--                 input widget (string->text, number->number, boolean->true/false,
+--                 object/array->JSON editor); its value is ignored.
+--   * *_result  — an example return value; its type informs how downstream
+--                 workflow variables are typed. Methods returning only an error
+--                 use JSON null.
+--
+-- Idempotent: re-running re-syncs the definitions (keyed on the unique type)
+-- without changing existing ids or any per-activity timeout you tuned.
+
+-- Activities (service_activity) — BPMN activity nodes.
+INSERT INTO service_activity (id, service_name, activity_type, activity_icon, activity_param, activity_result)
+VALUES
+    (gen_random_uuid(), '__AOH_NAME__', 'HelloWorld', 'script',
+     '[{"name": ""}]'::jsonb,
+     '""'::jsonb)
+ON CONFLICT (activity_type) DO UPDATE SET
+    service_name    = EXCLUDED.service_name,
+    activity_icon   = EXCLUDED.activity_icon,
+    activity_param  = EXCLUDED.activity_param,
+    activity_result = EXCLUDED.activity_result;
+
+-- Events (service_event) — BPMN event nodes. Same mechanism as activities (a Go
+-- method dispatched by name); event_icon is one of enum_event_icon
+-- (message1, timer1, signal1, error1, …).
+INSERT INTO service_event (id, service_name, event_type, event_icon, event_param, event_result)
+VALUES
+    (gen_random_uuid(), '__AOH_NAME__', 'Timer', 'timer1',
+     '[{"seconds": 0}]'::jsonb,
+     'null'::jsonb)
+ON CONFLICT (event_type) DO UPDATE SET
+    service_name = EXCLUDED.service_name,
+    event_icon   = EXCLUDED.event_icon,
+    event_param  = EXCLUDED.event_param,
+    event_result = EXCLUDED.event_result;

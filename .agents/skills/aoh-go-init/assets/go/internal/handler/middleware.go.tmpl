@@ -1,0 +1,158 @@
+package handler
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/render"
+	"github.com/mssfoobar/ops-hub/packages/aoh-golib/aoherr"
+	aohhttp "github.com/mssfoobar/ops-hub/packages/aoh-golib/http"
+	aohlog "github.com/mssfoobar/ops-hub/packages/aoh-golib/logger"
+	aohotel "github.com/mssfoobar/ops-hub/packages/aoh-golib/otel"
+	"__AOH_MODULE__/internal/config"
+	"go.uber.org/zap"
+)
+
+type userInfoCtxKey int
+
+const (
+	userID userInfoCtxKey = iota
+	userName
+	tenantID
+	tenantRoles
+	bearerToken
+)
+
+func setMiddleware(r *chi.Mux, iamsConfig config.IAMS) {
+	r.Use(setAuthMiddleware(iamsConfig))
+	r.Use(withUserInfo(aohlog.Get()))
+	// aohhttp.Recoverer, not chi's middleware.Recoverer: chi's writes a bare 500
+	// with a zero-length body, while this one renders the AOH error contract,
+	// records the panic on the active span, and logs it once with its stack.
+	r.Use(aohhttp.Recoverer)
+	r.Use(render.SetContentType(render.ContentTypeJSON))
+	// Access logging is global + trace-correlated (see traceRequestLogger,
+	// mounted in newHandler) — no per-group aoh-golib RequestLogger here.
+}
+
+// traceRequestLogger logs each request (method, path, status, duration) with
+// the active trace's trace_id/span_id appended via aohotel.TraceContextFields,
+// giving log<->trace correlation in the stdout line itself. NOTE (AOH-7540): this
+// used to say "stdout/filelog" — no Collector `filelog` receiver was ever
+// deployed, so stdout was never collected. aohlog records ARE now exported over
+// OTLP, but otelzap only adopts a span when passed a context.Context field, so
+// these explicit fields are what carry the ids on the exported record too. Mounted globally (outermost, after the OTEL span middleware) so
+// every route is logged once. Health probes log at debug to avoid steady-state
+// spam; their spans + RED metrics still flow.
+func traceRequestLogger(logger *zap.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+			start := time.Now()
+			next.ServeHTTP(ww, r)
+
+			status := ww.Status()
+			if status == 0 {
+				status = http.StatusOK
+			}
+			fields := []zap.Field{
+				zap.String("method", r.Method),
+				zap.String("path", r.URL.Path),
+				zap.Int("status", status),
+				zap.Duration("duration", time.Since(start)),
+			}
+			fields = append(fields, aohotel.TraceContextFields(r.Context())...)
+
+			if isHealthProbe(r.URL.Path) {
+				logger.Debug("http_request", fields...)
+				return
+			}
+			logger.Info("http_request", fields...)
+		})
+	}
+}
+
+// isHealthProbe reports whether the path is a k8s liveness/readiness probe.
+func isHealthProbe(path string) bool {
+	switch path {
+	case "/livez", "/readyz", "/healthz/live", "/healthz/ready":
+		return true
+	default:
+		return false
+	}
+}
+
+func setAuthMiddleware(c config.IAMS) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		url := fmt.Sprintf("%v:%v/realms/%v", c.KeycloakHost, c.KeycloakPort, c.KeycloakRealm)
+		return aohhttp.BearerAuth(url, aohlog.Get())(next)
+	}
+}
+
+func withUserInfo(logger *zap.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			claim, err := aohhttp.GetJWTClaim(r)
+			if err != nil {
+				// The renderer logs it (at WARN — a rejected credential is a
+				// client fault, not an alert) and writes a conformant 401. A
+				// bare WriteHeader here would hand the client an empty body.
+				aoherr.RenderWithLogger(logger, w, r, aoherr.Wrap(
+					aoherr.ClassAuthentication, aoherr.CodeUnauthenticated,
+					"the bearer token claims could not be read", err))
+				return
+			}
+
+			ctx := r.Context()
+			ctx = context.WithValue(ctx, userID, claim.Id)
+			ctx = context.WithValue(ctx, userName, claim.Name)
+			ctx = context.WithValue(ctx, tenantID, claim.ActiveTenant.Id)
+			ctx = context.WithValue(ctx, tenantRoles, claim.ActiveTenant.Roles)
+			if authHeader := r.Header.Get("Authorization"); strings.HasPrefix(authHeader, "Bearer ") {
+				ctx = context.WithValue(ctx, bearerToken, strings.TrimPrefix(authHeader, "Bearer "))
+			}
+
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+func getUserID(ctx context.Context) string {
+	if v, ok := ctx.Value(userID).(string); ok {
+		return v
+	}
+	return ""
+}
+
+func getUserName(ctx context.Context) string {
+	if v, ok := ctx.Value(userName).(string); ok {
+		return v
+	}
+	return ""
+}
+
+func getTenantID(ctx context.Context) string {
+	if v, ok := ctx.Value(tenantID).(string); ok {
+		return v
+	}
+	return ""
+}
+
+func getTenantRoles(ctx context.Context) []string {
+	if v, ok := ctx.Value(tenantRoles).([]string); ok {
+		return v
+	}
+	return []string{}
+}
+
+func getBearerToken(ctx context.Context) string {
+	if v, ok := ctx.Value(bearerToken).(string); ok {
+		return v
+	}
+	return ""
+}

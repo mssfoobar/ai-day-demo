@@ -1,0 +1,100 @@
+name: aoh
+
+include:
+    - ../iams/compose.yml
+    # - ../amm/infra/minio-compose.yml
+    # - ../amm/infra/icap-compose.yml
+
+services:
+    amm-db:
+        image: postgres:17.0
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 3s
+        environment:
+            - POSTGRES_DB=amm
+            - POSTGRES_USER=${DEV_USER}
+            - POSTGRES_PASSWORD=${DEV_PASSWORD}
+        volumes:
+            - amm-db-volume:/var/lib/postgresql/data
+            - ../amm/db-init:/docker-entrypoint-initdb.d/
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ${DEV_USER} -d amm"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    amm-app:
+        image: ghcr.io/mssfoobar/amm/amm-app:${AMM_APP_TAG}
+        container_name: amm-app
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 5s
+        environment:
+            - LOG_LEVEL=debug
+            - APP_PORT=8080
+            - DATABASE_HOST=amm-db
+            - DATABASE_PORT=5432
+            - DATABASE_NAME=amm
+            - DATABASE_SCHEMA=public
+            - DATABASE_USER=${DEV_USER}
+            - DATABASE_PASSWORD=${DEV_PASSWORD}
+            - DATABASE_MAX_CONNS=10
+            - DATABASE_MAX_IDLE_CONNS=5
+            - DATABASE_MAX_CONN_LIFETIME=30m
+            - DATABASE_SSL_MODE=disable
+            - STORAGE_TYPE=local
+            - STORAGE_PATH=/file/data
+            # MinIO/S3 storage: uncomment the minio-compose.yml include above,
+            # set STORAGE_TYPE=minio, and uncomment these:
+            # - STORAGE_URL=amm-minio:80
+            # - STORAGE_BUCKET_NAME=amm
+            # - STORAGE_ACCESS_KEY=${DEV_USER}
+            # - STORAGE_SECRET_KEY=${DEV_PASSWORD}
+            # - STORAGE_REGION=us-east-1
+            - DOWNLOAD_ID_EXPIRE_DURATION=5m
+            - SEARCH_SERVICE_ENABLED=false
+            - VIRUS_SCANNER_ENABLED=false
+            - VIRUS_SCANNER_ENDPOINT=amm-c-icap:1344
+            - VIRUS_SCANNER_SERVICE=clamav
+            - VIRUS_SCANNER_TIMEOUT=15s
+            - MAX_UPLOAD_SIZE=25MiB
+            - ALLOWED_FILE_TYPES=image/jpeg,image/png,audio/mpeg,audio/mp4,audio/x-m4a,video/mp4,application/pdf,application/json,application/vnd.openxmlformats-officedocument.wordprocessingml.document
+            - CHECKSUM_ENABLED=false
+            - IAMS_KEYCLOAK_URL=http://iams-keycloak:8080/realms/aoh
+            - IAMS_AAS_URL=http://iams-aas:8080
+            - IAMS_DATA_ACCESS_RESOURCE_TYPE=data-access-control
+            - PREVIEW_GOTENBERG_URL=http://amm-gotenberg:3000
+            - PREVIEW_MAX_WIDTH=1024
+            - PREVIEW_MAX_HEIGHT=1024
+            - PREVIEW_QUALITY=80
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.amm-app.rule=Host(`amm.${DEV_DOMAIN}`)
+            - traefik.http.routers.amm-app.entrypoints=web
+            - traefik.http.routers.amm-app.middlewares=permissive-headers@docker
+            - traefik.http.services.amm-app.loadBalancer.server.port=8080
+        volumes:
+            # STORAGE_TYPE=local: amm-app writes here as a NON-root user, so the volume
+            # must be writable by it or every upload fails on a permission error.
+            # Podman (rootless — the recommended runtime): append `:U` so Podman chowns
+            # the volume to the container user → `amm-file-volume:/file/data:U`.
+            # Docker has no `:U` (and rejects it) — leave it off; a fresh named volume
+            # inherits the image's ownership. See aoh-knowledge amm.md "Local volume
+            # ownership".
+            - amm-file-volume:/file/data
+        depends_on:
+            amm-db:
+                condition: service_healthy
+
+    amm-gotenberg:
+        image: docker.io/gotenberg/gotenberg:8
+        restart: always
+
+volumes:
+    amm-db-volume:
+    amm-file-volume:
+    #amm-certs:
+    #amm-clamav-db:

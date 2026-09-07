@@ -1,0 +1,68 @@
+# Compose entry for a SvelteKit app under `apps/<name>/`.
+# Replace `<name>` placeholders with the actual app name; `<NAME>` is the same
+# uppercased with `-` → `_` (e.g. `incident-web` → `INCIDENT_WEB`).
+# For the native-dev vs container-packaging workflow + the `podman build`
+# incantation (pnpm Dockerfile needs the repo root as context), see
+# `aoh-compose` SKILL.md → "Verify".
+
+name: aoh
+
+include:
+    - ../traefik/compose.yml
+    - ../iams/compose.yml
+
+services:
+    <name>:
+        # `profiles: [apps]` matches the Turborepo `apps/<name>/` convention.
+        # Bare `compose up` brings up infra only — apps/* services are not
+        # implicitly pulled (their `:local` image only exists after
+        # `podman build`). Normal dev runs the app natively (`pnpm dev`)
+        # against composed-up infra. To test the packaged image:
+        #   podman compose --profile apps up -d <name>
+        profiles: [apps]
+        image: <name>:${<NAME>_TAG:-local}
+        restart: on-failure
+        environment:
+            # --- Observability (OpenTelemetry) ---
+            # Server/BFF tracing exports to the core gateway collector
+            # (@mssfoobar/observability reads these); a no-op when unset.
+            OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+            OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES:-}
+            # --- OIDC / Keycloak ---
+            # All AOH web apps share the bundled `web` client for local dev.
+            # It has wildcard redirectUris (`*`) and webOrigins (`+`) so any
+            # subdomain under ${DEV_DOMAIN} works with zero realm edits.
+            # Do NOT register a per-app web client in compose/iams/keycloak/
+            # realm-import.json — wildcard redirects are a dev convenience and
+            # a prod security hole, so per-app clients belong in the prod
+            # deployment realm config, not in this dev realm.
+            IAM_URL: http://iams-keycloak:8080/realms/aoh/.well-known/openid-configuration
+            IAM_CLIENT_ID: web
+            # --- Session Data Store ---
+            SDS_URL: tcp://sds-server:5333
+            # --- App ---
+            PUBLIC_DOMAIN: ${DEV_DOMAIN}
+            # Platform default — every AOH web app shares cookie name `web_auth_session_id`
+            # so rtus-seh's seeded `rtus.session-id.cookienames` matches without per-app wiring.
+            # Deviating from `web` requires also updating compose/rtus/compose.yml's
+            # `RTUS_SESSION-ID_COOKIENAMES` list. See aoh-knowledge/services/rtus.md.
+            PUBLIC_COOKIE_PREFIX: web
+            PUBLIC_COOKIE_SAMESITE: lax
+            ORIGIN: http://<name>.${DEV_DOMAIN}
+            LOGIN_DESTINATION: /getting-started
+            LOGIN_PAGE:
+            OIDC_ALLOW_INSECURE_REQUESTS: 1
+            # --- Security headers ---
+            FRAME_ANCESTORS: "'self'"
+            X_FRAME_OPTIONS: SAMEORIGIN
+        depends_on:
+            iams-keycloak:
+                condition: service_healthy
+            sds-server:
+                condition: service_started
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.<name>.rule=Host(`<name>.${DEV_DOMAIN}`)
+            - traefik.http.routers.<name>.entrypoints=web
+            - traefik.http.routers.<name>.middlewares=permissive-headers@docker
+            - traefik.http.services.<name>.loadbalancer.server.port=3000

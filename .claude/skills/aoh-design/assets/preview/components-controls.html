@@ -1,0 +1,33 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+  body { padding: 24px; display: flex; flex-wrap: wrap; gap: 22px 32px; align-items: center; }
+  .group { display: flex; flex-direction: column; gap: 8px; }
+  .group .ttl { font-family: var(--font-mono); font-size: 10px; color: #71717A; text-transform: uppercase; letter-spacing: .04em; }
+  .pair { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #18181B; }
+  .check { width: 16px; height: 16px; border-radius: 4px; border: 1px solid #E4E4E7; display: inline-flex; align-items: center; justify-content: center; }
+  .check.on { background: #0369A1; border-color: #0369A1; color: #fff; }
+  .radio { width: 16px; height: 16px; border-radius: 50%; border: 1px solid #E4E4E7; display: inline-flex; align-items:center; justify-content:center; }
+  .radio.on::after { content:""; width:8px; height:8px; border-radius:50%; background:#0369A1; }
+  .switch { width: 36px; height: 20px; background: #D4D4D8; border-radius: 999px; padding: 2px; position: relative; transition: background .15s; display: inline-block; box-sizing: border-box; vertical-align: middle; flex-shrink: 0; }
+  .switch.on { background: #0369A1; }
+  .switch .knob { width: 16px; height: 16px; background: #fff; border: 1px solid rgba(0,0,0,.10); border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: margin-left .15s; display: block; box-sizing: border-box; }
+  .switch.on .knob { margin-left: 16px; }
+  .ico { width: 12px; height: 12px; stroke: currentColor; stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+</style></head><body>
+  <div class="group">
+    <div class="ttl">checkbox</div>
+    <div class="pair"><span class="check on"><svg class="ico" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>Email me</div>
+    <div class="pair"><span class="check"></span>Push notifications</div>
+  </div>
+  <div class="group">
+    <div class="ttl">radio</div>
+    <div class="pair"><span class="radio on"></span>Critical only</div>
+    <div class="pair"><span class="radio"></span>All severities</div>
+  </div>
+  <div class="group">
+    <div class="ttl">switch</div>
+    <div class="pair"><span class="switch on"><span class="knob"></span></span>Auto-acknowledge</div>
+    <div class="pair"><span class="switch"><span class="knob"></span></span>Maintenance mode</div>
+  </div>
+</body></html>

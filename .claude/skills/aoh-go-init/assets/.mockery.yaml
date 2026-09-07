@@ -1,0 +1,19 @@
+all: false
+log-level: info
+packages:
+  __AOH_MODULE__/internal/service:
+    config:
+      all: false
+      dir: internal/service/mocks
+      pkgname: mocks
+      filename: "{{.InterfaceName}}.go"
+      structname: "{{.InterfaceName}}"
+    interfaces:
+  __AOH_MODULE__/internal/repo:
+    config:
+      all: false
+      dir: internal/repo/mocks
+      pkgname: mocks
+      filename: "{{.InterfaceName}}.go"
+      structname: "{{.InterfaceName}}"
+    interfaces:

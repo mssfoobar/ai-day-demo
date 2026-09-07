@@ -1,0 +1,11 @@
+*.env
+.idea
+.vscode/
+logs
+secrets
+.secrets/
+.bin
+bin
+coverage.out
+
+config.yaml

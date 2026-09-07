@@ -1,0 +1,9 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# Supply-chain hardening (pnpm): wait 7 days before resolving newly published
+# versions, block security downgrades, and refuse non-registry transitive deps.
+minimumReleaseAge: 10080
+trustPolicy: no-downgrade
+blockExoticSubdeps: true

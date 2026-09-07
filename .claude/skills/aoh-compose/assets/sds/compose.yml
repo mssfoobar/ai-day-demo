@@ -1,0 +1,41 @@
+name: aoh
+
+services:
+    valkey:
+        image: valkey/valkey:7.2-alpine
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 5s
+
+    sds-server:
+        image: ghcr.io/mssfoobar/sds/sds-server:${SDS_SERVER_TAG}
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 5s
+        environment:
+            - LOG_LEVEL=debug
+            - HTTP_PORT=5080
+            - TCP_PORT=5333
+            - DB_ADDR=valkey:6379
+            - TEMP_TTL=60s
+            - KEYCLOAK_ADDR=http://iams-keycloak:8080
+            - KEYCLOAK_REALM=aoh
+            - KEYCLOAK_CLIENTID=sds
+            - KEYCLOAK_CLIENTSECRET=${DEV_PASSWORD}
+            - CRON_INTERVAL=10s
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.sds.rule=Host(`sds.${DEV_DOMAIN}`)
+            - traefik.http.routers.sds.entrypoints=web
+            - traefik.http.routers.sds.middlewares=permissive-headers@docker
+            - traefik.http.services.sds.loadBalancer.server.port=5080
+            - traefik.tcp.routers.sds-tcp.rule=HostSNI(`*`)
+            - traefik.tcp.routers.sds-tcp.entrypoints=sdstcp
+            - traefik.tcp.services.sds-tcp.loadBalancer.server.port=5333
+        depends_on:
+            valkey:
+                condition: service_started
+            iams-keycloak:
+                condition: service_healthy

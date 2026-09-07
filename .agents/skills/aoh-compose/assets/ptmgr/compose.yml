@@ -1,0 +1,61 @@
+name: aoh
+
+include:
+    - ../traefik/compose.yml
+    - ../iams/compose.yml
+
+services:
+    ptmgr-db:
+        image: postgres:17.0
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 3s
+        environment:
+            - POSTGRES_DB=ptmgr
+            - POSTGRES_USER=${DEV_USER}
+            - POSTGRES_PASSWORD=${DEV_PASSWORD}
+        volumes:
+            - ptmgr-db-volume:/var/lib/postgresql/data
+            - ../ptmgr/db-init:/docker-entrypoint-initdb.d/
+
+    ptmgr-app:
+        image: ghcr.io/mssfoobar/ptmgr/ptmgr-app:${PTMGR_APP_TAG}
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 5s
+        environment:
+            - LOG_LEVEL=debug
+            - APP_PORT=8080
+            - SQL_USER=${DEV_USER}
+            - SQL_PASSWORD=${DEV_PASSWORD}
+            - SQL_PLUGIN_NAME=postgres
+            - SQL_HOST=ptmgr-db
+            - SQL_PORT=5432
+            - SQL_DATABASE_NAME=ptmgr
+            - SQL_SCHEMA_NAME=ptmgr
+            - SQL_SSL_MODE=disable
+            - IAMS_AAS_HOST=http://iams-aas
+            - IAMS_AAS_PORT=8080
+            - IAMS_KEYCLOAK_HOST=http://iams-keycloak
+            - IAMS_KEYCLOAK_PORT=8080
+            - IAMS_KEYCLOAK_REALM=aoh
+            - IAMS_KEYCLOAK_CLIENT_ID=ptmgr
+            - IAMS_KEYCLOAK_CLIENT_SECRET=${DEV_PASSWORD}
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.ptmgr-app.rule=Host(`ptmgr.${DEV_DOMAIN}`)
+            - traefik.http.routers.ptmgr-app.entrypoints=web
+            - traefik.http.routers.ptmgr-app.middlewares=permissive-headers@docker
+            - traefik.http.services.ptmgr-app.loadBalancer.server.port=8080
+        depends_on:
+            ptmgr-db:
+                condition: service_started
+            iams-keycloak:
+                condition: service_healthy
+            iams-aas:
+                condition: service_healthy
+
+volumes:
+    ptmgr-db-volume:

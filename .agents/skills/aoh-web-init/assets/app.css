@@ -1,0 +1,30 @@
+/* ============================================
+   AOH Web App Stylesheet
+   ============================================
+
+   Theme tokens (semantic aliases + AOH Figma palette), the dark
+   variant, the Tailwind import, `tw-animate-css`, and base `@layer`
+   styles all come from `@mssfoobar/ui`'s `app.css`. Importing it
+   gives us a single source of truth so every primitive in the app
+   renders against the same palette.
+
+   Do NOT redeclare `--background`, `--primary`, `--bg-*`, `--text-*`
+   etc. in this file — overriding them here would silently diverge
+   from the package's design tokens. To customise, follow the layered
+   override pattern documented in the package's `styles/app.css`:
+   declare unlayered overrides AFTER the import below.
+   ============================================ */
+@import '@mssfoobar/ui/styles/app.css';
+
+/* Geist as the app's UI font. Imported here (not in the package)
+   because font choice is an app-level concern. Use the explicit
+   `index.css` path — the bare specifier has no type declaration so
+   svelte-check fails on it. */
+@import '@fontsource-variable/geist/index.css';
+
+/* Iconify keeps icon utilities (mdi-*, lucide-*) available as
+   Tailwind classes. Plugin-level config so it sees `@theme` from
+   the import above. */
+@plugin '@iconify/tailwind4' {
+	prefixes: mdi, mdi-light, lucide;
+}

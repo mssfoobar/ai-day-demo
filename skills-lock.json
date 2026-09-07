@@ -1,0 +1,97 @@
+{
+	"version": 1,
+	"skills": {
+		"aoh-agent-context": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "7af3b901488c12ea2edf3f0273b5a42ff65cdd50dda72568bc7f4994663118c2"
+		},
+		"aoh-compose": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "2459aa03d8e57df424e564e85888f1bdb62b8f0e5a1cf311b2c0255ccf89c385"
+		},
+		"aoh-conventions": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "3d0d3d921a836dacbe4832ceca36a4f10ec89d3f96c8927d685106780b783acd"
+		},
+		"aoh-dashboard": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "223ae0afefd5fb6ae7ed7ee727caadd6d0267c641a7ee472525f91fa21f09011"
+		},
+		"aoh-deploy": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "c29599beba924422d81602a003e69d2f26128f230f34ec8c42fe61e5c404c9db"
+		},
+		"aoh-design": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "5f340f218272313578a34636ee18f02a097c5260c92a482c7b91160d75da337d"
+		},
+		"aoh-error-handling": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "ca2d549551fca2921632701a2afc4aa2a603bb6dee322dd6665f5a36ffd70889"
+		},
+		"aoh-form-integration": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "bb0f8d6d66dd552347b18326dfb2b0203ba0a2004a5bf198e724f70c701ecae4"
+		},
+		"aoh-gis-integration": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "94d500b9a7fd1e2980e15139b816c7c3d5d6ff4767c3f51f67fb73de793f213a"
+		},
+		"aoh-go-init": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "af2cb1541e4142ee571741182e6e3444ff56ef6213101fb0b904e26923c86bff"
+		},
+		"aoh-hub-nexus": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "a6eaaa2603805c51299e4b14abc421f9607e9ec97096ea0dc8173ff6fb44708c"
+		},
+		"aoh-knowledge": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "e0a219aaa9a49e47565859c03a70c8344c9f5962fed4eb86d06ea2a0adfeb229"
+		},
+		"aoh-module-init": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "00327b4349c111c99374d2598db8eaee885372aca846a2be0faad9ec1455c709"
+		},
+		"aoh-monorepo-release": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "76062af67c6e40041e5807c0c4124421874359780d1378d311328b990681ffae"
+		},
+		"aoh-msr-integration": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "13737a36291e9bf397bb9d8f7bae9dc79a032bac6d54a5a592c4531d7a593b84"
+		},
+		"aoh-okf": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "d085e48104a7ed062a40ec05dcfc7a600d4efbaaf1f7acab19ba36c7b18b1abf"
+		},
+		"aoh-scripting-conventions": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "48060a9856aefc20c3f033efed25d66f98062eba0ebf8b11881d9cacd90fe758"
+		},
+		"aoh-skill-acceptance-test": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "35c8bf4727e0331727e55acf94939ed67a5afbdd95f651f107597932055ae028"
+		},
+		"aoh-spoke": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "b10a1188a27de2074abb8c4fdb9b4c87c3e7b1aa455549e609ceea1630b8d8df"
+		},
+		"aoh-unh-integration": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "e904cb1d945c14d2ff2ef259e3ebe1fb17443f6308294fc9c8e4b95667c2599c"
+		},
+		"aoh-web-init": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "dff21a2c30b14dbb7048b69d83196d4f0ab36319ece9db4901f33521db79c984"
+		},
+		"aoh-wfe-designer": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "6440282979b73ca789e28d201c682a173586b116c539d83852e57bbb3b494e95"
+		},
+		"aoh-wfe-worker": {
+			"tag": "@mssfoobar/agent-skills@v0.9.0",
+			"hash": "891cf3566176b6ce8f8450e33c1c0211116dee0a0c17c391081183e778b4f972"
+		}
+	}
+}

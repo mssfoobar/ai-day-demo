@@ -1,0 +1,30 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+  body { padding: 24px; background: #FFFFFF; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card { background: #FFFFFF; border-radius: 8px; border: 1px solid #E4E4E7; padding: 16px 18px; box-shadow: 0 1px 2px 0 rgba(16,24,40,.05); display: flex; flex-direction: column; gap: 6px; }
+  .card .ttl { font-family: var(--font-display); font-size: 16px; font-weight: 600; }
+  .card .sub { font-size: 13px; color: #71717A; }
+  .widget { background: #FFFFFF; border-radius: 12px; border: 1px solid #E4E4E7; padding: 20px 22px; box-shadow: 0 1px 3px 0 rgba(0,0,0,.1), 0 1px 2px -1px rgba(0,0,0,.1); display: flex; flex-direction: column; gap: 10px; }
+  .widget .ttl { font-family: var(--font-display); font-size: 18px; font-weight: 600; line-height: 27px; color: #0F172A; }
+  .widget .row { display: flex; align-items: baseline; justify-content: space-between; }
+  .widget .metric { font-family: var(--font-display); font-weight: 700; font-size: 32px; line-height: 38px; color: #0F172A; font-variant-numeric: tabular-nums; }
+  .trend { font-size: 13px; font-weight: 500; color: #047857; display: inline-flex; align-items: center; gap: 4px; }
+  .spark { height: 28px; display: flex; align-items: flex-end; gap: 3px; }
+  .spark span { width: 6px; background: #0369A1; opacity: .9; border-radius: 1px; }
+</style></head><body>
+  <div class="card">
+    <div class="ttl">Channel: Ops alerts</div>
+    <div class="sub">12 subscribers · last activity 4 min ago</div>
+  </div>
+  <div class="widget">
+    <div class="ttl">Active incidents</div>
+    <div class="row">
+      <div class="metric">38</div>
+      <div class="trend">▲ 18%</div>
+    </div>
+    <div class="spark">
+      <span style="height:30%"></span><span style="height:55%"></span><span style="height:42%"></span><span style="height:70%"></span><span style="height:60%"></span><span style="height:82%"></span><span style="height:74%"></span><span style="height:90%"></span><span style="height:65%"></span><span style="height:78%"></span><span style="height:88%"></span><span style="height:100%"></span>
+    </div>
+  </div>
+</body></html>

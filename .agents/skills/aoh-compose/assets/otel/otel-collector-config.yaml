@@ -1,0 +1,92 @@
+# AOH gateway OpenTelemetry Collector config.
+#
+# This is the single, stable OTLP endpoint every AOH service targets
+# (OTEL_EXPORTER_OTLP_ENDPOINT -> otel-collector:4317). It is the vendor-neutral
+# seam: services never know the backend — swapping or fanning out is an exporter
+# change here, not an app change.
+#
+# Pipeline order is deliberate: memory_limiter FIRST (back-pressure
+# before anything buffers), resource enrichment, batch LAST (only batch what will
+# actually be exported). Production adds tail_sampling before batch at a gateway
+# tier; dev keeps everything (parentbased_always_on on the SDK side).
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # MUST be first: applies back-pressure to receivers under memory pressure.
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 25
+  resourcedetection:
+    detectors: [env, system]
+    timeout: 2s
+  # PROD-ONLY tail sampling (commented — dev keeps every trace for visibility).
+  # Head sampling on the SDK side is `parentbased_always_on` (the default in
+  # aoh-golib/otel and @mssfoobar/observability), so the SDKs keep everything and
+  # defer the decision to here. Enabling it keeps full traces for errors + slow
+  # requests and down-samples the rest, cutting backend cost without losing the
+  # traces that matter. To turn on: uncomment this block AND add `tail_sampling`
+  # to the traces pipeline BEFORE `batch`.
+  # CAVEAT: tail_sampling buffers spans per trace, so every span of a trace must
+  # reach the SAME collector. In an HA gateway tier, front this collector with a
+  # load-balancing exporter keyed on trace ID (a two-tier collector layout).
+  # tail_sampling:
+  #   decision_wait: 10s          # hold spans this long to assemble each trace
+  #   policies:
+  #     - name: errors            # keep any trace containing an error span
+  #       type: status_code
+  #       status_code: { status_codes: [ERROR] }
+  #     - name: slow              # keep slow traces (tune the threshold)
+  #       type: latency
+  #       latency: { threshold_ms: 1000 }
+  #     - name: baseline          # sample a small % of everything else
+  #       type: probabilistic
+  #       probabilistic: { sampling_percentage: 10 }
+  # MUST be last (after any drops/sampling): only batch exported data.
+  batch:
+    send_batch_size: 8192
+    timeout: 200ms
+
+exporters:
+  # Always on in dev: makes telemetry visible in the collector logs even before
+  # a backend is wired.
+  debug:
+    verbosity: normal
+  # Default bundled backend (the SigNoz fragment, §1b) forwards OTLP to
+  # SigNoz's own collector. A sending queue + retries mean a brief backend
+  # outage buffers rather than drops; repoint `endpoint` per deployment for
+  # bring-your-own. NOTE: when the otel fragment runs WITHOUT the signoz
+  # fragment, signoz-otel-collector won't resolve and this exporter logs
+  # connection-retry errors — harmless, the debug exporter still shows
+  # telemetry. Bring up the signoz fragment for the full pipeline.
+  otlp/signoz:
+    endpoint: signoz-otel-collector:4317
+    tls:
+      insecure: true
+    sending_queue:
+      enabled: true
+    retry_on_failure:
+      enabled: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      # PROD: insert `tail_sampling` before `batch` (see the processor stub above).
+      processors: [memory_limiter, resourcedetection, batch]
+      exporters: [debug, otlp/signoz]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, resourcedetection, batch]
+      exporters: [debug, otlp/signoz]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resourcedetection, batch]
+      exporters: [debug, otlp/signoz]

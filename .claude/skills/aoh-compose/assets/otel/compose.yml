@@ -1,0 +1,27 @@
+name: aoh
+
+# AOH gateway OpenTelemetry Collector. The single OTLP endpoint
+# every AOH service targets — services set OTEL_EXPORTER_OTLP_ENDPOINT to
+# http://otel-collector:4317 (in-network) or http://localhost:4317 (native run).
+# It joins the shared `aoh` network (name: aoh) like every other fragment and
+# needs no IAMS, so it does not `include:` the core stack.
+#
+# The bundled backend (SigNoz) ships as a separate fragment (§1b); until then
+# the collector logs received telemetry (debug exporter) — enough to confirm a
+# service is emitting traces/metrics/logs end to end.
+
+services:
+    otel-collector:
+        image: otel/opentelemetry-collector-contrib:0.130.0
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 3s
+        command: ["--config=/etc/otelcol-contrib/config.yaml"]
+        volumes:
+            - ../otel/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+        ports:
+            # OTLP gRPC + HTTP — exposed so apps run natively (go run / pnpm dev)
+            # against the composed infra can reach the collector on localhost.
+            - "4317:4317"
+            - "4318:4318"

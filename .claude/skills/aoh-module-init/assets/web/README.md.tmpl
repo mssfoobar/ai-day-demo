@@ -1,0 +1,46 @@
+# `@mssfoobar/__AOH_MODULE_NAME__-web-sdk`
+
+Svelte SDK for the `__AOH_MODULE_NAME__` AOH module.
+
+## Install
+
+```bash
+pnpm add @mssfoobar/__AOH_MODULE_NAME__-web-sdk
+```
+
+Required peer dependencies (the consumer workspace must provide these):
+
+* `@mssfoobar/ui`
+* `@mssfoobar/logger`
+* `@mssfoobar/__AOH_MODULE_NAME__-client`
+* `@mssfoobar/__AOH_MODULE_NAME__-types`
+* `svelte ^5`
+
+## Usage
+
+Add component exports as the SDK grows; consumers import per-subpath
+from `package.json#exports`:
+
+```ts
+import { /* component */ } from "@mssfoobar/__AOH_MODULE_NAME__-web-sdk";
+```
+
+Discover what's available:
+
+```bash
+cat node_modules/@mssfoobar/__AOH_MODULE_NAME__-web-sdk/package.json
+# read the "exports" field — every subpath is listed there
+```
+
+## Development
+
+```bash
+# From the ops-hub repo root:
+pnpm install
+pnpm exec turbo run check --filter=@mssfoobar/__AOH_MODULE_NAME__-web-sdk
+
+# From this directory:
+pnpm run build           # svelte-package + publint
+pnpm run test            # vitest
+pnpm run check:watch     # svelte-check in watch mode
+```

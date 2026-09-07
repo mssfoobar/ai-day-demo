@@ -1,0 +1,22 @@
+schema: aoh-spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your project overview, tech stack, conventions, style guides, domain knowledge, etc.
+# Example:
+#   context: |
+#     ## Tech stack:
+#     - Backend: Go, chi router, sqlx, PostgreSQL, Viper config, aoh-golib
+#     - Frontend: SvelteKit, Svelte 5 (runes), Tailwind CSS v4, `@mssfoobar/ui` (AOH distribution — visual primitives MUST come from here, not raw HTML/Tailwind), openid-client v6
+#     - Infrastructure: Compose stack (Podman preferred, Docker as fallback), Traefik v3, Keycloak, Valkey
+#     - Tooling: Turborepo, golangci-lint, mockery, ESLint, Prettier, Playwright, Vitest
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours

@@ -1,0 +1,54 @@
+services:
+    temporal-db:
+        image: postgres:13.0
+        environment:
+            POSTGRES_USER: ${DEV_USER}
+            POSTGRES_PASSWORD: ${DEV_PASSWORD}
+        expose:
+            - 5432
+        volumes:
+            - temporal-db-volume:/var/lib/postgresql/data
+
+    temporal:
+        image: temporalio/auto-setup:1.28.1
+        depends_on:
+            - temporal-db
+        environment:
+            - DB=postgres12
+            - DB_PORT=5432
+            - POSTGRES_USER=${DEV_USER}
+            - POSTGRES_PWD=${DEV_PASSWORD}
+            - POSTGRES_SEEDS=temporal-db
+            - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+        expose:
+            - 7233
+        volumes:
+            - ./dynamicconfig:/etc/temporal/config/dynamicconfig
+
+    temporal-admin-tools:
+        image: temporalio/admin-tools:1.28.1-tctl-1.18.4-cli-1.4.1
+        depends_on:
+            - temporal
+        environment:
+            - TEMPORAL_ADDRESS=temporal:7233
+            - TEMPORAL_CLI_ADDRESS=temporal:7233
+        stdin_open: true
+        tty: true
+
+    temporal-ui:
+        image: temporalio/ui:2.39.0
+        depends_on:
+            - temporal
+        environment:
+            - TEMPORAL_ADDRESS=temporal:7233
+            - TEMPORAL_CORS_ORIGINS=http://wf-admin.${DEV_DOMAIN}
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.wfe-temporal-ui.rule=Host(`wf-admin.${DEV_DOMAIN}`)
+            - traefik.http.routers.wfe-temporal-ui.entrypoints=web
+            - traefik.http.services.wfe-temporal-ui.loadBalancer.server.port=8080
+        expose:
+            - 8080
+
+volumes:
+    temporal-db-volume:

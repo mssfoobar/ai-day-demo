@@ -1,0 +1,88 @@
+name: aoh
+
+include:
+    - ../traefik/compose.yml
+    - ../iams/compose.yml
+    - ../unh/compose.yml
+    - ../rtus/compose.yml
+
+services:
+    ian-db:
+        image: postgres:17.0
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 3s
+        environment:
+            - POSTGRES_DB=ian
+            - POSTGRES_USER=${DEV_USER}
+            - POSTGRES_PASSWORD=${DEV_PASSWORD}
+        volumes:
+            - ian-db-volume:/var/lib/postgresql/data
+            - ../ian/db-init:/docker-entrypoint-initdb.d/
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ${DEV_USER} -d ian"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    ian-app:
+        image: ghcr.io/mssfoobar/ian/ian-app:${IAN_APP_TAG}
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 5s
+        environment:
+            - LOG_LEVEL=debug
+            - APP_PORT=8080
+            - SQL_HOST=ian-db
+            - SQL_PORT=5432
+            - SQL_DATABASE_NAME=ian
+            - SQL_SCHEMA_NAME=public
+            - SQL_USER=${DEV_USER}
+            - SQL_PASSWORD=${DEV_PASSWORD}
+            - SQL_PLUGIN_NAME=postgres
+            - SQL_MAX_CONNS=10
+            - SQL_MAX_IDLE_CONNS=5
+            - SQL_MAX_CONN_LIFETIME=30m
+            - SQL_SSL_MODE=disable
+            - RTUS_DOMAIN=http://rtus-pms:8080
+            - RTUS_MAP_NAME=ian
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.ian-app.rule=Host(`ian.${DEV_DOMAIN}`)
+            - traefik.http.routers.ian-app.entrypoints=web
+            - traefik.http.routers.ian-app.middlewares=permissive-headers@docker
+            - traefik.http.services.ian-app.loadBalancer.server.port=8080
+        depends_on:
+            ian-db:
+                condition: service_healthy
+
+    ian-web:
+        image: ghcr.io/mssfoobar/ian/ian-web:${IAN_WEB_TAG}
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 10s
+        environment:
+            - PORT=8080
+            - ORIGIN=http://ian-web.${DEV_DOMAIN}
+            - IAM_URL=http://iams-keycloak:8080/realms/aoh/.well-known/openid-configuration
+            - IAM_CLIENT_ID=ian
+            - PUBLIC_DOMAIN=${DEV_DOMAIN}
+            - PUBLIC_COOKIE_PREFIX=ian
+            - OIDC_ALLOW_INSECURE_REQUESTS=1
+            - LOGIN_DESTINATION=/_example
+            - IAN_URL=http://ian-app:8080
+            - PUBLIC_RTUS_SEH_URL=http://rtus-seh.${DEV_DOMAIN}
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.ian-web.rule=Host(`ian-web.${DEV_DOMAIN}`)
+            - traefik.http.routers.ian-web.entrypoints=web
+            - traefik.http.services.ian-web.loadBalancer.server.port=8080
+        depends_on:
+            ian-app:
+                condition: service_started
+
+volumes:
+    ian-db-volume:

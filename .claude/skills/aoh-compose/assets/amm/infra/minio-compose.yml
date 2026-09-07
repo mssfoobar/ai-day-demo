@@ -1,0 +1,38 @@
+name: aoh
+
+services:
+    amm-minio:
+        image: quay.io/minio/minio:RELEASE.2025-05-24T17-08-30Z
+        command: server /data --address :80 --console-address :9001
+        environment:
+            - MINIO_ACCESS_KEY=${DEV_USER}
+            - MINIO_SECRET_KEY=${DEV_PASSWORD}
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.amm-minio.rule=Host(`amm-minio.${DEV_DOMAIN}`)
+            - traefik.http.routers.amm-minio.entrypoints=web
+            - traefik.http.services.amm-minio.loadBalancer.server.port=9001
+        healthcheck:
+            test: ["CMD", "mc", "ready", "local"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+        hostname: amm-minio.${DEV_DOMAIN}
+        volumes:
+            - amm-minio-volume:/data
+
+    amm-minio-init:
+        image: quay.io/minio/mc
+        entrypoint: >
+            /bin/sh -c "
+            mc alias set amm-minio http://amm-minio:80 ${DEV_USER} ${DEV_PASSWORD};
+            mc mb --ignore-existing amm-minio/amm;
+            mc ilm rule add amm-minio/amm --expire-days 7;
+            exit 0;
+            "
+        depends_on:
+            amm-minio:
+                condition: service_healthy
+
+volumes:
+    amm-minio-volume:

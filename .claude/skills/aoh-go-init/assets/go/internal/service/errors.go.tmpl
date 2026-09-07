@@ -1,0 +1,62 @@
+package service
+
+// Classified failures for this service.
+//
+// The service layer's job is to say *what* failed: the aoherr Class decides the
+// HTTP status and the Code is the machine-readable identity a client branches
+// on. Nothing here picks a status, logs, or sanitizes — aoherr.Render owns all
+// three, and it suppresses internal detail on every 5xx no matter what a call
+// site passed in. See the `aoh-error-handling` skill for the contract.
+
+import (
+	"github.com/mssfoobar/ops-hub/packages/aoh-golib/aoherr"
+)
+
+// Codes this service publishes, namespaced so a client can tell this service's
+// 404 from another's. MustCode validates the format at init, so a malformed code
+// fails at startup instead of on a client's screen.
+//
+// A published code is part of the API: once a client branches on it, renaming or
+// removing it is a breaking change. Add a new code instead.
+var (
+	CodeValidationFailed = aoherr.MustCode("__AOH_CODE_PREFIX___VALIDATION_FAILED")
+	CodeNotFound         = aoherr.MustCode("__AOH_CODE_PREFIX___NOT_FOUND")
+	CodeForbidden        = aoherr.MustCode("__AOH_CODE_PREFIX___FORBIDDEN")
+	CodeConflict         = aoherr.MustCode("__AOH_CODE_PREFIX___CONFLICT")
+	CodeInternal         = aoherr.MustCode("__AOH_CODE_PREFIX___INTERNAL_ERROR")
+)
+
+// NewValidationError rejects input as a 400. Build details with
+// aoherr.FieldDetail(field, message) — one entry per failing field, so the
+// client can point at all of them at once.
+func NewValidationError(msg string, details ...aoherr.Detail) *aoherr.Error {
+	return aoherr.New(aoherr.ClassValidation, CodeValidationFailed, msg).
+		WithDetails(details...)
+}
+
+// NewNotFoundError is a 404. Use it when the row does not exist, and also when
+// it exists in another tenant — the caller must not be able to tell.
+func NewNotFoundError(msg string) *aoherr.Error {
+	return aoherr.New(aoherr.ClassNotFound, CodeNotFound, msg)
+}
+
+// NewForbiddenError is a 403: authenticated, but not permitted.
+func NewForbiddenError(msg string) *aoherr.Error {
+	return aoherr.New(aoherr.ClassAuthorization, CodeForbidden, msg)
+}
+
+// NewConflictError is a 409 — a stale occ_lock or a duplicate key. A failure
+// that must present as 409 belongs here rather than as a business rule with an
+// overridden status.
+func NewConflictError(msg string) *aoherr.Error {
+	return aoherr.New(aoherr.ClassConflict, CodeConflict, msg)
+}
+
+// NewInternalError is a 500 with the cause attached. The cause reaches the log
+// record and never the response body, so pass the real error — do not trim it.
+//
+// Wrapping is optional: an error that carries no classification renders as a
+// suppressed 500 anyway. Wrap when you want this service's code on the wire.
+func NewInternalError(msg string, cause error) *aoherr.Error {
+	return aoherr.Wrap(aoherr.ClassSystem, CodeInternal, msg, cause)
+}

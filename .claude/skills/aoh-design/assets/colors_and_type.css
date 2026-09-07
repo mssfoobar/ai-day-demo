@@ -1,0 +1,299 @@
+/* AOH Design System — Color + Type tokens
+   Two-tier: Radix primitive scales → semantic tokens.
+   Matches the `@mssfoobar/ui` token contract; AOH-specific extensions are marked. */
+
+/* ──────────────────────────────────────────────────────────────────
+   Fonts — Geist (local, supplied by user) + Inter, Geist Mono (Google)
+   ────────────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: "Geist";
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  src: url("fonts/Geist-VariableFont_wght.ttf") format("truetype-variations"),
+       url("fonts/Geist-VariableFont_wght.ttf") format("truetype");
+}
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Geist+Mono:wght@100..900&display=swap");
+
+/* ──────────────────────────────────────────────────────────────────
+   Color primitives — Radix scales (steps 50→950 to align w/ Tailwind)
+   Only the most-used scales are inlined; expand on demand.
+   ────────────────────────────────────────────────────────────────── */
+:root {
+  /* Zinc (dominant neutral) */
+  --zinc-50:  #FAFAFA;
+  --zinc-100: #F4F4F5;
+  --zinc-200: #E4E4E7;
+  --zinc-300: #D4D4D8;
+  --zinc-400: #A1A1AA;
+  --zinc-500: #71717A;
+  --zinc-600: #52525B;
+  --zinc-700: #3F3F46;
+  --zinc-800: #27272A;
+  --zinc-900: #18181B;
+  --zinc-950: #09090B;
+
+  /* Slate (background neutral) */
+  --slate-50:  #F8FAFC;
+  --slate-100: #F1F5F9;
+  --slate-200: #E2E8F0;
+  --slate-300: #CBD5E1;
+  --slate-400: #94A3B8;
+  --slate-500: #64748B;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1E293B;
+  --slate-900: #0F172A;
+  --slate-950: #020617;
+
+  /* Brand / accent — Blue */
+  --blue-50:  #EFF6FF;
+  --blue-100: #DBEAFE;
+  --blue-200: #BFDBFE;
+  --blue-300: #93C5FD;
+  --blue-400: #60A5FA;
+  --blue-500: #3B82F6;
+  --blue-600: #2563EB;
+  --blue-700: #1D4ED8;
+  --blue-900: #1E3A8A;
+
+  /* Sky (info accents in tags) */
+  --sky-50:  #F0F9FF;
+  --sky-100: #E0F2FE;
+  --sky-200: #BAE6FD;
+  --sky-400: #38BDF8;
+  --sky-500: #0EA5E9;
+  --sky-600: #0284C7;
+  --sky-700: #0369A1;
+  --sky-800: #075985;
+
+  /* Red (destructive) */
+  --red-50:  #FEF2F2;
+  --red-100: #FEE2E2;
+  --red-200: #FECACA;
+  --red-500: #EF4444;
+  --red-600: #DC2626;
+  --red-700: #B91C1C;
+
+  /* Green (success) */
+  --green-50:  #ECFDF5;
+  --green-100: #D1FAE5;
+  --green-500: #10B981;
+  --green-600: #059669;
+  --green-700: #047857;
+
+  /* Amber (warning) */
+  --amber-50:  #FFFBEB;
+  --amber-100: #FEF3C7;
+  --amber-500: #F59E0B;
+  --amber-600: #D97706;
+  --amber-700: #B45309;
+
+  /* Violet (tertiary chart) */
+  --violet-50:  #F5F3FF;
+  --violet-500: #8B5CF6;
+  --violet-600: #7C3AED;
+
+  /* Cyan (info chart) */
+  --cyan-50:  #ECFEFF;
+  --cyan-500: #06B6D4;
+  --cyan-600: #0891B2;
+
+  /* Teal (alt chart) */
+  --teal-50:  #F0FDFA;
+  --teal-500: #14B8A6;
+  --teal-600: #0D9488;
+
+  /* Purple primitive (Figma calls this out as Special; #9747FF tokens) */
+  --purple-500: #9747FF;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Semantic tokens — light mode (default)
+   The `@mssfoobar/ui` token contract; values from the AOH Figma file.
+   ────────────────────────────────────────────────────────────────── */
+:root {
+  --background:            var(--white, #FFFFFF);
+  --foreground:            var(--zinc-950);     /* #09090B */
+
+  /* AOH layering system (3 tiers from /Layering-Background) */
+  --color-bg:              var(--slate-50);      /* base layer — dashboard canvas */
+  --color-bg-subtle:       #FFFFFF;              /* cards & widgets sit here */
+  --color-bg-elevated:     var(--slate-100);     /* raised panels, hover surfaces */
+
+  --canvas:                var(--color-bg);      /* alias kept for legacy */
+  --canvas-2:              var(--color-bg-elevated);
+
+  --card:                  #FFFFFF;
+  --card-foreground:       var(--zinc-950);
+
+  --popover:               #FFFFFF;
+  --popover-foreground:    var(--zinc-950);
+
+  --primary:               var(--sky-700);       /* AOH primary — #0369A1 (sky-700) */
+  --primary-foreground:    #FFFFFF;
+  --primary-hover:         #035E91;                /* sky-700 @ ~90% darker */
+  --primary-pressed:       #024A75;
+  --primary-outline:       var(--sky-600);          /* outline-primary border #0284C7 */
+
+  --secondary:             var(--zinc-100);
+  --secondary-foreground:  var(--zinc-900);
+
+  --muted:                 var(--zinc-100);
+  --muted-foreground:      var(--zinc-500);
+
+  --accent:                var(--zinc-100);
+  --accent-foreground:     var(--zinc-900);
+
+  --destructive:           var(--red-600);
+  --destructive-foreground:#FFFFFF;
+
+  --success:               var(--green-600);
+  --warning:               var(--amber-500);
+  --info:                  var(--cyan-500);
+
+  --border:                var(--zinc-200);
+  --border-strong:         var(--zinc-300);
+  --input:                 var(--zinc-200);
+  --ring:                  var(--sky-600);          /* focus ring — outline-primary border */
+
+  /* AOH brand / chart palette — charts retain Blue-500 per widget guidelines */
+  --brand:                 var(--sky-700);          /* UI primary */
+  --chart-1:               var(--blue-500);
+  --chart-2:               var(--green-500);
+  --chart-3:               var(--amber-500);
+  --chart-4:               var(--red-500);
+  --chart-5:               var(--violet-500);
+  --chart-6:               var(--teal-500);
+  --chart-7:               var(--cyan-500);
+
+  /* Sidebar */
+  --sidebar-bg:            var(--slate-50);
+  --sidebar-border:        var(--zinc-200);
+  --sidebar-fg:            var(--zinc-900);
+  --sidebar-muted:         var(--zinc-500);
+  --sidebar-active-bg:     var(--zinc-100);
+  --sidebar-active-fg:     var(--zinc-900);
+
+  /* Radii */
+  --radius-xs:  4px;
+  --radius-sm:  6px;     /* buttons, inputs */
+  --radius-md:  8px;     /* cards, modals */
+  --radius-lg:  12px;    /* widgets */
+  --radius-xl:  16px;    /* big containers */
+
+  /* Shadow elevation */
+  --shadow-sm: 0 1px 2px 0 rgba(16, 24, 40, .05);
+  --shadow-md: 0 1px 3px 0 rgba(0, 0, 0, .1), 0 1px 2px -1px rgba(0, 0, 0, .1);
+  --shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, .1), 0 2px 4px -2px rgba(0, 0, 0, .1);
+  --shadow-xl: 0 10px 15px -3px rgba(0, 0, 0, .1), 0 4px 6px -2px rgba(0, 0, 0, .05);
+
+  /* Spacing scale (echo of 8-px grid) */
+  --space-1:   4px;
+  --space-2:   8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Type stack */
+  --font-display: "Geist", "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans:    "Geist", "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-body:    "Inter", "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono:    "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Type scale — size / line-height pairs */
+  --fs-xs:   12px;  --lh-xs:   16px;
+  --fs-sm:   14px;  --lh-sm:   20px;
+  --fs-base: 16px;  --lh-base: 24px;
+  --fs-lg:   18px;  --lh-lg:   28px;
+  --fs-xl:   20px;  --lh-xl:   32px;
+  --fs-2xl:  24px;  --lh-2xl:  38px;
+  --fs-3xl:  30px;  --lh-3xl:  42px;
+  --fs-4xl:  36px;  --lh-4xl:  40px;
+  --fs-5xl:  48px;  --lh-5xl:  72px;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Semantic tokens — dark mode
+   ────────────────────────────────────────────────────────────────── */
+.dark, [data-theme="dark"] {
+  --background:            var(--zinc-950);
+  --foreground:            var(--zinc-50);
+
+  /* AOH layering system — dark */
+  --color-bg:              var(--zinc-950);      /* #09090B */
+  --color-bg-subtle:       var(--zinc-900);      /* #18181B */
+  --color-bg-elevated:     var(--slate-800);     /* #1E293B */
+
+  --canvas:                var(--color-bg);
+  --canvas-2:              var(--color-bg-elevated);
+
+  --card:                  var(--zinc-900);
+  --card-foreground:       var(--zinc-50);
+
+  --popover:               var(--zinc-900);
+  --popover-foreground:    var(--zinc-50);
+
+  --primary:               var(--sky-500);          /* lighter for dark surfaces */
+  --primary-foreground:    #FFFFFF;
+  --primary-hover:         var(--sky-400, #38BDF8);
+  --primary-outline:       var(--sky-500);
+
+  --secondary:             var(--zinc-800);
+  --secondary-foreground:  var(--zinc-50);
+
+  --muted:                 var(--zinc-800);
+  --muted-foreground:      var(--zinc-400);
+
+  --accent:                var(--zinc-800);
+  --accent-foreground:     var(--zinc-50);
+
+  --destructive:           var(--red-500);
+  --destructive-foreground:#FFFFFF;
+
+  --border:                var(--zinc-800);
+  --border-strong:         var(--zinc-700);
+  --input:                 var(--zinc-800);
+  --ring:                  var(--sky-500);
+
+  --sidebar-bg:            var(--zinc-900);
+  --sidebar-border:        var(--zinc-800);
+  --sidebar-fg:            var(--zinc-50);
+  --sidebar-muted:         var(--zinc-400);
+  --sidebar-active-bg:     var(--zinc-800);
+  --sidebar-active-fg:     var(--zinc-50);
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Semantic typography classes — drop-in
+   ────────────────────────────────────────────────────────────────── */
+html, body { font-family: var(--font-body); color: var(--foreground); background: var(--background); -webkit-font-smoothing: antialiased; }
+
+.h1, h1 { font-family: var(--font-display); font-weight: 700; font-size: 48px;  line-height: 58px; letter-spacing: -0.01em; color: var(--foreground); }
+.h2, h2 { font-family: var(--font-display); font-weight: 600; font-size: 30px;  line-height: 42px; letter-spacing: -0.005em; color: var(--foreground); }
+.h3, h3 { font-family: var(--font-display); font-weight: 600; font-size: 24px;  line-height: 38px; color: var(--foreground); }
+.h4, h4 { font-family: var(--font-display); font-weight: 600; font-size: 20px;  line-height: 32px; color: var(--foreground); }
+.eyebrow { font-family: var(--font-body); font-weight: 600; font-size: 12px; line-height: 18px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted-foreground); }
+
+.page-title { font-family: var(--font-display); font-weight: 700; font-size: 15px; line-height: 24px; color: var(--foreground); }
+.page-subtitle { font-family: var(--font-body); font-size: 11px; line-height: 15px; color: var(--muted-foreground); }
+
+.lead    { font-family: var(--font-body); font-size: 20px;   line-height: 32px; color: var(--muted-foreground); }
+.p, p    { font-family: var(--font-body); font-size: 16px;   line-height: 24px; color: var(--foreground); }
+.small   { font-family: var(--font-body); font-size: 14px;   line-height: 20px; font-weight: 500; color: var(--foreground); }
+.muted   { font-family: var(--font-body); font-size: 14px;   line-height: 20px; color: var(--muted-foreground); }
+.tiny    { font-family: var(--font-body); font-size: 12px;   line-height: 16px; color: var(--muted-foreground); }
+
+.metric-lg { font-family: var(--font-display); font-weight: 700; font-size: 32px; line-height: 38px; color: var(--foreground); font-variant-numeric: tabular-nums; }
+.metric-md { font-family: var(--font-display); font-weight: 600; font-size: 24px; line-height: 31px; color: var(--foreground); font-variant-numeric: tabular-nums; }
+
+.widget-title { font-family: var(--font-display); font-weight: 600; font-size: 18px; line-height: 27px; color: var(--foreground); }
+.label   { font-family: var(--font-body); font-weight: 500; font-size: 14px; line-height: 20px; color: var(--foreground); }
+.table-h { font-family: var(--font-body); font-weight: 600; font-size: 12px; line-height: 18px; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.05em; }
+.table-c { font-family: var(--font-body); font-size: 14px; line-height: 21px; color: var(--foreground); }
+.code    { font-family: var(--font-mono); font-size: 13px; line-height: 20px; color: var(--foreground); background: var(--muted); padding: 1px 6px; border-radius: 4px; }

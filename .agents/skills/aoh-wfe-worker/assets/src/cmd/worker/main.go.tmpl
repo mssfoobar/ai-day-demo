@@ -1,0 +1,100 @@
+// Command worker is a WFE workflow-worker: a Temporal *activity* worker that runs
+// the activities a WFE workflow schedules. It is the user-owned counterpart to
+// the platform's workflow-engine — the engine runs the DSL and schedules
+// activities onto a task queue; this worker consumes that queue and executes them.
+//
+// To make it your own: replace the activities under internal/activities/ with
+// yours, register them below, and point temporal.task_queue at the same queue
+// your WFE engine uses.
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log"
+	"net/http"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	aohhttp "github.com/mssfoobar/ops-hub/packages/aoh-golib/http"
+	aohlog "github.com/mssfoobar/ops-hub/packages/aoh-golib/logger"
+	aohtemporal "github.com/mssfoobar/ops-hub/packages/aoh-golib/temporal"
+	"__AOH_MODULE__/internal/activities"
+	"__AOH_MODULE__/internal/config"
+	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/worker"
+	"go.uber.org/zap"
+)
+
+func main() {
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if cfg.Log.Level == "debug" {
+		aohlog.SetDevelopment()
+	}
+
+	tClient, err := aohtemporal.NewClient(aohtemporal.Config{
+		HostPort:  fmt.Sprintf("%s:%d", cfg.Temporal.Host, cfg.Temporal.Port),
+		Namespace: cfg.Temporal.Namespace,
+	})
+	if err != nil {
+		aohlog.Fatal("unable to connect to temporal", zap.Error(err))
+	}
+	defer tClient.Close()
+
+	// DisableWorkflowWorker: this process runs ACTIVITIES only — workflows run on
+	// the WFE workflow-engine. Both must use the same task queue.
+	w := worker.New(tClient, cfg.Temporal.TaskQueue, worker.Options{
+		DisableWorkflowWorker: true,
+	})
+
+	// Register your activity structs here. Each exported method becomes a
+	// Temporal activity addressable by its method name from a DSL Activity step.
+	w.RegisterActivity(&activities.Activities{})
+
+	srv := newHealthServer(cfg.HTTP.Port, tClient)
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			aohlog.Error("health server error", zap.Error(err))
+		}
+	}()
+
+	aohlog.Info("workflow-worker starting",
+		zap.Int("port", cfg.HTTP.Port),
+		zap.String("task_queue", cfg.Temporal.TaskQueue))
+
+	// Run blocks until interrupted (SIGINT/SIGTERM via worker.InterruptCh).
+	if err := w.Run(worker.InterruptCh()); err != nil {
+		aohlog.Error("temporal worker stopped", zap.Error(err))
+	}
+
+	if err := srv.Shutdown(context.Background()); err != nil {
+		aohlog.Error("failed to shutdown health server", zap.Error(err))
+	}
+}
+
+// newHealthServer exposes /livez and /readyz; readiness probes Temporal so the
+// worker is only ready while the cluster is reachable.
+func newHealthServer(port int, c aohtemporal.Client) *http.Server {
+	r := chi.NewRouter()
+	r.Use(middleware.Recoverer)
+
+	health := aohhttp.NewHealthCheck(r)
+	health.AddLivenessCheck("liveness check", func() error { return nil })
+	health.AddReadinessCheck("temporal", func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_, err := c.CheckHealth(ctx, &client.CheckHealthRequest{})
+		return err
+	})
+
+	return &http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: r,
+	}
+}

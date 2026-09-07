@@ -1,0 +1,6 @@
+# Local, per-machine secrets and cached bootstrap state.
+# These are generated or edited at `./scripts/up.sh` time and must never
+# be committed.
+
+# Env file holds the admin password for the local Nexus.
+assets/.env

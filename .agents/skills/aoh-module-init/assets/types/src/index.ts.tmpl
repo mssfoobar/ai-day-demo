@@ -1,0 +1,14 @@
+// @mssfoobar/__AOH_MODULE_NAME__-types
+//
+// TypeScript mirrors of the __AOH_MODULE_NAME__-service wire DTOs.
+//
+// **Source of truth**: modules/__AOH_MODULE_NAME__/service/internal/dto/*.go.
+// Keep this file in lockstep with the Go DTOs — the @mssfoobar/__AOH_MODULE_NAME__-client
+// integration tests will catch drift on round-trip JSON.
+//
+// Add types below as endpoints are added to the service. The aoh-golib
+// response envelopes (AohResponse<T>, AohPaginationResponse<T>, etc.)
+// are stable across modules — declare them locally here, or import from
+// another module's -types package that already exports them.
+
+export {};

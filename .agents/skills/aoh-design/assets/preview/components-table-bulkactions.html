@@ -1,0 +1,27 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_table.css">
+<style>
+  .bulk { display: flex; align-items: center; gap: 16px; padding: 8px 16px 8px 24px; height: 52px; background: #fff; border: 1px solid #E4E4E7; border-radius: 8px; box-shadow: 0 1px 3px 0 rgba(0,0,0,.06), 0 1px 2px -1px rgba(0,0,0,.06); }
+  .bulk .count { font-size: 14px; color: #09090B; font-family: var(--font-body); }
+  .bulk .divider-v { width: 1px; height: 24px; background: #E4E4E7; }
+  .bact { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 6px; font-size: 13px; font-weight: 500; color: #18181B; background: transparent; border: 1px solid transparent; cursor: pointer; }
+  .bact:hover { background: #F4F4F5; }
+  .bact.danger { color: #B91C1C; }
+  .bact.danger:hover { background: #FEE2E2; }
+  .grow { flex: 1; }
+  .cancel { width: 32px; height: 32px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #E4E4E7; background: #fff; color: #71717A; cursor: pointer; box-shadow: 0 1px 2px 0 rgba(16,24,40,.05); }
+</style></head>
+<body>
+  <div class="label">Bulk-actions bar · appears when ≥ 1 row selected · Figma /Data-table/Bulk-Actions</div>
+  <div class="bulk">
+    <span class="count">6/35 Items Selected</span>
+    <span class="divider-v"></span>
+    <button class="bact"><svg class="ico" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download</button>
+    <button class="bact danger"><svg class="ico" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>Delete</button>
+    <button class="bact"><svg class="ico" viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>Archive</button>
+    <button class="bact"><svg class="ico" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>Edit</button>
+    <button class="bact"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+    <span class="grow"></span>
+    <button class="cancel" title="Cancel selection"><svg class="ico" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </div>
+</body></html>

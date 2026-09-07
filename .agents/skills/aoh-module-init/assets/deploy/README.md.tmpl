@@ -1,0 +1,17 @@
+# `modules/__AOH_MODULE_NAME__/deploy/`
+
+Deployment artifacts for the __AOH_MODULE_NAME__ Go service
+(`modules/__AOH_MODULE_NAME__/service/`).
+
+## Contents
+
+| File | Purpose |
+|---|---|
+| `compose.snippet.yml` | Composable compose snippet — brings up `__AOH_MODULE_NAME__-db` (Postgres) + `__AOH_MODULE_NAME__-service`. Designed to merge into a hub-level stack via `docker compose -f core.yml -f modules/__AOH_MODULE_NAME__/deploy/compose.snippet.yml up`. |
+| `README.md` | This file. |
+
+The Go service's own Dockerfile lives at
+`modules/__AOH_MODULE_NAME__/service/Dockerfile` (next to its source).
+This `deploy/` directory is for **deployment composition** artifacts
+that reference the service from the outside (compose snippets, Helm
+chart skeletons, Kubernetes manifests, etc.).

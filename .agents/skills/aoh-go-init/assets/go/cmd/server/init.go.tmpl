@@ -1,0 +1,36 @@
+package main
+
+import (
+	aohlog "github.com/mssfoobar/ops-hub/packages/aoh-golib/logger"
+	"__AOH_MODULE__/internal/config"
+	"__AOH_MODULE__/internal/handler"
+	"__AOH_MODULE__/internal/repo"
+	"__AOH_MODULE__/internal/service"
+)
+
+func InitService() (*handler.HTTPServer, error) {
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.Log.Level == "debug" {
+		aohlog.SetDevelopment()
+	}
+
+	db, err := repo.NewDB(cfg.SQL)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := repo.RunMigrations(db); err != nil {
+		return nil, err
+	}
+
+	// TODELETE(scaffold): Replace example wiring with real entities
+	exampleRepo := repo.NewExampleRepository(db)
+	exampleSvc := service.NewExampleService(exampleRepo)
+
+	srv := handler.NewHTTPServer(*cfg, db, exampleSvc)
+	return srv, srv.Start()
+}

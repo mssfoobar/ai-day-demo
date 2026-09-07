@@ -1,0 +1,92 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+  body { padding: 24px; background: #fff; display: flex; gap: 18px; align-items: flex-start; }
+  /* Match the Figma SidebarMenuItem/2 lines symbol exactly */
+  .sb { background: #F8FAFC; border: 1px solid #E4E4E7; border-radius: 8px; height: 380px; display: flex; flex-direction: column; }
+  .sb.open { width: 256px; }
+  .sb.col  { width: 56px; align-items: center; }
+  .head { display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 6px; width: 100%; }
+  .col .head { justify-content: center; padding: 8px 0; }
+
+  /* The primary-coloured tile on the LEFT of the header — sky-700, 32×32, radius 8 */
+  .tile { width: 32px; height: 32px; border-radius: 8px; background: #0369A1; color: #fff; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; transition: background .15s; }
+  .tile:hover { background: #035E91; }
+  .tile-ico { width: 16px; height: 16px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Title + subtitle column, sits at x=48 from the tile */
+  .text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+  .text .nm { font-family: Geist, var(--font-body); font-weight: 700; font-size: 14px; line-height: 20px; color: #18181B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .text .sub { font-family: Geist, var(--font-body); font-size: 12px; line-height: 16px; color: #71717A; }
+  /* Right CTA chevron — ChevronsUpDown for the team-switcher dropdown */
+  .cta-ico { width: 16px; height: 16px; stroke: #71717A; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
+  .group { padding: 12px 12px 4px; font-size: 11px; color: #71717A; text-transform: uppercase; letter-spacing: .04em; }
+  .item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin: 0 8px; border-radius: 6px; font-size: 13px; color: #18181B; }
+  .item.active { background: #F1F5F9; font-weight: 500; }
+  .item .ico { width: 16px; height: 16px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+  .col .item { padding: 8px; justify-content: center; margin: 2px 4px; }
+  .col .item span:not(.ico-w) { display: none; }
+  .ico-w { display: inline-flex; }
+  .foot { margin-top: auto; border-top: 1px solid #E4E4E7; padding: 10px 12px; display: flex; align-items: center; gap: 10px; width: 100%; }
+  .col .foot { justify-content: center; padding: 10px 0; }
+  .avatar { width: 28px; height: 28px; background: #E4E4E7; border-radius: 50%; flex-shrink: 0; }
+  .caption { font-family: var(--font-mono); font-size: 10px; color: #71717A; margin-top: 8px; text-align: center; letter-spacing: .04em; }
+  .stack { display: flex; flex-direction: column; align-items: center; }
+</style></head><body>
+
+  <!-- Expanded sidebar — tile on the LEFT with chevrons-left inside (« click to collapse) -->
+  <div class="stack">
+    <div class="sb open">
+      <div class="head">
+        <button class="tile" title="Collapse sidebar" aria-label="Collapse sidebar">
+          <svg class="tile-ico" viewBox="0 0 24 24"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+        </button>
+        <div class="text">
+          <span class="nm">AGIL Ops Hub</span>
+          <span class="sub">Enterprise</span>
+        </div>
+        <svg class="cta-ico" viewBox="0 0 24 24"><polyline points="7 15 12 20 17 15"/><polyline points="17 9 12 4 7 9"/></svg>
+      </div>
+      <div class="group">Platform</div>
+      <div class="item active">
+        <span class="ico-w"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span>
+        <span>Dashboards</span>
+      </div>
+      <div class="item">
+        <span class="ico-w"><svg class="ico" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+        <span>Incidents</span>
+      </div>
+      <div class="item">
+        <span class="ico-w"><svg class="ico" viewBox="0 0 24 24"><path d="M3 5h18M3 12h18M3 19h18"/></svg></span>
+        <span>Distribution Lists</span>
+      </div>
+      <div class="item">
+        <span class="ico-w"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20"/></svg></span>
+        <span>Channels</span>
+      </div>
+      <div class="foot">
+        <div class="avatar"></div>
+        <div class="text"><span class="nm" style="font-weight:500;">L. Tan</span><span class="sub">ops@agil</span></div>
+      </div>
+    </div>
+    <div class="caption">Expanded · tile w/ chevrons-left</div>
+  </div>
+
+  <!-- Collapsed sidebar — just the tile, with chevrons-right (» click to expand) -->
+  <div class="stack">
+    <div class="sb col">
+      <div class="head">
+        <button class="tile" title="Expand sidebar" aria-label="Expand sidebar">
+          <svg class="tile-ico" viewBox="0 0 24 24"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+        </button>
+      </div>
+      <div class="item active"><span class="ico-w"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span></div>
+      <div class="item"><span class="ico-w"><svg class="ico" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span></div>
+      <div class="item"><span class="ico-w"><svg class="ico" viewBox="0 0 24 24"><path d="M3 5h18M3 12h18M3 19h18"/></svg></span></div>
+      <div class="item"><span class="ico-w"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20"/></svg></span></div>
+      <div class="foot"><div class="avatar"></div></div>
+    </div>
+    <div class="caption">Collapsed · tile w/ chevrons-right</div>
+  </div>
+</body></html>
