@@ -5,13 +5,13 @@ Monorepo-wide conventions. App- and package-specific rules live in the
 
 ## Branching
 
-`develop` is the canonical branch. Cut feature branches from `develop`;
-PRs target `develop`. Use `type/short-description` branch names
+`master` is the canonical branch. Cut feature branches from `master`;
+PRs target `master`. Use `type/short-description` branch names
 (`feat/…`, `fix/…`, etc.).
 
 ## Pull requests
 
-All changes land via PR — never commit directly to `develop`. Keep PRs
+All changes land via PR — never commit directly to `master`. Keep PRs
 scoped to one logical change.
 
 ## Commits
