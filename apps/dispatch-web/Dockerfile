@@ -38,13 +38,21 @@ FROM base
 COPY --from=build /prod/web /prod/web
 WORKDIR /prod/web
 
-ENV IAM_URL=""
-ENV IAM_CLIENT_ID="dispatch-web"
-ENV SDS_URL=""
-ENV PUBLIC_DOMAIN=""
-ENV PUBLIC_COOKIE_PREFIX=""
-ENV LOGIN_DESTINATION="/getting-started"
-ENV ORIGIN=""
+# This app has no authentication, so the scaffold's IAM_URL / IAM_CLIENT_ID / SDS_URL /
+# PUBLIC_COOKIE_PREFIX / LOGIN_DESTINATION defaults were removed along with the code that
+# read them. LOGIN_DESTINATION also pointed at /getting-started, a route that no longer
+# exists. See apps/dispatch-web/AGENTS.md.
+#
+# What remains is exactly what src/hooks.server.ts reads. The two security headers must be
+# defaulted here: unset, the container serves no CSP and no X-Frame-Options at all.
+# `'self'` is double-quoted so the CSP keyword survives — bare `self` is parsed as a host
+# name and matches nothing.
+ENV FRAME_ANCESTORS="'self'"
+ENV X_FRAME_OPTIONS="SAMEORIGIN"
+
+# ORIGIN has NO default on purpose. hooks.server.ts treats it as required and exits(1)
+# when unset, and adapter-node needs the real public origin — an empty default would only
+# turn a clear startup failure into a subtly wrong one. Inject it at `docker run`.
 ENV NODE_ENV="production"
 ENV PORT=3000
 

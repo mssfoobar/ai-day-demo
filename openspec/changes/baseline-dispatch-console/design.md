@@ -15,9 +15,10 @@ This design originally kept the full `aoh-web-init` scaffold and placed the cons
 its existing `(public)` route group, expecting the auth machinery to sit dormant. That
 does not work, and the reason matters enough to record:
 
-```
-apps/dispatch-web/src/hooks.server.ts:44
-  const oidc_config: Configuration = await discovery(new URL(envPrivate.IAM_URL!), …)
+The scaffold's `src/hooks.server.ts` opened with:
+
+```ts
+const oidc_config: Configuration = await discovery(new URL(envPrivate.IAM_URL!), …)
 ```
 
 That is a **top-level await**. It runs when the server module is loaded — before any
@@ -110,7 +111,6 @@ Verified against the installed `@mssfoobar/ui@1.1.0` `exports` field.
 |---|---|---|
 | Page header (title + description) | plain heading + paragraph on semantic tokens | n/a |
 | Units pane shell | `Card`, `CardHeader`, `CardTitle`, `CardContent` | `@mssfoobar/ui/card` |
-| Scrolling list region | `ScrollArea` | `@mssfoobar/ui/scroll-area` |
 | Each selectable unit row | `Button` with `variant="ghost"` | `@mssfoobar/ui/button` |
 | Row dividers | `Separator` | `@mssfoobar/ui/separator` |
 | Status indicator | `Badge` with `variant="soft"` | `@mssfoobar/ui/badge` |
@@ -133,8 +133,20 @@ solid badge.
   `Button variant="ghost"` containing a two-line stack (call sign, then identifier in
   `--muted-foreground`) plus a trailing `Badge`. Using `Button` rather than a `div` with
   `role="option"` buys the keyboard activation and focus ring from the package.
-- **Selected-row treatment** — `aria-current="true"` plus the package's `accent` surface
-  tokens, so selection reads in both themes without a bespoke highlight colour.
+- **Selected-row treatment** — `aria-current="true"` for assistive tech, **plus** a
+  visible change: the row carries `bg-accent text-accent-foreground` and its status icon
+  moves from `text-muted-foreground` to `text-foreground`. Both are package-mapped
+  semantic tokens, so selection reads in either theme without a bespoke highlight colour.
+  The `aria-current` attribute alone is *not* sufficient — `variant="ghost"` styles no
+  `aria-current` state, so a row set only via the attribute is pixel-identical to an
+  unselected one. `units-console.spec.ts` asserts the rendered difference, not just the
+  attribute.
+- **No scroll region.** An earlier draft wrapped the list in `ScrollArea`. It was removed:
+  `ScrollArea`'s viewport is `h-full`, so with a `max-h-*` and no definite height the
+  viewport never overflows, no scrollbar appears, and the root's `overflow-hidden` simply
+  clips. With a fixed 4–5 row roster nothing overflows anyway, and the approved mockup has
+  no scroll region. Reintroduce it — with a definite height — when the roster becomes
+  service-backed and unbounded.
 - **Detail field rows** — a description list inside `CardContent`; labels in
   `--muted-foreground` at `--fs-sm`, values in `--foreground`. Identifiers render in
   `font-mono` with tabular numerals.
@@ -175,8 +187,10 @@ Sentence case, operational, no marketing voice, no emoji.
 Package defaults handle most of this; only deviations and deliberate choices are noted:
 
 - The units list is an unordered list of `Button`s, natively tabbable, with `Enter` /
-  `Space` activating a row. The 2px `--ring` focus ring at 2px offset comes from
-  `Button` and is not overridden.
+  `Space` activating a row. The focus ring comes from the installed `Button`
+  (`focus-visible:border-ring` + a 3px `ring-ring/50`) and is not overridden. Note this
+  is the shipped primitive's ring, which differs from the 2px-at-2px-offset ring the
+  design-system doc describes; the package is the authority for what actually renders.
 - Selection is announced via `aria-current="true"` on the selected row's button.
 - Status is conveyed by the `Badge`'s **text label**, never by colour alone.
 - The detail pane is an `aria-live="polite"` region, so the swap is announced without
@@ -270,6 +284,13 @@ the workshop a concrete empty-state pattern to point at.
 - **[The `~/.npmrc` GitHub Packages token is still required]** → documented as the first
   item in the app README; it is the only prerequisite the container-free design cannot
   remove.
+- **[Tailwind does not scan this app by default, so app-only utility classes render as
+  nothing]** → `@import 'tailwindcss'` lives inside the package stylesheet, so v4's
+  automatic content detection roots at the package, not the consumer. `src/app.css`
+  carries an explicit `@source './'`. This failure is silent — the class reaches the DOM,
+  the token resolves, and no rule exists — and it is how the selected-row highlight first
+  shipped invisible. Recorded in the app's `AGENTS.md`; the E2E suite now asserts the
+  rendered difference rather than the `aria-current` attribute, so a regression fails.
 
 ## Migration Plan
 

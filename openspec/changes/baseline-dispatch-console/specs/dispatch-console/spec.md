@@ -47,7 +47,7 @@ hand-roll equivalents of primitives the package already exports.
 #### Scenario: Page conforms to the design system
 - **WHEN** the console page source is reviewed
 - **THEN** every button, card, badge, and list primitive it renders is imported from a `@mssfoobar/ui` subpath
-- **AND** no raw hex color appears outside the `@layer aoh-theme` block in `app.css`
+- **AND** no raw hex color and no raw Tailwind colour utility (e.g. `bg-blue-500`) appears in the page source; colours come from the semantic tokens `@mssfoobar/ui` ships
 
 #### Scenario: Dark mode parity
 - **WHEN** the console is viewed with the dark theme active

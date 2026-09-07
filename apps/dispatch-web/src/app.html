@@ -1,5 +1,14 @@
 <!doctype html>
-<html lang="en">
+<!--
+	`class="dark"` is set here, in the served HTML, not left to the client.
+
+	`@mssfoobar/ui`'s dark variant is `&:is(.dark *)`, and ThemeProvider only applies the
+	class from onMount/$effect. Without this the first paint uses the LIGHT palette and
+	flashes to dark on hydration. The app pins ThemeProvider to `mode="dark"`, so the
+	server already knows the answer — say it up front. Keep the two in step if the theme
+	ever becomes user-selectable (then this belongs in a blocking inline script instead).
+-->
+<html lang="en" class="dark">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />

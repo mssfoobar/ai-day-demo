@@ -16,7 +16,8 @@
 		"format": "prettier --write .",
 		"test:integration": "playwright test",
 		"test:unit": "vitest run --coverage --watch false",
-		"test:unit:dev": "vitest watch --ui --api 9527 --coverage"
+		"test:unit:dev": "vitest watch --ui --api 9527 --coverage",
+		"check-types": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --threshold error"
 	},
 	"lint-staged": {
 		"*.{ts,js,svelte}": [

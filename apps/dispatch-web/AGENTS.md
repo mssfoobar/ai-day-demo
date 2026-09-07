@@ -50,6 +50,15 @@ border">`. Hand-rolling silently bypasses theme tokens and dark mode.
   > To see what the installed version ships:
   > `cat node_modules/@mssfoobar/ui/package.json | jq .exports`.
 
+- **Tailwind only scans this app because `src/app.css` says so.** The
+  `@import 'tailwindcss'` lives inside `@mssfoobar/ui/styles/app.css`, so Tailwind v4
+  roots its automatic content detection at the *package* (its own `@source "../"`), not
+  here. `src/app.css` therefore carries an explicit `@source './'`. **Do not remove it**,
+  and if you add source outside `src/`, add a `@source` for it. Without it a utility this
+  app uses but the package doesn't is emitted into the DOM with no CSS rule behind it —
+  the class is present, the token is defined, and nothing renders. That is how the
+  selected-row highlight (`bg-accent`) first shipped invisible.
+
 - **API quirks worth knowing** (they fail silently, not loudly):
   - `Badge` splits shape from palette: `<Badge variant="soft" color="success">`.
     Writing `variant="success"` renders a default solid badge with no error.

@@ -16,6 +16,20 @@
    ============================================ */
 @import '@mssfoobar/ui/styles/app.css';
 
+/* Scan THIS app's own source for utility classes.
+ *
+ * Required, and easy to miss: `@import 'tailwindcss'` lives inside the package's
+ * stylesheet above, so Tailwind v4 roots its automatic content detection at the
+ * package's directory (its own `@source "../"`) — not at this app. Without the line
+ * below, only utilities the package itself happens to use get generated, and any class
+ * unique to this app is emitted into the DOM but has NO CSS rule behind it. It fails
+ * silently: the class is on the element, the token is defined, and nothing renders.
+ *
+ * That is exactly how the selected-row highlight (`bg-accent`) shipped invisible.
+ *
+ * Path is relative to this file, so './' is `src/`. */
+@source './';
+
 /* Geist as the app's UI font. Imported here (not in the package)
    because font choice is an app-level concern. Use the explicit
    `index.css` path — the bare specifier has no type declaration so

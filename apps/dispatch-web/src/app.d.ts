@@ -47,11 +47,23 @@ declare global {
 		// interface Platform {}
 	}
 
+	/** RFC 3339 / ISO 8601 instant, as the wire carries it. */
+	type ISO8601Date = string;
+
+	/**
+	 * One entry in the AOH failure envelope's `errors` array — `"<field>: <reason>"`.
+	 *
+	 * Declared explicitly because inside `declare global` a bare `Error` resolves to the
+	 * global JavaScript exception type (`name`/`message`/`stack`), which is not what a
+	 * response envelope carries.
+	 */
+	type HTTPResponseError = { message: string };
+
 	type HTTPResponseBody<T> = {
 		data?: T;
 		message?: string;
 		sent_at?: ISO8601Date;
-		errors?: Array<Error>;
+		errors?: Array<HTTPResponseError>;
 
 		// Pagination block populated for paginated endpoints. `sort` echoes the
 		// applied clauses as ["field,direction", ...] (array, not a joined string)

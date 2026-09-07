@@ -1,0 +1,6 @@
+
+> @mssfoobar/dispatch-web@1.0.0 lint C:\Users\JarylOng\Desktop\fleet-dispatch-console\apps\dispatch-web
+> prettier --check . && eslint .
+
+Checking formatting...
+All matched files use Prettier code style!

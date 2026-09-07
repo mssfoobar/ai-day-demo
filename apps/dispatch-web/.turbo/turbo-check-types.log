@@ -1,0 +1,8 @@
+
+> @mssfoobar/dispatch-web@1.0.0 check-types C:\Users\JarylOng\Desktop\fleet-dispatch-console\apps\dispatch-web
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --threshold error
+
+Loading svelte-check in workspace: c:\Users\JarylOng\Desktop\fleet-dispatch-console\apps\dispatch-web
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings

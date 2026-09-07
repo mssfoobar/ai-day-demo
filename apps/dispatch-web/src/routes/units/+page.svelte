@@ -3,9 +3,9 @@
 <!--
   Baseline dispatch console — a left Units list and a right unit detail pane.
 
-  Deliberately in (public): auth is deferred for the workshop baseline, so this
-  renders with `pnpm dev` and no containers. See the openspec change
-  `baseline-dispatch-console` (design.md D1) and its clickable mock at
+  This app has NO authentication, so the page sits at a plain `/units` route and renders
+  with `pnpm dev` and no containers. See the openspec change `baseline-dispatch-console`
+  (design.md D1/D2) and its clickable mock at
   openspec/changes/baseline-dispatch-console/design/units-console-mock.html.
 
   Read-only on purpose: the detail pane carries no command action yet.
@@ -15,11 +15,10 @@
 	import { Badge } from '@mssfoobar/ui/badge';
 	import { Button } from '@mssfoobar/ui/button';
 	import { Card, CardContent, CardHeader, CardTitle } from '@mssfoobar/ui/card';
-	import { ScrollArea } from '@mssfoobar/ui/scroll-area';
 	import { Separator } from '@mssfoobar/ui/separator';
 	import MousePointerClick from '@lucide/svelte/icons/mouse-pointer-click';
 	import Navigation from '@lucide/svelte/icons/navigation';
-	import PauseCircle from '@lucide/svelte/icons/pause-circle';
+	import CirclePause from '@lucide/svelte/icons/circle-pause';
 	import Radio from '@lucide/svelte/icons/radio';
 
 	import { listUnits, type FieldUnit, type UnitStatus } from '$lib/aoh/dispatch/roster';
@@ -38,10 +37,10 @@
 		Idle: 'default'
 	};
 
-	const statusIcon = {
+	const statusIcon: Record<UnitStatus, typeof Radio> = {
 		Available: Radio,
 		'En route': Navigation,
-		Idle: PauseCircle
+		Idle: CirclePause
 	};
 
 	function select(unit: FieldUnit) {
@@ -66,39 +65,43 @@
 				<CardTitle>Units</CardTitle>
 			</CardHeader>
 			<CardContent class="p-2">
-				<ScrollArea class="max-h-[32rem]">
-					<ul>
-						{#each units as unit, i (unit.id)}
-							{@const StatusIcon = statusIcon[unit.status]}
-							{#if i > 0}
-								<li aria-hidden="true"><Separator /></li>
-							{/if}
-							<li>
-								<Button
-									variant="ghost"
-									class="h-auto w-full justify-start gap-3 px-3 py-2.5 text-left"
-									aria-current={unit.id === selectedId ? 'true' : undefined}
-									onclick={() => select(unit)}
-								>
-									<StatusIcon class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-									<span class="min-w-0 flex-1">
-										<span class="block text-sm leading-5 font-semibold">
-											{unit.callSign}
-										</span>
-										<span
-											class="block font-mono text-xs leading-4 text-muted-foreground tabular-nums"
-										>
-											{unit.id}
-										</span>
+				<ul>
+					{#each units as unit, i (unit.id)}
+						{@const StatusIcon = statusIcon[unit.status]}
+						{@const isSelected = unit.id === selectedId}
+						{#if i > 0}
+							<li aria-hidden="true"><Separator /></li>
+						{/if}
+						<li>
+							<Button
+								variant="ghost"
+								class="h-auto w-full justify-start gap-3 px-3 py-2.5 text-left {isSelected
+									? 'bg-accent text-accent-foreground'
+									: ''}"
+								aria-current={isSelected ? 'true' : undefined}
+								onclick={() => select(unit)}
+							>
+								<StatusIcon
+									class="size-5 shrink-0 {isSelected ? 'text-foreground' : 'text-muted-foreground'}"
+									aria-hidden="true"
+								/>
+								<span class="min-w-0 flex-1">
+									<span class="block text-sm leading-5 font-semibold">
+										{unit.callSign}
 									</span>
-									<Badge variant="soft" color={statusColor[unit.status]}>
-										{unit.status}
-									</Badge>
-								</Button>
-							</li>
-						{/each}
-					</ul>
-				</ScrollArea>
+									<span
+										class="block font-mono text-xs leading-4 text-muted-foreground tabular-nums"
+									>
+										{unit.id}
+									</span>
+								</span>
+								<Badge variant="soft" color={statusColor[unit.status]}>
+									{unit.status}
+								</Badge>
+							</Button>
+						</li>
+					{/each}
+				</ul>
 			</CardContent>
 		</Card>
 
