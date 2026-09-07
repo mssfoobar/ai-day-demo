@@ -17,14 +17,12 @@ private `ops-hub` repo and no `GOPRIVATE` setting is needed**. See
 
 ## Running
 
-From the repo root, one command checks every prerequisite (including the two credentials
-above), installs, and starts the database, this service, and the console:
+From the repo root, one command starts the database, this service, and the console:
 
 ```sh
-pnpm launch        # or .\launch.ps1 / ./launch.sh from a fresh clone
+pnpm install       # once
+pnpm start
 ```
-
-`pnpm start` does only the last part, once you are set up.
 
 Or run this service on its own, against an already-running database:
 
