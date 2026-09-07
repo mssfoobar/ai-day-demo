@@ -17,6 +17,7 @@
 	import { Input } from '@mssfoobar/ui/input';
 	import { Label } from '@mssfoobar/ui/label';
 	import { Select, SelectContent, SelectItem, SelectTrigger } from '@mssfoobar/ui/select';
+	import { ScrollArea } from '@mssfoobar/ui/scroll-area';
 	import {
 		Sheet,
 		SheetContent,
@@ -134,86 +135,89 @@
 				</SheetDescription>
 			</SheetHeader>
 
-			<div class="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-2">
-				{#if errors.form}
-					<p class="text-sm text-destructive" role="alert">{errors.form}</p>
-				{/if}
-
-				<div class="grid gap-1.5">
-					<Label for="unitCode">{fieldLabel('unitCode')}</Label>
-					<Input
-						id="unitCode"
-						name="unitCode"
-						bind:value={values.unitCode}
-						placeholder="FU-401"
-						class="font-mono"
-						readonly={mode === 'edit'}
-						aria-invalid={errors.unitCode ? 'true' : undefined}
-						aria-describedby={errors.unitCode ? 'unitCode-error' : undefined}
-					/>
-					{#if errors.unitCode}
-						<p id="unitCode-error" class="text-xs text-destructive">{errors.unitCode}</p>
-					{:else if mode === 'create'}
-						<p class="text-xs text-muted-foreground">Unique. Dispatchers say this out loud.</p>
+			<!-- ScrollArea, not overflow-y-auto: the native scrollbar clashes with the theme. -->
+			<ScrollArea class="min-h-0 flex-1">
+				<div class="space-y-4 px-5 py-2">
+					{#if errors.form}
+						<p class="text-sm text-destructive" role="alert">{errors.form}</p>
 					{/if}
-				</div>
 
-				{#each FIELDS as f (f.key)}
 					<div class="grid gap-1.5">
-						<Label for={f.key}>{fieldLabel(f.key)}</Label>
+						<Label for="unitCode">{fieldLabel('unitCode')}</Label>
 						<Input
-							id={f.key}
-							name={f.key}
-							bind:value={values[f.key]}
-							placeholder={f.placeholder}
-							class={f.mono ? 'font-mono' : ''}
-							aria-invalid={errors[f.key] ? 'true' : undefined}
-							aria-describedby={errors[f.key] ? `${f.key}-error` : undefined}
+							id="unitCode"
+							name="unitCode"
+							bind:value={values.unitCode}
+							placeholder="FU-401"
+							class="font-mono"
+							readonly={mode === 'edit'}
+							aria-invalid={errors.unitCode ? 'true' : undefined}
+							aria-describedby={errors.unitCode ? 'unitCode-error' : undefined}
 						/>
-						{#if errors[f.key]}
-							<p id="{f.key}-error" class="text-xs text-destructive">{errors[f.key]}</p>
+						{#if errors.unitCode}
+							<p id="unitCode-error" class="text-xs text-destructive">{errors.unitCode}</p>
+						{:else if mode === 'create'}
+							<p class="text-xs text-muted-foreground">Unique. Dispatchers say this out loud.</p>
 						{/if}
 					</div>
-				{/each}
 
-				<div class="grid gap-1.5">
-					<Label for="status">{fieldLabel('status')}</Label>
-					<!-- `name` makes Select render a hidden input, so the value posts with the form. -->
-					<Select type="single" name="status" bind:value={values.status}>
-						<SelectTrigger
-							id="status"
-							class="w-full"
-							aria-invalid={errors.status ? 'true' : undefined}
-						>
-							{values.status || 'Choose a status'}
-						</SelectTrigger>
-						<SelectContent>
-							{#each KNOWN_STATUSES as s (s)}
-								<SelectItem value={s} label={s} />
-							{/each}
-						</SelectContent>
-					</Select>
-					{#if errors.status}
-						<p class="text-xs text-destructive">{errors.status}</p>
+					{#each FIELDS as f (f.key)}
+						<div class="grid gap-1.5">
+							<Label for={f.key}>{fieldLabel(f.key)}</Label>
+							<Input
+								id={f.key}
+								name={f.key}
+								bind:value={values[f.key]}
+								placeholder={f.placeholder}
+								class={f.mono ? 'font-mono' : ''}
+								aria-invalid={errors[f.key] ? 'true' : undefined}
+								aria-describedby={errors[f.key] ? `${f.key}-error` : undefined}
+							/>
+							{#if errors[f.key]}
+								<p id="{f.key}-error" class="text-xs text-destructive">{errors[f.key]}</p>
+							{/if}
+						</div>
+					{/each}
+
+					<div class="grid gap-1.5">
+						<Label for="status">{fieldLabel('status')}</Label>
+						<!-- `name` makes Select render a hidden input, so the value posts with the form. -->
+						<Select type="single" name="status" bind:value={values.status}>
+							<SelectTrigger
+								id="status"
+								class="w-full"
+								aria-invalid={errors.status ? 'true' : undefined}
+							>
+								{values.status || 'Choose a status'}
+							</SelectTrigger>
+							<SelectContent>
+								{#each KNOWN_STATUSES as s (s)}
+									<SelectItem value={s} label={s} />
+								{/each}
+							</SelectContent>
+						</Select>
+						{#if errors.status}
+							<p class="text-xs text-destructive">{errors.status}</p>
+						{/if}
+					</div>
+
+					<div class="grid gap-1.5">
+						<Label for="capabilities">{fieldLabel('capabilities')}</Label>
+						<Input
+							id="capabilities"
+							name="capabilities"
+							bind:value={values.capabilities}
+							placeholder="ALS, Water rescue"
+						/>
+						<p class="text-xs text-muted-foreground">Comma-separated. Leave empty for none.</p>
+					</div>
+
+					{#if mode === 'edit' && unit}
+						<!-- Optimistic concurrency: the version this edit is based on. -->
+						<input type="hidden" name="occLock" value={unit.occLock} />
 					{/if}
 				</div>
-
-				<div class="grid gap-1.5">
-					<Label for="capabilities">{fieldLabel('capabilities')}</Label>
-					<Input
-						id="capabilities"
-						name="capabilities"
-						bind:value={values.capabilities}
-						placeholder="ALS, Water rescue"
-					/>
-					<p class="text-xs text-muted-foreground">Comma-separated. Leave empty for none.</p>
-				</div>
-
-				{#if mode === 'edit' && unit}
-					<!-- Optimistic concurrency: the version this edit is based on. -->
-					<input type="hidden" name="occLock" value={unit.occLock} />
-				{/if}
-			</div>
+			</ScrollArea>
 
 			<SheetFooter class="flex-row justify-end gap-2 border-t px-5 py-3">
 				<Button
