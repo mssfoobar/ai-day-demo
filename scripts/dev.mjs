@@ -117,7 +117,10 @@ function run(tag, command, args, cwd) {
 	const child = spawn([command, ...args].join(' '), {
 		cwd,
 		shell: true,
-		stdio: ['ignore', 'pipe', 'pipe']
+		stdio: ['ignore', 'pipe', 'pipe'],
+		// POSIX: own process group, so shutdown() can signal the whole tree with a negative
+		// pid. Windows has no process groups in this sense; shutdown() uses taskkill /T there.
+		detached: process.platform !== 'win32'
 	});
 	const relay = (stream) => {
 		stream.setEncoding('utf8');
@@ -163,7 +166,20 @@ function shutdown(code = 0) {
 	log('run', 'stopping…');
 	for (const child of children) {
 		try {
-			child.kill();
+			// `child.kill()` alone is not enough: with `shell: true` the child IS the shell,
+			// and killing it orphans the real process underneath (`go run`'s compiled
+			// binary, vite's node). Those keep 8081/5173 bound and the next start fails the
+			// preflight. Kill the whole tree.
+			if (process.platform === 'win32') {
+				spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+			} else {
+				// Negative pid targets the process group (children are spawned detached below).
+				try {
+					process.kill(-child.pid, 'SIGTERM');
+				} catch {
+					child.kill('SIGTERM');
+				}
+			}
 		} catch {
 			// already gone
 		}

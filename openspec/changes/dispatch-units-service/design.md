@@ -262,6 +262,35 @@ Gotcha recorded for the next person: a snippet parameter written `count?: number
 build — Svelte strips the type but leaves the `?`. Write `count: number | undefined =
 undefined`.
 
+## Developer bootstrap
+
+The stack has more prerequisites than the baseline did — Go, a running container daemon,
+and two private credentials on top of Node/pnpm. Rather than document them in three
+READMEs and hope, `scripts/setup.mjs` checks each one, fixes what is safe to fix
+(corepack, `GOPRIVATE`, starting Docker Desktop, writing `~/.npmrc` from `GITHUB_TOKEN`),
+prints exact instructions for what it cannot (the two credentials), installs, and with
+`--start` chains into `scripts/dev.mjs`.
+
+Entry points: `pnpm launch` (everything), `pnpm bootstrap` (no start), and `launch.ps1` /
+`launch.sh` wrappers for a clone that does not yet have pnpm on PATH — they only need Node,
+and use corepack to activate the pinned pnpm.
+
+Two decisions worth recording:
+
+- **Node, not bash/Make/Python.** The repo is developed on native Windows as well as
+  POSIX; Node is the one interpreter every contributor has, and Python was absent on the
+  machine this was built on. `aoh-scripting-conventions` prefers Python-via-uv for
+  cross-platform tooling in the platform repos — this is a consumer repo and the
+  constraint that matters here is "already installed".
+- **The script is named `bootstrap`, not `setup`.** `pnpm setup` is a pnpm built-in (it
+  configures `PNPM_HOME`) and silently wins over a package script of the same name. Found
+  the hard way: the first `pnpm setup` ran pnpm's, not ours. `doctor` and `init` are also
+  built-ins; avoid all three.
+
+Not done: containerising the two apps. It would make Docker the only prerequisite, but
+the workshop is about editing code, the AOH convention is native apps against composed
+infra, and the images would need both private credentials at build time anyway.
+
 ## Decisions
 
 **D1 — Hand-write the Go service to the `aoh-go-init` architecture instead of running the
