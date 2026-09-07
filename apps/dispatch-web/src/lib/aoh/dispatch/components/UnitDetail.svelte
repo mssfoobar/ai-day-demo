@@ -1,159 +1,201 @@
 <svelte:options runes={true} />
 
 <!--
-  The right-hand detail pane: an identity strip, then Overview / Assignment / Crew /
-  Capabilities. Read-only — the baseline carries no command action.
+  The right-hand pane.
+
+  With a unit selected: an identity header (call sign, id, status, one muted context line),
+  then Overview / Assignment / Crew / Capabilities. With nothing selected: the fleet at a
+  glance — the same roster read a different way, so the pane is never a placeholder.
 -->
 
 <script lang="ts">
 	import { Badge } from '@mssfoobar/ui/badge';
 	import { Separator } from '@mssfoobar/ui/separator';
-	import MousePointerClick from '@lucide/svelte/icons/mouse-pointer-click';
-	import Radio from '@lucide/svelte/icons/radio';
 	import MapPin from '@lucide/svelte/icons/map-pin';
-	import Clock from '@lucide/svelte/icons/clock';
+	import Radio from '@lucide/svelte/icons/radio';
 	import type { FieldUnit } from '../types';
+	import { fleetSummary } from '../filters';
 	import { priorityColor, sinceLabel, statusColor } from '../format';
 
-	let { unit, now }: { unit: FieldUnit | null; now: number } = $props();
+	let { unit, units, now }: { unit: FieldUnit | null; units: FieldUnit[]; now: number } = $props();
+
+	const fleet = $derived(fleetSummary(units));
 </script>
 
+<!-- A default, not `count?:` — Svelte strips the TS annotation but leaves the `?`, and
+     the emitted JS then fails to parse. -->
+{#snippet sectionTitle(label: string, count: number | undefined = undefined)}
+	<h3 class="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+		{label}
+		{#if count !== undefined}
+			<span class="ml-1 font-normal normal-case tabular-nums">({count})</span>
+		{/if}
+	</h3>
+{/snippet}
+
 {#if unit}
-	<div class="space-y-5">
-		<!-- Identity strip: what a dispatcher reads first. -->
-		<div class="flex flex-wrap items-center gap-2">
+	<!-- Identity header -->
+	<header class="flex items-start justify-between gap-4 px-5 py-4">
+		<div class="min-w-0">
+			<div class="flex items-baseline gap-2">
+				<h2 class="truncate text-lg leading-6 font-semibold">{unit.callSign}</h2>
+				<span class="font-mono text-xs text-muted-foreground tabular-nums">{unit.id}</span>
+			</div>
+			<p class="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
+				<span>{unit.unitType}</span>
+				<span aria-hidden="true">·</span>
+				<span class="inline-flex items-center gap-1">
+					<Radio class="size-3" aria-hidden="true" />
+					<span class="font-mono">{unit.radioChannel}</span>
+				</span>
+				<span aria-hidden="true">·</span>
+				<span>{unit.station}</span>
+			</p>
+		</div>
+		<div class="flex shrink-0 flex-col items-end gap-1">
 			<Badge variant="soft" color={statusColor[unit.status]}>{unit.status}</Badge>
-			<span class="text-sm text-muted-foreground">{unit.unitType}</span>
-			<span class="text-sm text-muted-foreground" aria-hidden="true">·</span>
-			<span class="inline-flex items-center gap-1 text-sm text-muted-foreground">
-				<Radio class="size-3.5" aria-hidden="true" />
-				<span class="font-mono">{unit.radioChannel}</span>
-			</span>
-			<span class="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground">
-				<Clock class="size-3.5" aria-hidden="true" />
-				Last contact {sinceLabel(unit.lastContact, now)}
+			<span class="font-mono text-xs text-muted-foreground tabular-nums">
+				{sinceLabel(unit.lastContact, now)}
 			</span>
 		</div>
+	</header>
 
-		<Separator />
+	<Separator />
 
+	<div class="space-y-5 px-5 py-4">
 		<section>
-			<h3 class="mb-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-				Overview
-			</h3>
-			<dl class="grid grid-cols-[130px_1fr] gap-x-5 gap-y-2.5">
-				<dt class="text-sm text-muted-foreground">Call sign</dt>
-				<dd class="text-sm font-medium">{unit.callSign}</dd>
-				<dt class="text-sm text-muted-foreground">Unit ID</dt>
-				<dd class="font-mono text-sm tabular-nums">{unit.id}</dd>
-				<dt class="text-sm text-muted-foreground">Station</dt>
-				<dd class="text-sm">{unit.station}</dd>
-				<dt class="text-sm text-muted-foreground">Sector</dt>
-				<dd class="inline-flex items-center gap-1.5 text-sm">
-					<MapPin class="size-3.5 text-muted-foreground" aria-hidden="true" />
+			{@render sectionTitle('Overview')}
+			<dl class="grid grid-cols-[120px_1fr] gap-x-4 gap-y-1.5 text-xs">
+				<dt class="text-muted-foreground">Sector</dt>
+				<dd class="inline-flex items-center gap-1.5">
+					<MapPin class="size-3 text-muted-foreground" aria-hidden="true" />
 					{unit.sector}
 				</dd>
-				<dt class="text-sm text-muted-foreground">Shift</dt>
-				<dd class="text-sm">{unit.shift}</dd>
+				<dt class="text-muted-foreground">Shift</dt>
+				<dd>{unit.shift}</dd>
+				<dt class="text-muted-foreground">Radio</dt>
+				<dd class="font-mono tabular-nums">{unit.radioChannel}</dd>
+				<dt class="text-muted-foreground">Last contact</dt>
+				<dd class="font-mono tabular-nums">{sinceLabel(unit.lastContact, now)}</dd>
 			</dl>
 		</section>
 
-		<Separator />
-
 		<section>
-			<h3 class="mb-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-				Assignment
-			</h3>
+			{@render sectionTitle('Assignment')}
 			{#if unit.assignment}
-				<div class="rounded-lg border bg-muted/40 p-3">
-					<div class="flex flex-wrap items-center gap-2">
+				<div class="rounded-md border bg-muted/60 p-3">
+					<div class="flex items-baseline gap-2">
 						<Badge variant="soft" color={priorityColor(unit.assignment.priority)}>
 							{unit.assignment.priority}
 						</Badge>
-						<span class="font-mono text-sm tabular-nums">{unit.assignment.incidentCode}</span>
-						<span class="text-sm font-medium">{unit.assignment.title}</span>
-						<span class="ml-auto text-xs text-muted-foreground">
-							Committed {sinceLabel(unit.assignment.since, now)}
+						<span class="font-mono text-xs text-muted-foreground tabular-nums">
+							{unit.assignment.incidentCode}
+						</span>
+						<span class="truncate text-sm font-semibold">{unit.assignment.title}</span>
+						<span class="ml-auto shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
+							{sinceLabel(unit.assignment.since, now)}
 						</span>
 					</div>
-					<p class="mt-2 inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-						<MapPin class="size-3.5" aria-hidden="true" />
+					<p class="mt-1.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+						<MapPin class="size-3" aria-hidden="true" />
 						{unit.assignment.location}
 					</p>
 				</div>
 			{:else}
-				<p class="text-sm text-muted-foreground">Not currently assigned.</p>
+				<p class="text-xs text-muted-foreground">Not currently assigned.</p>
 			{/if}
 		</section>
 
-		<Separator />
-
 		<div class="grid gap-5 sm:grid-cols-2">
 			<section>
-				<h3 class="mb-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-					Crew
-					<span class="ml-1 font-normal text-muted-foreground/70 normal-case tabular-nums"
-						>({unit.crew.length})</span
-					>
-				</h3>
+				{@render sectionTitle('Crew', unit.crew.length)}
 				{#if unit.crew.length > 0}
 					<ul class="divide-y divide-border">
 						{#each unit.crew as member (member.name)}
-							<li class="flex items-baseline justify-between gap-4 py-1.5 text-sm">
-								<span>{member.name}</span>
+							<li class="flex items-baseline justify-between gap-3 py-1.5">
+								<span class="text-sm">{member.name}</span>
 								<span class="text-xs text-muted-foreground">{member.role}</span>
 							</li>
 						{/each}
 					</ul>
 				{:else}
-					<p class="text-sm text-muted-foreground">None recorded.</p>
+					<p class="text-xs text-muted-foreground">None recorded.</p>
 				{/if}
 			</section>
 
 			<section>
-				<h3 class="mb-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-					Capabilities
-				</h3>
+				{@render sectionTitle('Capabilities')}
 				{#if unit.capabilities.length > 0}
-					<div class="flex flex-wrap gap-2">
+					<div class="flex flex-wrap gap-1.5">
 						{#each unit.capabilities as capability (capability)}
 							<Badge variant="outline">{capability}</Badge>
 						{/each}
 					</div>
 				{:else}
-					<p class="text-sm text-muted-foreground">None recorded.</p>
+					<p class="text-xs text-muted-foreground">None recorded.</p>
 				{/if}
 			</section>
 		</div>
 	</div>
 {:else}
-	<div
-		class="flex h-full flex-col items-center justify-center px-6 py-14 text-center text-muted-foreground"
-	>
-		<MousePointerClick class="mb-3 size-8" aria-hidden="true" />
-		<p class="text-sm">Select a unit to see its details.</p>
-		<p class="mt-1 text-xs">
-			Use <kbd class="kbd">↑</kbd> <kbd class="kbd">↓</kbd> and <kbd class="kbd">Enter</kbd>, or
-			click a row.
-		</p>
+	<!-- Nothing selected: fleet at a glance. -->
+	<header class="px-5 py-4">
+		<h2 class="text-lg leading-6 font-semibold">Fleet at a glance</h2>
+		<p class="mt-0.5 text-xs text-muted-foreground">Select a unit for its detail.</p>
+	</header>
+
+	<Separator />
+
+	<div class="space-y-5 px-5 py-4">
+		<dl class="grid grid-cols-3 gap-3">
+			<div class="rounded-md border p-3">
+				<dd class="text-xl leading-7 font-semibold tabular-nums">{fleet.total}</dd>
+				<dt class="text-xs text-muted-foreground">Units</dt>
+			</div>
+			<div class="rounded-md border p-3">
+				<dd class="text-xl leading-7 font-semibold tabular-nums">{fleet.assigned}</dd>
+				<dt class="text-xs text-muted-foreground">Assigned</dt>
+			</div>
+			<div class="rounded-md border p-3">
+				<dd class="text-xl leading-7 font-semibold tabular-nums">{fleet.free}</dd>
+				<dt class="text-xs text-muted-foreground">Free</dt>
+			</div>
+		</dl>
+
+		<section>
+			{@render sectionTitle('Open P1', fleet.p1.length)}
+			{#if fleet.p1.length > 0}
+				<ul class="divide-y divide-border">
+					{#each fleet.p1 as u (u.id)}
+						<li class="flex items-baseline gap-2 py-1.5">
+							<Badge variant="soft" color="destructive">P1</Badge>
+							<span class="text-sm font-semibold">{u.callSign}</span>
+							<span class="truncate text-xs text-muted-foreground">
+								<span class="font-mono tabular-nums">{u.assignment?.incidentCode}</span>
+								· {u.assignment?.title}
+							</span>
+							<span class="ml-auto shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
+								{sinceLabel(u.assignment?.since ?? '', now)}
+							</span>
+						</li>
+					{/each}
+				</ul>
+			{:else}
+				<p class="text-xs text-muted-foreground">None open.</p>
+			{/if}
+		</section>
+
+		{#if fleet.quietest}
+			<section>
+				{@render sectionTitle('Longest since contact')}
+				<p class="flex items-baseline gap-2 text-sm">
+					<span class="font-semibold">{fleet.quietest.callSign}</span>
+					<span class="text-xs text-muted-foreground">{fleet.quietest.station}</span>
+					<span class="ml-auto font-mono text-xs text-muted-foreground tabular-nums">
+						{sinceLabel(fleet.quietest.lastContact, now)}
+					</span>
+				</p>
+			</section>
+		{/if}
 	</div>
 {/if}
-
-<style>
-	/* A keycap has no @mssfoobar/ui primitive; this is typography on semantic tokens, not
-	   a hand-rolled component. */
-	.kbd {
-		display: inline-block;
-		min-width: 1.5rem;
-		padding: 0 0.35rem;
-		border: 1px solid var(--border);
-		border-bottom-width: 2px;
-		border-radius: 4px;
-		font-family: var(--font-mono, ui-monospace, monospace);
-		font-size: 0.7rem;
-		line-height: 1.1rem;
-		text-align: center;
-		color: var(--foreground);
-		background: var(--muted);
-	}
-</style>

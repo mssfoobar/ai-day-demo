@@ -224,6 +224,44 @@ Deliberately not done: persisting selection in the URL (the spec keeps selection
 client-side and non-navigating), tabs in the detail pane (a dispatcher wants everything
 visible at once), and any polling (RTUS is the AOH answer when live data arrives).
 
+### 10. Iteration 3 — craft pass (no new features)
+
+Same behaviour, tightened presentation. The rules this pass fixed and that later work
+should keep:
+
+- **Three type roles, used identically everywhere.** Primary `text-sm font-semibold`
+  (call signs, titles), secondary `text-xs text-muted-foreground` (context, labels), data
+  `font-mono text-xs tabular-nums` (ids, channels, times). Nothing else — the earlier cut
+  had five overlapping sizes and read as unfinished because of it.
+- **Two colour carriers per row, not four.** The status rail (scan) and the priority
+  chip (triage). The row's status badge is a neutral `variant="outline"` — the rail
+  already says it — and the recency dot is gone; recency is the time itself. Status text
+  remains, so nothing depends on colour alone.
+- **Density.** 4-line rhythm: rows `py-1.5`, card headers `py-2.5`, page `p-5 gap-3`, the
+  summary tiles shrunk to a single line (`text-xl`) so the eye lands on the list, not on
+  the tiles.
+- **The detail pane has a real header.** `UnitDetail` owns it: call sign large, id in mono
+  beside it, status badge right-aligned with the last-contact time under it, one muted
+  context line (type · radio · station). The page's `CardHeader` for that pane is gone —
+  the two titles were competing.
+- **The empty state earns its space.** With nothing selected the pane shows the fleet at
+  a glance — total / assigned / free, open P1s, the unit heard from least recently — via
+  `fleetSummary()` in `filters.ts` (tested). Same data, read differently; the pane is
+  never a placeholder.
+- **Trailing column alignment.** Every right-hand datum sits on one `w-20 items-end`
+  column: time on line one, status on line two.
+- **Hover and selection are distinct.** Hover is `bg-muted/50`; selection is `bg-accent`
+  + an inset `--ring` outline. In dark mode `muted` and `accent` resolve close together,
+  so hover at full strength read as a second selection.
+- **One transition**: `transition-colors duration-150` on rows and tiles. Nothing animates
+  on filter.
+- **The header carries information**: `N units · N assigned · N free · updated <ago>`,
+  anchored to page load, instead of a boilerplate description.
+
+Gotcha recorded for the next person: a snippet parameter written `count?: number` fails at
+build — Svelte strips the type but leaves the `?`. Write `count: number | undefined =
+undefined`.
+
 ## Decisions
 
 **D1 — Hand-write the Go service to the `aoh-go-init` architecture instead of running the

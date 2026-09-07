@@ -80,6 +80,33 @@ export function sortUnits(units: FieldUnit[], key: SortKey): FieldUnit[] {
 	return [...units].sort(compare[key]);
 }
 
+export interface FleetSummary {
+	total: number;
+	assigned: number;
+	free: number;
+	/** Units committed to a P1 incident, most recently committed first. */
+	p1: FieldUnit[];
+	/** The unit heard from least recently, or null for an empty fleet. */
+	quietest: FieldUnit | null;
+}
+
+/**
+ * What the detail pane shows when nothing is selected: the fleet at a glance. No new
+ * data — the same roster read a different way, so the pane is never blank.
+ */
+export function fleetSummary(units: FieldUnit[]): FleetSummary {
+	const assigned = units.filter((u) => u.assignment).length;
+	const p1 = units
+		.filter((u) => u.assignment?.priority === 'P1')
+		.sort((a, b) => Date.parse(b.assignment!.since) - Date.parse(a.assignment!.since));
+	const quietest = units.reduce<FieldUnit | null>(
+		(oldest, u) =>
+			oldest === null || Date.parse(u.lastContact) < Date.parse(oldest.lastContact) ? u : oldest,
+		null
+	);
+	return { total: units.length, assigned, free: units.length - assigned, p1, quietest };
+}
+
 /** Count per status over the FULL roster — the summary must not shrink when filtering. */
 export function countByStatus(units: FieldUnit[]): Record<UnitStatus, number> {
 	const counts: Record<UnitStatus, number> = { Available: 0, 'En route': 0, Idle: 0 };

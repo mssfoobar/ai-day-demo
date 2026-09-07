@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countByStatus, filterUnits, matchesQuery, sortUnits } from './filters';
+import { countByStatus, filterUnits, fleetSummary, matchesQuery, sortUnits } from './filters';
 import type { FieldUnit } from './types';
 
 const unit = (overrides: Partial<FieldUnit>): FieldUnit => ({
@@ -137,6 +137,24 @@ describe('sortUnits', () => {
 		const input = [bravo1, alpha1];
 		sortUnits(input, 'callSign');
 		expect(input.map((u) => u.id)).toEqual(['FU-204', 'FU-101']);
+	});
+});
+
+describe('fleetSummary', () => {
+	it('splits assigned from free and lists P1 units', () => {
+		const s = fleetSummary(ALL);
+		expect(s.total).toBe(4);
+		expect(s.assigned).toBe(2);
+		expect(s.free).toBe(2);
+		expect(s.p1.map((u) => u.id)).toEqual(['FU-102']);
+	});
+
+	it('names the unit heard from least recently', () => {
+		expect(fleetSummary(ALL).quietest?.id).toBe('FU-204');
+	});
+
+	it('copes with an empty fleet', () => {
+		expect(fleetSummary([])).toEqual({ total: 0, assigned: 0, free: 0, p1: [], quietest: null });
 	});
 });
 

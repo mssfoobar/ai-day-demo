@@ -7,8 +7,8 @@
   and pressing one narrows the list to that status. Counts never shrink when filtering —
   the summary is about the fleet, the list is about what you are looking at.
 
-  Composed from @mssfoobar/ui: the Total tile is a Card, the three status tiles are a
-  ToggleGroup (type="multiple") whose items are restyled from pills into tiles.
+  Kept small on purpose: the tiles are the least-used control on the screen, so they
+  should not be the loudest. The list is where the eye should land.
 -->
 
 <script lang="ts">
@@ -30,9 +30,9 @@
 
 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
 	<Card class="justify-center">
-		<CardContent class="px-4 py-3">
-			<p class="text-2xl leading-8 font-semibold tabular-nums">{total}</p>
-			<p class="text-xs text-muted-foreground">Total units</p>
+		<CardContent class="flex items-baseline gap-2 px-3.5 py-2.5">
+			<span class="text-xl leading-7 font-semibold tabular-nums">{total}</span>
+			<span class="text-xs text-muted-foreground">Total units</span>
 		</CardContent>
 	</Card>
 
@@ -47,12 +47,13 @@
 			<ToggleGroupItem
 				value={status}
 				aria-label={`Show ${status} units`}
-				class="h-auto min-w-0 flex-col items-start justify-center gap-0 rounded-[var(--radius-lg,12px)] bg-card px-4 py-3 text-left shadow-[var(--shadow-md)] transition-colors data-[state=on]:border-primary data-[state=on]:bg-accent data-[state=on]:ring-1 data-[state=on]:ring-primary/40"
+				class="h-auto min-w-0 items-baseline justify-start gap-2 rounded-[var(--radius-lg,12px)] bg-card px-3.5 py-2.5 text-left shadow-[var(--shadow-md)] transition-colors duration-150 hover:bg-muted/50 data-[state=on]:border-primary data-[state=on]:bg-accent data-[state=on]:shadow-[inset_0_0_0_1px_var(--ring)]"
 			>
-				<span class="flex w-full items-center gap-2">
-					<span class="size-2 shrink-0 rounded-full {statusRail[status]}" aria-hidden="true"></span>
-					<span class="text-2xl leading-8 font-semibold tabular-nums">{counts[status]}</span>
-				</span>
+				<span
+					class="size-2 shrink-0 self-center rounded-full {statusRail[status]}"
+					aria-hidden="true"
+				></span>
+				<span class="text-xl leading-7 font-semibold tabular-nums">{counts[status]}</span>
 				<span class="text-xs font-normal text-muted-foreground">{status}</span>
 			</ToggleGroupItem>
 		{/each}

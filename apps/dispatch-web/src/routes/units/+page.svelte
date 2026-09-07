@@ -29,10 +29,12 @@
 	import {
 		countByStatus,
 		filterUnits,
+		fleetSummary,
 		SORT_OPTIONS,
 		sortUnits,
 		type SortKey
 	} from '$lib/aoh/dispatch/filters';
+	import { sinceLabel } from '$lib/aoh/dispatch/format';
 	import type { FieldUnit, UnitStatus } from '$lib/aoh/dispatch/types';
 	import type { PageData } from './$types';
 
@@ -48,11 +50,14 @@
 
 	const visible = $derived(sortUnits(filterUnits(units, query, statuses), sortKey));
 	const counts = $derived(countByStatus(units));
+	const fleet = $derived(fleetSummary(units));
 	const selected = $derived(units.find((u) => u.id === selectedId) ?? null);
 	const filtering = $derived(query.trim() !== '' || statuses.length > 0);
 	const sortLabel = $derived(SORT_OPTIONS.find((o) => o.value === sortKey)?.label ?? 'Sort');
 
-	// Recency labels ("3 min ago") re-render every 30s without any data refetch.
+	// Recency labels ("3 min ago") re-render every 30s without any data refetch. The
+	// header's "updated …" is anchored to page load — the roster is as fresh as that.
+	const loadedAt = new Date().toISOString();
 	let now = $state(Date.now());
 	$effect(() => {
 		const id = setInterval(() => (now = Date.now()), 30_000);
@@ -108,18 +113,26 @@
 
 <svelte:window onkeydown={onWindowKeydown} />
 
-<div class="mx-auto flex h-dvh max-w-[1400px] flex-col gap-4 p-6">
-	<header class="flex flex-wrap items-end justify-between gap-4">
+<div class="mx-auto flex h-dvh max-w-[1400px] flex-col gap-3 p-5">
+	<header class="flex flex-wrap items-end justify-between gap-3">
 		<div>
-			<h1 class="text-xl font-semibold tracking-tight">Dispatch console</h1>
-			<p class="text-sm text-muted-foreground">Field units and their current status.</p>
+			<h1 class="text-lg leading-6 font-semibold tracking-tight">Dispatch console</h1>
+			{#if data.unavailable}
+				<p class="text-xs text-muted-foreground">Field units and their current status.</p>
+			{:else}
+				<!-- The description carries live context rather than boilerplate. -->
+				<p class="text-xs text-muted-foreground tabular-nums">
+					{fleet.total} units · {fleet.assigned} assigned · {fleet.free} free · updated
+					{sinceLabel(loadedAt, now)}
+				</p>
+			{/if}
 		</div>
 
 		{#if !data.unavailable}
 			<div class="flex flex-wrap items-center gap-2">
 				<div class="relative">
 					<Search
-						class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+						class="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
 						aria-hidden="true"
 					/>
 					<Input
@@ -127,9 +140,9 @@
 						bind:value={query}
 						type="search"
 						size="sm"
-						placeholder="Search units, incidents, crew…  ( / )"
+						placeholder="Search units, incidents, crew…  /"
 						aria-label="Search units"
-						class="w-80 pl-9"
+						class="w-72 pl-8 text-xs"
 						onkeydown={(e) => {
 							if (e.key === 'Escape') {
 								query = '';
@@ -140,8 +153,8 @@
 				</div>
 
 				<Select type="single" bind:value={sortKey}>
-					<SelectTrigger size="sm" class="w-44" aria-label="Sort units">
-						<ArrowUpDown class="size-4" aria-hidden="true" />
+					<SelectTrigger size="sm" class="w-40 text-xs" aria-label="Sort units">
+						<ArrowUpDown class="size-3.5" aria-hidden="true" />
 						<span>{sortLabel}</span>
 					</SelectTrigger>
 					<SelectContent>
@@ -173,14 +186,14 @@
 	{:else}
 		<StatusFilter {counts} total={units.length} bind:value={statuses} />
 
-		<div class="grid min-h-0 flex-1 items-stretch gap-4 lg:grid-cols-[420px_1fr]">
+		<div class="grid min-h-0 flex-1 items-stretch gap-3 lg:grid-cols-[400px_1fr]">
 			<!-- Units pane — Main List archetype, narrowed to a master list. -->
 			<Card class="flex min-h-0 flex-col">
-				<CardHeader class="flex-row items-center justify-between gap-2 space-y-0 py-3">
-					<CardTitle class="flex items-baseline gap-2">
+				<CardHeader class="flex-row items-center justify-between gap-2 space-y-0 px-4 py-2.5">
+					<CardTitle class="flex items-baseline gap-2 text-sm">
 						Units
-						<span class="text-xs font-normal text-muted-foreground tabular-nums">
-							{visible.length} of {units.length}
+						<span class="font-mono text-xs font-normal text-muted-foreground tabular-nums">
+							{visible.length}/{units.length}
 						</span>
 					</CardTitle>
 					{#if filtering}
@@ -188,9 +201,9 @@
 							variant="ghost"
 							size="sm"
 							onclick={clearFilters}
-							class="-mr-2 h-7 gap-1 px-2 text-xs"
+							class="-mr-2 h-6 gap-1 px-2 text-xs"
 						>
-							<X class="size-3.5" aria-hidden="true" />
+							<X class="size-3" aria-hidden="true" />
 							Clear
 						</Button>
 					{/if}
@@ -207,7 +220,7 @@
 						</div>
 					{:else}
 						<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-						<ul class="p-1.5" onkeydown={onListKeydown} aria-label="Units">
+						<ul class="space-y-px p-1.5" onkeydown={onListKeydown} aria-label="Units">
 							{#each visible as unit (unit.id)}
 								<li>
 									<UnitRow {unit} {now} selected={unit.id === selectedId} onselect={select} />
@@ -217,7 +230,7 @@
 					{/if}
 				</ScrollArea>
 				<Separator />
-				<p class="flex flex-wrap gap-x-3 px-4 py-2 text-[11px] leading-4 text-muted-foreground">
+				<p class="flex flex-wrap gap-x-3 px-4 py-1.5 text-xs leading-4 text-muted-foreground">
 					<span><kbd class="kbd">↑</kbd><kbd class="kbd">↓</kbd> move</span>
 					<span><kbd class="kbd">Enter</kbd> select</span>
 					<span><kbd class="kbd">/</kbd> search</span>
@@ -225,22 +238,11 @@
 				</p>
 			</Card>
 
-			<!-- Detail pane — Details archetype. -->
+			<!-- Detail pane — Details archetype. UnitDetail owns its own header. -->
 			<Card class="flex min-h-0 flex-col">
-				<CardHeader class="py-3">
-					<CardTitle class="flex items-baseline gap-2">
-						{selected ? selected.callSign : 'Unit detail'}
-						{#if selected}
-							<span class="font-mono text-xs font-normal text-muted-foreground tabular-nums">
-								{selected.id}
-							</span>
-						{/if}
-					</CardTitle>
-				</CardHeader>
-				<Separator />
 				<ScrollArea class="min-h-0 flex-1">
-					<div class="h-full p-5" aria-live="polite">
-						<UnitDetail unit={selected} {now} />
+					<div aria-live="polite">
+						<UnitDetail unit={selected} {units} {now} />
 					</div>
 				</ScrollArea>
 			</Card>

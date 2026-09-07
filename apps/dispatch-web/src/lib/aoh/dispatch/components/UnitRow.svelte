@@ -3,10 +3,14 @@
 <!--
   One selectable row in the units list.
 
-  A `Button variant="ghost"` (keyboard + focus ring for free) carrying: a status rail,
-  a type icon, call sign + id, a context line (assignment or station), a priority chip when
-  assigned, and the status badge. Selection is `aria-current` PLUS a visible treatment —
-  `variant="ghost"` styles no `aria-current` state, so the attribute alone is invisible.
+  Type roles are deliberately limited to three, used identically everywhere:
+    primary   text-sm font-semibold            (call sign)
+    secondary text-xs text-muted-foreground     (context)
+    data      font-mono text-xs tabular-nums    (ids, times)
+
+  Colour is limited to two carriers per row: the status rail (scan) and the priority chip
+  (triage). The status badge is a neutral outline — the rail already says it — and status
+  is still readable as text, never colour alone.
 -->
 
 <script lang="ts">
@@ -18,7 +22,7 @@
 	import ShieldAlert from '@lucide/svelte/icons/shield-alert';
 	import Truck from '@lucide/svelte/icons/truck';
 	import type { FieldUnit } from '../types';
-	import { priorityColor, recency, sinceLabel, statusColor, statusRail } from '../format';
+	import { priorityColor, sinceLabel, statusRail } from '../format';
 
 	let {
 		unit,
@@ -39,8 +43,6 @@
 		'Patrol car': ShieldAlert
 	};
 	const TypeIcon = $derived(TYPE_ICON[unit.unitType] ?? Truck);
-
-	const age = $derived(recency(unit.lastContact, now));
 </script>
 
 <Button
@@ -48,15 +50,14 @@
 	data-unit-id={unit.id}
 	aria-current={selected ? 'true' : undefined}
 	onclick={() => onselect(unit)}
-	class="group/row h-auto w-full items-stretch justify-start gap-3 rounded-md py-2 pr-3 pl-2 text-left transition-colors {selected
-		? 'bg-accent text-accent-foreground shadow-[inset_0_0_0_1px_var(--ring)]'
-		: ''}"
+	class="group/row h-auto w-full items-stretch justify-start gap-2.5 rounded-md py-1.5 pr-2.5 pl-2 text-left transition-colors duration-150 {selected
+		? 'bg-accent text-accent-foreground shadow-[inset_0_0_0_1px_var(--ring)] hover:bg-accent'
+		: 'hover:bg-muted/50'}"
 >
-	<!-- Status rail: colour AND the badge text carry the status, never colour alone. -->
 	<span class="w-1 shrink-0 rounded-full {statusRail[unit.status]}" aria-hidden="true"></span>
 
 	<TypeIcon
-		class="mt-0.5 size-5 shrink-0 {selected
+		class="mt-0.5 size-4 shrink-0 {selected
 			? 'text-foreground'
 			: 'text-muted-foreground group-hover/row:text-foreground'}"
 		aria-hidden="true"
@@ -64,39 +65,33 @@
 
 	<span class="min-w-0 flex-1">
 		<span class="flex items-baseline gap-2">
-			<span class="text-sm leading-5 font-semibold">{unit.callSign}</span>
+			<span class="truncate text-sm leading-5 font-semibold">{unit.callSign}</span>
 			<span class="font-mono text-xs text-muted-foreground tabular-nums">{unit.id}</span>
-			<span class="ml-auto text-[11px] leading-4 text-muted-foreground tabular-nums">
-				{sinceLabel(unit.lastContact, now)}
-			</span>
 		</span>
-		<span class="mt-0.5 flex items-center gap-2">
+		<span class="flex items-center gap-1.5 text-xs leading-4 text-muted-foreground">
 			{#if unit.assignment}
-				<Badge variant="soft" color={priorityColor(unit.assignment.priority)} class="shrink-0">
+				<Badge
+					variant="soft"
+					color={priorityColor(unit.assignment.priority)}
+					class="h-4 shrink-0 px-1.5 text-[10px] leading-4"
+				>
 					{unit.assignment.priority}
 				</Badge>
-				<span class="truncate text-xs leading-4 text-muted-foreground">
+				<span class="truncate">
 					<span class="font-mono tabular-nums">{unit.assignment.incidentCode}</span>
 					· {unit.assignment.title}
 				</span>
 			{:else}
-				<span class="truncate text-xs leading-4 text-muted-foreground">
-					{unit.unitType} · {unit.station}
-				</span>
+				<span class="truncate">{unit.unitType} · {unit.station}</span>
 			{/if}
 		</span>
 	</span>
 
-	<span class="flex shrink-0 flex-col items-end justify-between gap-1">
-		<Badge variant="soft" color={statusColor[unit.status]}>{unit.status}</Badge>
-		<!-- Recency dot: fresh / ageing / stale. Text label sits on the first line. -->
-		<span
-			class="size-1.5 rounded-full {age === 'fresh'
-				? 'bg-success'
-				: age === 'ageing'
-					? 'bg-warning'
-					: 'bg-muted-foreground/40'}"
-			aria-hidden="true"
-		></span>
+	<!-- Trailing column: right-aligned data on both lines. -->
+	<span class="flex w-20 shrink-0 flex-col items-end justify-between">
+		<span class="font-mono text-xs leading-5 text-muted-foreground tabular-nums">
+			{sinceLabel(unit.lastContact, now)}
+		</span>
+		<Badge variant="outline" class="h-4 px-1.5 text-[10px] leading-4">{unit.status}</Badge>
 	</span>
 </Button>
