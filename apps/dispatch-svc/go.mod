@@ -44,3 +44,7 @@ require (
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 )
+
+// Local snapshot of the AOH shared library (packages/aoh-golib/LOCAL_COPY.md): builds need
+// no access to the private ops-hub repo. The platform monorepo consumes it the same way.
+replace github.com/mssfoobar/ops-hub/packages/aoh-golib => ../../packages/aoh-golib

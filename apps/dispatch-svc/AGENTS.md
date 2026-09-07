@@ -17,6 +17,11 @@ Agent context for `dispatch-svc`. Monorepo-wide conventions live in the repo-roo
   script and Python was unavailable. It follows the same architecture; it does not have
   the scaffold's mockery config, swag annotations, Makefile or Dockerfile. Don't assume
   those files exist. See `openspec/changes/dispatch-units-service/design.md` D1.
+- **`aoh-golib` is a local copy, not a fetched module.** `go.mod` has a `replace` pointing
+  at `packages/aoh-golib` (also in `go.work`), so builds need no ops-hub access. The
+  import path is unchanged — code still says `github.com/mssfoobar/ops-hub/packages/
+  aoh-golib/...`. Never edit the copy; fixes go upstream, and `LOCAL_COPY.md` there says
+  how to refresh. `go mod tidy` will not add a `go.sum` line for it — that is expected.
 - **No authentication.** The workshop is unauthenticated by decision — there is no
   `BearerAuth` middleware, no JWT parsing, no `active_tenant`. Rows still carry
   `tenant_id` so multi-tenancy is not designed out, but nothing populates it from a token.

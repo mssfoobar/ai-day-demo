@@ -12,9 +12,7 @@
     "start": "node scripts/dev.mjs",
     "start:no-db": "node scripts/dev.mjs --no-db",
     "stop": "docker compose -f compose/compose.yml down || podman compose -f compose/compose.yml down",
-    "reset-db": "docker compose -f compose/compose.yml down -v || podman compose -f compose/compose.yml down -v",
-    "launch": "node scripts/setup.mjs --start",
-    "bootstrap": "node scripts/setup.mjs"
+    "reset-db": "docker compose -f compose/compose.yml down -v || podman compose -f compose/compose.yml down -v"
   },
   "packageManager": "pnpm@10.16.1",
   "engines": {

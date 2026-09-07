@@ -9,16 +9,11 @@ It owns the roster the console renders: `GET /v1/units` and `GET /v1/units/{unit
 - **Go 1.25+**
 - **A container runtime** (Docker or Podman) for PostgreSQL — the only container in the
   workshop stack.
-- **Access to the private `ops-hub` repo.** This service depends on
-  `github.com/mssfoobar/ops-hub/packages/aoh-golib`, which is fetched over git. If
-  `go mod download` fails, your git credentials cannot read that repo. Set:
-
-  ```sh
-  go env -w GOPRIVATE='github.com/mssfoobar/*'
-  ```
-
-  This is the second credential the workshop needs, alongside the `~/.npmrc` token the
-  frontend requires for `@mssfoobar/ui`.
+That is all. The AOH shared library this service uses,
+`github.com/mssfoobar/ops-hub/packages/aoh-golib`, is checked in as a local copy at
+`packages/aoh-golib` and wired in with a `replace` directive, so **no access to the
+private `ops-hub` repo and no `GOPRIVATE` setting is needed**. See
+`packages/aoh-golib/LOCAL_COPY.md` for the version and how to refresh it.
 
 ## Running
 

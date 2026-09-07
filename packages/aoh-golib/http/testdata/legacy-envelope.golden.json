@@ -1,0 +1,1 @@
+{"data":{"id":"abc"},"message":"validation","sent_at":"2026-01-01T00:00:00Z","errors":[{"message":"name: required"},{"message":"size: out of range"}]}

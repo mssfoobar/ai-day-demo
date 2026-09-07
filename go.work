@@ -1,3 +1,6 @@
 go 1.25.0
 
-use ./apps/dispatch-svc
+use (
+	./apps/dispatch-svc
+	./packages/aoh-golib
+)

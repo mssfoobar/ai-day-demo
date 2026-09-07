@@ -262,34 +262,33 @@ Gotcha recorded for the next person: a snippet parameter written `count?: number
 build — Svelte strips the type but leaves the `?`. Write `count: number | undefined =
 undefined`.
 
-## Developer bootstrap
+## Developer setup
 
-The stack has more prerequisites than the baseline did — Go, a running container daemon,
-and two private credentials on top of Node/pnpm. Rather than document them in three
-READMEs and hope, `scripts/setup.mjs` checks each one, fixes what is safe to fix
-(corepack, `GOPRIVATE`, starting Docker Desktop, writing `~/.npmrc` from `GITHUB_TOKEN`),
-prints exact instructions for what it cannot (the two credentials), installs, and with
-`--start` chains into `scripts/dev.mjs`.
+Two commands from a clone: `pnpm install`, `pnpm start`. The runner (`scripts/dev.mjs`)
+does exactly three things — compose up Postgres, `go run` the service, `vite dev` the
+console — with a port preflight and a health wait, and kills the whole process tree on
+`Ctrl+C` (with `shell: true` the child is the shell; killing only it orphaned the Go
+binary and vite, which then held 8081/5173 against the next start).
 
-Entry points: `pnpm launch` (everything), `pnpm bootstrap` (no start), and `launch.ps1` /
-`launch.sh` wrappers for a clone that does not yet have pnpm on PATH — they only need Node,
-and use corepack to activate the pinned pnpm.
+**`aoh-golib` is a local copy** at `packages/aoh-golib`, snapshot of v0.3.0, wired in by a
+`replace` in `go.mod` and a `use` in `go.work`. This removes the second credential the
+workshop would otherwise need (git access to the private `ops-hub`) — attendees need
+only the npm token for `@mssfoobar/ui`. The `aoh-go-init` skill tells *external*
+consumers to depend on the published tag; the platform monorepo itself consumes the
+library exactly this way, and for a workshop one credential fewer is worth the snapshot.
+Refresh procedure is in `LOCAL_COPY.md` beside the copy.
 
-Two decisions worth recording:
+**A bootstrap script was built and then removed.** It checked toolchain versions, started
+Docker Desktop, set `GOPRIVATE`, and probed both credentials. On reflection the only step
+the underlying tools did not already report clearly was `GOPRIVATE` — and the local copy
+made that moot. A README paragraph naming the prerequisites does the rest. Two lessons
+kept from it: `pnpm setup`, `pnpm doctor` and `pnpm init` are pnpm built-ins that silently
+shadow a package script of the same name (the first `pnpm setup` ran pnpm's, which added
+`PNPM_HOME` to the developer's PATH), and tooling here is written in Node because it is the
+one interpreter every contributor has on Windows and POSIX.
 
-- **Node, not bash/Make/Python.** The repo is developed on native Windows as well as
-  POSIX; Node is the one interpreter every contributor has, and Python was absent on the
-  machine this was built on. `aoh-scripting-conventions` prefers Python-via-uv for
-  cross-platform tooling in the platform repos — this is a consumer repo and the
-  constraint that matters here is "already installed".
-- **The script is named `bootstrap`, not `setup`.** `pnpm setup` is a pnpm built-in (it
-  configures `PNPM_HOME`) and silently wins over a package script of the same name. Found
-  the hard way: the first `pnpm setup` ran pnpm's, not ours. `doctor` and `init` are also
-  built-ins; avoid all three.
-
-Not done: containerising the two apps. It would make Docker the only prerequisite, but
-the workshop is about editing code, the AOH convention is native apps against composed
-infra, and the images would need both private credentials at build time anyway.
+Not done: containerising the two apps. The workshop is about editing code and the AOH
+convention is native apps against composed infra.
 
 ## Decisions
 
