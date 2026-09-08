@@ -93,5 +93,6 @@ export function completedExercises(): Exercise[] {
  * page swaps `transparent` for the workshop colour while pointing at it.
  */
 export const FOCUS_BASE_CLASS =
-	'rounded-md outline-2 outline-offset-4 outline-transparent transition-[outline-color,transform] duration-300';
-export const FOCUS_ON_CLASS = 'outline-(--workshop) scale-[1.02]';
+	'rounded-md outline-2 outline-offset-4 outline-transparent transition-[outline-color,transform,box-shadow] duration-300';
+export const FOCUS_ON_CLASS =
+	'outline-[3px] outline-(--workshop) scale-[1.03] shadow-[0_0_0_6px_var(--workshop-muted),0_0_28px_var(--workshop)]';
