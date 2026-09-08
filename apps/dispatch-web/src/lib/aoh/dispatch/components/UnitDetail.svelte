@@ -38,10 +38,10 @@
 		/** Optional: when provided, Edit / Delete appear in the identity header. */
 		onedit?: () => void;
 		ondelete?: () => void;
-		/** Workshop layer (WORKSHOP.md): when provided, dashed sketches of the missing controls sit
-		 *  where each exercise is meant to be built, and clicking one opens its story. */
+		/** Workshop layer (WORKSHOP.md): when provided, a dashed sketch of the missing control appears
+		 *  where the focused exercise is meant to be built; clicking it opens its story. */
 		onexercise?: (exercise: ExerciseNumber) => void;
-		/** Workshop focus: the exercise whose sketch gets a highlighted border. */
+		/** Workshop focus: the one exercise whose sketch is shown. Only one shows at a time. */
 		focus?: ExerciseNumber | null;
 	} = $props();
 
@@ -103,7 +103,7 @@
 				<div class="flex gap-1">
 					<!-- Keyed on the unit so the sketches replay their entrance when the selection changes. -->
 					{#key unit.id}
-						{#if onexercise}
+						{#if onexercise && focus === 1}
 							<!-- Workshop exercise 1: a sketch of the Dispatch / Stand down button. -->
 							<span
 								bind:this={targets[1]}
@@ -198,7 +198,7 @@
 
 		<!-- Keyed on the unit so the sketches replay their entrance when the selection changes. -->
 		{#key unit.id}
-			{#if onexercise}
+			{#if onexercise && focus === 2}
 				<!-- Workshop exercise 2: a sketch of the Activity section — a title and three timeline rows. -->
 				<section
 					bind:this={targets[2]}
@@ -244,7 +244,7 @@
 					{@render sectionTitle('Crew', unit.crew.length)}
 					<!-- Keyed on the unit so the sketches replay their entrance when the selection changes. -->
 					{#key unit.id}
-						{#if onexercise}
+						{#if onexercise && focus === 3}
 							<!-- Workshop exercise 3: a sketch of the Manage button. -->
 							<span
 								bind:this={targets[3]}

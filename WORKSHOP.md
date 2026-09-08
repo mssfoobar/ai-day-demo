@@ -11,10 +11,10 @@ build it end to end, remove its placeholder.
 | 3 | Manage crew | **Manage** button beside the **Crew** heading; `PUT /v1/units/{unit_code}/crew` answers 501 |
 
 In the console, everything workshop-related floats over the UI rather than being part of it:
-dashed sketches of the missing controls sit where each feature goes, and the floating button
-at the bottom right opens a dialog listing what is still to build, each with its story.
-**Show me where** selects a unit and draws a highlighted border around the sketch. Clicking a
-sketch opens the same dialog on that exercise. When you finish one, flip its
+the floating button at the bottom right opens a dialog listing what is still to build, each
+with its story. **Show me where** selects a unit and draws a dashed sketch of the missing
+control, outlined, exactly where it goes — one exercise at a time; choosing another swaps it.
+Clicking the sketch opens the same dialog on that exercise. When you finish one, flip its
 `complete` flag in `apps/dispatch-web/src/lib/aoh/dispatch/workshop.ts` and it drops off the
 list. The 501s carry the AOH error contract with `errorCode: DISPATCH_NOT_IMPLEMENTED`:
 

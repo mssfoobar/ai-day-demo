@@ -53,8 +53,8 @@ service starts.
 ## Workshop exercises
 
 Three features are deliberately **stubbed, not built**: dispatching a unit to an incident,
-a per-unit activity timeline, and crew management. Dashed sketches of the missing controls sit where
-each one goes, and a floating button lists them and can point the console at one; the service answers `501`
+a per-unit activity timeline, and crew management. A floating button lists them and, one at a time,
+sketches the missing control where it goes in the console; the service answers `501`
 on their routes. Their user stories,
 acceptance criteria and pointers to the code to copy are in **[WORKSHOP.md](WORKSHOP.md)**.
 

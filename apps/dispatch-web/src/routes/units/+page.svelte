@@ -72,7 +72,6 @@
 	let exerciseOpen = $state(false);
 	let exerciseDetail = $state<ExerciseNumber | null>(null);
 	let focused = $state<ExerciseNumber | null>(null);
-	let focusTimer: ReturnType<typeof setTimeout> | undefined;
 	const incomplete = incompleteExercises();
 	let formMode = $state<'create' | 'edit'>('create');
 	let deleteOpen = $state(false);
@@ -124,15 +123,14 @@
 
 	/** Workshop layer — see WORKSHOP.md. */
 	function openExercises(detail: ExerciseNumber | null = null) {
-		focused = null;
 		exerciseDetail = detail;
 		exerciseOpen = true;
 	}
 
 	/**
 	 * Focus mode: close the panel, make sure a unit is selected so the detail pane is showing,
-	 * then let UnitDetail scroll to the sketch for that exercise and draw a border around it. The
-	 * border fades on its own after a few seconds — there is nothing to dismiss.
+	 * then let UnitDetail show the sketch for that exercise — and only that one — and scroll to it.
+	 * It stays until another exercise is chosen.
 	 */
 	function focusExercise(n: ExerciseNumber) {
 		exerciseOpen = false;
@@ -141,8 +139,6 @@
 			if (pick) selectedId = pick.id;
 		}
 		focused = n;
-		clearTimeout(focusTimer);
-		focusTimer = setTimeout(() => (focused = null), 7000);
 	}
 
 	function onFormOutcome(
