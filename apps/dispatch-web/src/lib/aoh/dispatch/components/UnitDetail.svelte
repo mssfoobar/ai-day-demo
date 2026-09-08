@@ -12,10 +12,13 @@
 	import { Badge } from '@mssfoobar/ui/badge';
 	import { Button } from '@mssfoobar/ui/button';
 	import { Separator } from '@mssfoobar/ui/separator';
+	import History from '@lucide/svelte/icons/history';
 	import MapPin from '@lucide/svelte/icons/map-pin';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Radio from '@lucide/svelte/icons/radio';
+	import Send from '@lucide/svelte/icons/send';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import UserPlus from '@lucide/svelte/icons/user-plus';
 	import type { FieldUnit } from '../types';
 	import { fleetSummary } from '../filters';
 	import { priorityColor, sinceLabel, statusColor } from '../format';
@@ -25,7 +28,9 @@
 		units,
 		now,
 		onedit,
-		ondelete
+		ondelete,
+		ondispatch,
+		onmanagecrew
 	}: {
 		unit: FieldUnit | null;
 		units: FieldUnit[];
@@ -33,6 +38,10 @@
 		/** Optional: when provided, Edit / Delete appear in the identity header. */
 		onedit?: () => void;
 		ondelete?: () => void;
+		/** Workshop placeholders (WORKSHOP.md): exercise 1 and exercise 3. The buttons render only
+		 *  when these are provided, so the component stays usable without them. */
+		ondispatch?: () => void;
+		onmanagecrew?: () => void;
 	} = $props();
 
 	const fleet = $derived(fleetSummary(units));
@@ -69,8 +78,15 @@
 			</p>
 		</div>
 		<div class="flex shrink-0 flex-col items-end gap-1.5">
-			{#if onedit || ondelete}
+			{#if ondispatch || onedit || ondelete}
 				<div class="flex gap-1">
+					{#if ondispatch}
+						<!-- Workshop exercise 1 — placeholder; see WORKSHOP.md. -->
+						<Button variant="outline" size="sm" onclick={ondispatch} class="h-7 gap-1 px-2 text-xs">
+							<Send class="size-3.5" aria-hidden="true" />
+							{unit.assignment ? 'Stand down' : 'Dispatch'}
+						</Button>
+					{/if}
 					{#if onedit}
 						<Button variant="ghost" size="sm" onclick={onedit} class="h-7 gap-1 px-2 text-xs">
 							<Pencil class="size-3.5" aria-hidden="true" />
@@ -143,9 +159,40 @@
 			{/if}
 		</section>
 
+		<!-- Workshop exercise 2 — placeholder; see WORKSHOP.md. -->
+		<section>
+			{@render sectionTitle('Activity')}
+			<div
+				class="flex items-start gap-3 rounded-md border border-dashed p-3 text-xs text-muted-foreground"
+			>
+				<History class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+				<div>
+					<p class="font-medium text-foreground">Exercise 2 — not implemented yet</p>
+					<p class="mt-0.5">
+						Show this unit's recent status and assignment changes here, newest first. The service
+						has a <code class="font-mono">GET /v1/units/&#123;unit_code&#125;/events</code> stub waiting.
+					</p>
+				</div>
+			</div>
+		</section>
+
 		<div class="grid gap-5 sm:grid-cols-2">
 			<section>
-				{@render sectionTitle('Crew', unit.crew.length)}
+				<div class="flex items-start justify-between gap-2">
+					{@render sectionTitle('Crew', unit.crew.length)}
+					{#if onmanagecrew}
+						<!-- Workshop exercise 3 — placeholder; see WORKSHOP.md. -->
+						<Button
+							variant="ghost"
+							size="sm"
+							onclick={onmanagecrew}
+							class="-mt-1 h-6 gap-1 px-1.5 text-xs"
+						>
+							<UserPlus class="size-3" aria-hidden="true" />
+							Manage
+						</Button>
+					{/if}
+				</div>
 				{#if unit.crew.length > 0}
 					<ul class="divide-y divide-border">
 						{#each unit.crew as member (member.name)}

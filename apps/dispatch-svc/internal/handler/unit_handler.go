@@ -47,6 +47,13 @@ func (h *UnitHandler) Routes(r chi.Router) {
 	r.Get("/{unit_code}", h.get)
 	r.Put("/{unit_code}", h.update)
 	r.Delete("/{unit_code}", h.delete)
+
+	// Workshop exercises (WORKSHOP.md at the repo root). Each answers 501 until it is built;
+	// replace the notImplemented call with a real handler and keep the path.
+	r.Post("/{unit_code}/assignment", notImplemented("exercise 1 (dispatch a unit)"))
+	r.Delete("/{unit_code}/assignment", notImplemented("exercise 1 (stand a unit down)"))
+	r.Get("/{unit_code}/events", notImplemented("exercise 2 (unit activity)"))
+	r.Put("/{unit_code}/crew", notImplemented("exercise 3 (manage crew)"))
 }
 
 func (h *UnitHandler) list(w http.ResponseWriter, r *http.Request) {

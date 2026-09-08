@@ -112,6 +112,16 @@
 		formOpen = true;
 	}
 
+	/**
+	 * Workshop placeholders — see WORKSHOP.md. The buttons exist so attendees can see where
+	 * each feature lands; wire them to a real form action when you build the exercise.
+	 */
+	function notImplemented(exercise: number, title: string) {
+		toast.info(`Exercise ${exercise} · ${title}`, {
+			description: 'Not implemented yet — this one is yours to build. See WORKSHOP.md.'
+		});
+	}
+
 	function onFormOutcome(
 		outcome:
 			| { ok: true; intent: 'create' | 'update'; unitCode: string; callSign: string }
@@ -309,6 +319,9 @@
 							{units}
 							{now}
 							onedit={openEdit}
+							ondispatch={() =>
+								notImplemented(1, selected?.assignment ? 'Stand down' : 'Dispatch a unit')}
+							onmanagecrew={() => notImplemented(3, 'Manage crew')}
 							ondelete={() => (deleteOpen = true)}
 						/>
 					</div>

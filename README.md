@@ -50,6 +50,13 @@ service starts.
 | `pnpm stop` / `pnpm reset-db` | stop the database / stop it **and delete its data** |
 | `pnpm verify` | lint, type-check and build across both apps |
 
+## Workshop exercises
+
+Three features are deliberately **stubbed, not built**: dispatching a unit to an incident,
+a per-unit activity timeline, and crew management. Each has a visible placeholder in the
+console (a button or a dashed section) and a `501` route in the service. Their user stories,
+acceptance criteria and pointers to the code to copy are in **[WORKSHOP.md](WORKSHOP.md)**.
+
 ## Layout
 
 ```
@@ -58,6 +65,7 @@ apps/dispatch-svc      Go field-unit service        → apps/dispatch-svc/README
 packages/aoh-golib     local copy of the AOH Go library (see LOCAL_COPY.md there)
 compose/               the one Postgres container
 scripts/dev.mjs        `pnpm start`
+WORKSHOP.md            the three stubbed features, as user stories
 openspec/              planning artifacts for each change
 ```
 

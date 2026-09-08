@@ -59,6 +59,9 @@ All optional — the defaults target the compose Postgres on localhost.
 | POST | `/v1/units` | Create. 201. Body: the writable fields below. |
 | PUT | `/v1/units/{unit_code}` | Replace the writable fields. Body must carry the current `occ_lock`. 200. |
 | DELETE | `/v1/units/{unit_code}?occ_lock=N` | Delete the unit and its crew. 204. |
+| POST / DELETE | `/v1/units/{unit_code}/assignment` | **Workshop exercise 1** — 501 `DISPATCH_NOT_IMPLEMENTED` until built. |
+| GET | `/v1/units/{unit_code}/events` | **Workshop exercise 2** — 501 until built. |
+| PUT | `/v1/units/{unit_code}/crew` | **Workshop exercise 3** — 501 until built. |
 | GET | `/livez` | Liveness. |
 | GET | `/readyz` | Readiness — fails when the database is unreachable. |
 
@@ -81,7 +84,8 @@ Failures use the AOH error contract — `{timestamp, errorCode, errorMessage, de
 no 4xx/5xx has an empty body. Validation failures (400, `DISPATCH_UNIT_INVALID`) list every
 offending field in `details`. Other codes: `DISPATCH_UNIT_NOT_FOUND` (404),
 `DISPATCH_UNIT_CODE_TAKEN` (409), `DISPATCH_UNIT_STALE` (409), `DISPATCH_UNIT_READ_FAILED`
-/ `DISPATCH_UNIT_WRITE_FAILED` (500).
+/ `DISPATCH_UNIT_WRITE_FAILED` (500). The three workshop stubs answer 501
+`DISPATCH_NOT_IMPLEMENTED` (see `WORKSHOP.md` at the repo root).
 
 `PATCH`, and `PUT`/`DELETE` on the collection, return 405.
 
