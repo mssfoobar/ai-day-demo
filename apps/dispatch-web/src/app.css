@@ -42,3 +42,29 @@
 @plugin '@iconify/tailwind4' {
 	prefixes: mdi, mdi-light, lucide;
 }
+
+/*
+ * Workshop layer theme — see WORKSHOP.md. The exercise pins, the floating Exercises button
+ * and the exercise dialog use this palette and nothing else in the console does, so they
+ * read as annotations over the UI rather than part of it. Muted violet on purpose: distinct
+ * from every status colour (success / info / warning / destructive) and quiet enough to live
+ * on screen all day. Delete this block with the workshop layer.
+ */
+:root {
+	--workshop: oklch(0.56 0.15 295);
+	--workshop-strong: oklch(0.5 0.16 295);
+	--workshop-fg: oklch(0.985 0.005 295);
+	--workshop-text: oklch(0.42 0.14 295);
+	--workshop-border: oklch(0.56 0.15 295 / 0.45);
+	--workshop-muted: oklch(0.56 0.15 295 / 0.08);
+	--workshop-muted-hover: oklch(0.56 0.15 295 / 0.16);
+}
+.dark {
+	--workshop: oklch(0.74 0.12 295);
+	--workshop-strong: oklch(0.66 0.14 295);
+	--workshop-fg: oklch(0.16 0.03 295);
+	--workshop-text: oklch(0.84 0.09 295);
+	--workshop-border: oklch(0.74 0.12 295 / 0.4);
+	--workshop-muted: oklch(0.74 0.12 295 / 0.1);
+	--workshop-muted-hover: oklch(0.74 0.12 295 / 0.18);
+}

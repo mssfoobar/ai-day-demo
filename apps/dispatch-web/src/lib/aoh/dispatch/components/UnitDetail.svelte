@@ -9,17 +9,17 @@
 -->
 
 <script lang="ts">
+	import { fade, fly } from 'svelte/transition';
 	import { Badge } from '@mssfoobar/ui/badge';
 	import { Button } from '@mssfoobar/ui/button';
 	import { Separator } from '@mssfoobar/ui/separator';
-	import Construction from '@lucide/svelte/icons/construction';
+	import Crosshair from '@lucide/svelte/icons/crosshair';
 	import MapPin from '@lucide/svelte/icons/map-pin';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Radio from '@lucide/svelte/icons/radio';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
-	import UserPlus from '@lucide/svelte/icons/user-plus';
 	import type { FieldUnit } from '../types';
-	import { FOCUS_CLASS, PLACEHOLDER_CLASS, type ExerciseNumber } from '../workshop';
+	import { FOCUS_CLASS, type ExerciseNumber } from '../workshop';
 	import { fleetSummary } from '../filters';
 	import { priorityColor, sinceLabel, statusColor } from '../format';
 
@@ -38,16 +38,16 @@
 		/** Optional: when provided, Edit / Delete appear in the identity header. */
 		onedit?: () => void;
 		ondelete?: () => void;
-		/** Workshop placeholders (WORKSHOP.md). When provided, the stubbed Dispatch / Activity /
-		 *  Manage crew controls render and open the exercise brief. */
+		/** Workshop layer (WORKSHOP.md): when provided, violet pins float over the pane where each
+		 *  exercise is meant to be built, and clicking one opens its brief. */
 		onexercise?: (exercise: ExerciseNumber) => void;
-		/** Workshop focus mode: the exercise whose placeholder should pulse and scroll into view. */
+		/** Workshop focus mode: the exercise whose pin should pulse and scroll into view. */
 		focus?: ExerciseNumber | null;
 	} = $props();
 
 	const fleet = $derived(fleetSummary(units));
 
-	// Workshop focus mode: bring the focused placeholder into view.
+	// Workshop focus mode: bring the focused pin into view.
 	let targets = $state<Record<ExerciseNumber, HTMLElement | null>>({ 1: null, 2: null, 3: null });
 	$effect(() => {
 		const el = focus === null ? null : targets[focus];
@@ -66,9 +66,51 @@
 	</h3>
 {/snippet}
 
+<!--
+  Workshop pins. Absolutely positioned and deliberately styled as annotations — tilted,
+  shadowed, overlapping the content — so nobody mistakes them for console controls. They take
+  no layout space; delete an exercise's pin when you build it. See WORKSHOP.md.
+-->
+{#snippet pin(exercise: ExerciseNumber, label: string, position: string)}
+	{#if onexercise}
+		<span
+			class="pointer-events-none absolute z-10 flex items-center gap-2 {position}"
+			bind:this={targets[exercise]}
+			in:fly={{ y: -8, duration: 300 }}
+		>
+			<Button
+				variant="ghost"
+				size="sm"
+				class="pointer-events-auto h-7 -rotate-1 gap-1.5 rounded-md bg-(--workshop-strong) px-2 text-[11px] font-bold text-(--workshop-fg) shadow-lg ring-2 shadow-black/30 ring-background transition-transform duration-200 hover:scale-105 hover:rotate-0 hover:bg-(--workshop-strong) {focus ===
+				exercise
+					? `${FOCUS_CLASS} scale-110 rotate-0`
+					: ''}"
+				onclick={() => onexercise?.(exercise)}
+			>
+				<span
+					class="grid size-4 place-items-center rounded-full bg-(--workshop-fg) text-[10px] text-(--workshop-text) tabular-nums"
+					>{exercise}</span
+				>
+				{label}
+			</Button>
+			{#if focus === exercise}
+				<span
+					in:fly={{ x: -10, duration: 260 }}
+					out:fade={{ duration: 220 }}
+					class="inline-flex items-center gap-1 rounded-full bg-(--workshop-strong) px-2 py-0.5 text-[10px] font-bold tracking-wide text-(--workshop-fg) uppercase shadow-md"
+				>
+					<Crosshair class="size-3" aria-hidden="true" />
+					Build here
+				</span>
+			{/if}
+		</span>
+	{/if}
+{/snippet}
+
 {#if unit}
 	<!-- Identity header -->
-	<header class="flex items-start justify-between gap-4 px-5 py-4">
+	<header class="relative flex items-start justify-between gap-4 px-5 py-4">
+		{@render pin(1, 'Dispatch goes here', '-top-3 right-40')}
 		<div class="min-w-0">
 			<div class="flex items-baseline gap-2">
 				<h2 class="truncate text-lg leading-6 font-semibold">{unit.callSign}</h2>
@@ -86,24 +128,8 @@
 			</p>
 		</div>
 		<div class="flex shrink-0 flex-col items-end gap-1.5">
-			{#if onexercise || onedit || ondelete}
+			{#if onedit || ondelete}
 				<div class="flex gap-1">
-					{#if onexercise}
-						<!-- Workshop exercise 1 — placeholder; see WORKSHOP.md. -->
-						<span class="inline-flex" bind:this={targets[1]}>
-							<Button
-								variant="outline"
-								size="sm"
-								onclick={() => onexercise?.(1)}
-								class="h-7 gap-1.5 px-2 text-xs font-bold {PLACEHOLDER_CLASS} {focus === 1
-									? FOCUS_CLASS
-									: ''}"
-							>
-								<Construction class="size-3.5" aria-hidden="true" />
-								Exercise 1 · {unit.assignment ? 'Stand down' : 'Dispatch'}
-							</Button>
-						</span>
-					{/if}
 					{#if onedit}
 						<Button variant="ghost" size="sm" onclick={onedit} class="h-7 gap-1 px-2 text-xs">
 							<Pencil class="size-3.5" aria-hidden="true" />
@@ -176,59 +202,15 @@
 			{/if}
 		</section>
 
-		<!-- Workshop exercise 2 — placeholder; see WORKSHOP.md. -->
-		<section>
-			{@render sectionTitle('Activity')}
-			<div
-				bind:this={targets[2]}
-				class="{PLACEHOLDER_CLASS} flex items-start gap-3 rounded-md p-3 text-xs {focus === 2
-					? FOCUS_CLASS
-					: ''}"
-			>
-				<Construction class="mt-0.5 size-5 shrink-0" aria-hidden="true" />
-				<div>
-					<p class="text-sm font-bold tracking-wide uppercase">
-						Exercise 2 · Activity timeline — not built yet
-					</p>
-					<p class="mt-0.5">
-						Show this unit's recent status and assignment changes here, newest first. The service
-						has a <code class="font-mono">GET /v1/units/&#123;unit_code&#125;/events</code> stub waiting.
-					</p>
-				</div>
-				{#if onexercise}
-					<Button
-						variant="outline"
-						size="sm"
-						class="ml-auto h-7 shrink-0 border-(--border-warning) px-2 text-xs font-semibold text-(--text-warning-strong) hover:bg-(--bg-warning-muted-hover)"
-						onclick={() => onexercise?.(2)}
-					>
-						Details
-					</Button>
-				{/if}
-			</div>
-		</section>
+		<!-- Workshop exercise 2 anchor: zero height, the pin floats over the section boundary. -->
+		<div class="relative h-0">
+			{@render pin(2, 'Activity timeline goes here', '-top-3 left-1/2 -translate-x-1/2')}
+		</div>
 
 		<div class="grid gap-5 sm:grid-cols-2">
-			<section>
-				<div class="flex items-start justify-between gap-2">
-					{@render sectionTitle('Crew', unit.crew.length)}
-					{#if onexercise}
-						<!-- Workshop exercise 3 — placeholder; see WORKSHOP.md. -->
-						<span class="inline-flex" bind:this={targets[3]}>
-							<Button
-								variant="ghost"
-								size="sm"
-								onclick={() => onexercise?.(3)}
-								class="-mt-1 h-7 gap-1.5 px-2 text-xs font-bold {PLACEHOLDER_CLASS} {focus === 3
-									? FOCUS_CLASS
-									: ''}"
-							>
-								<UserPlus class="size-3" aria-hidden="true" />
-								Exercise 3 · Manage
-							</Button>
-						</span>
-					{/if}
-				</div>
+			<section class="relative">
+				{@render pin(3, 'Manage crew goes here', '-top-3 right-0')}
+				{@render sectionTitle('Crew', unit.crew.length)}
 				{#if unit.crew.length > 0}
 					<ul class="divide-y divide-border">
 						{#each unit.crew as member (member.name)}

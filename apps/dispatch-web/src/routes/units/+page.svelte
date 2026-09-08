@@ -12,6 +12,7 @@
 
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { fly } from 'svelte/transition';
 	import {
 		AlertDialog,
 		AlertDialogCancel,
@@ -37,7 +38,7 @@
 	import X from '@lucide/svelte/icons/x';
 
 	import StatusFilter from '$lib/aoh/dispatch/components/StatusFilter.svelte';
-	import ExercisePanel from '$lib/aoh/dispatch/components/ExercisePanel.svelte';
+	import ExerciseDialog from '$lib/aoh/dispatch/components/ExerciseDialog.svelte';
 	import UnitDetail from '$lib/aoh/dispatch/components/UnitDetail.svelte';
 	import UnitForm from '$lib/aoh/dispatch/components/UnitForm.svelte';
 	import UnitRow from '$lib/aoh/dispatch/components/UnitRow.svelte';
@@ -52,12 +53,7 @@
 	import { sinceLabel } from '$lib/aoh/dispatch/format';
 	import type { FieldUnit, UnitStatus } from '$lib/aoh/dispatch/types';
 	import type { UnitFormErrors } from '$lib/aoh/dispatch/forms';
-	import {
-		EXERCISES,
-		incompleteExercises,
-		PLACEHOLDER_CLASS,
-		type ExerciseNumber
-	} from '$lib/aoh/dispatch/workshop';
+	import { incompleteExercises, type ExerciseNumber } from '$lib/aoh/dispatch/workshop';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -76,6 +72,7 @@
 	let exerciseOpen = $state(false);
 	let exerciseDetail = $state<ExerciseNumber | null>(null);
 	let focused = $state<ExerciseNumber | null>(null);
+	let focusTimer: ReturnType<typeof setTimeout> | undefined;
 	const incomplete = incompleteExercises();
 	let formMode = $state<'create' | 'edit'>('create');
 	let deleteOpen = $state(false);
@@ -127,13 +124,15 @@
 
 	/** Workshop layer — see WORKSHOP.md. */
 	function openExercises(detail: ExerciseNumber | null = null) {
+		focused = null;
 		exerciseDetail = detail;
 		exerciseOpen = true;
 	}
 
 	/**
 	 * Focus mode: close the panel, make sure a unit is selected so the detail pane is showing,
-	 * then let UnitDetail pulse and scroll to the placeholder for that exercise.
+	 * then let UnitDetail pulse and scroll to the placeholder for that exercise. The focus
+	 * clears itself after a few seconds — there is nothing to dismiss.
 	 */
 	function focusExercise(n: ExerciseNumber) {
 		exerciseOpen = false;
@@ -142,6 +141,8 @@
 			if (pick) selectedId = pick.id;
 		}
 		focused = n;
+		clearTimeout(focusTimer);
+		focusTimer = setTimeout(() => (focused = null), 7000);
 	}
 
 	function onFormOutcome(
@@ -254,54 +255,8 @@
 					Add unit
 				</Button>
 			{/if}
-
-			{#if incomplete.length > 0}
-				<!-- Workshop layer — see WORKSHOP.md. Lists what is not built and can focus the console on it. -->
-				<Button
-					variant="outline"
-					size="sm"
-					class="gap-1.5 border-(--border-warning) text-xs font-semibold text-(--text-warning-strong) hover:bg-(--bg-warning-muted-hover)"
-					onclick={() => openExercises()}
-				>
-					<Construction class="size-3.5" aria-hidden="true" />
-					Exercises
-					<span
-						class="rounded-full bg-(--bg-warning-strong) px-1.5 text-[10px] leading-4 text-(--text-on-color) tabular-nums"
-					>
-						{incomplete.length}
-					</span>
-				</Button>
-			{/if}
 		</div>
 	</header>
-
-	{#if focused !== null}
-		<!-- Workshop focus mode — see WORKSHOP.md. -->
-		<div
-			class="{PLACEHOLDER_CLASS} flex flex-wrap items-center gap-3 rounded-md px-4 py-2"
-			role="status"
-		>
-			<Construction class="size-4 shrink-0" aria-hidden="true" />
-			<p class="min-w-0 flex-1 text-xs">
-				<span class="font-bold tracking-wide uppercase"
-					>Focusing exercise {focused} · {EXERCISES[focused].title}</span
-				>
-				— the pulsing control in the unit detail is where it gets built.
-			</p>
-			<Button
-				variant="outline"
-				size="sm"
-				class="h-7 border-(--border-warning) text-xs text-(--text-warning-strong) hover:bg-(--bg-warning-muted-hover)"
-				onclick={() => openExercises(focused)}>Brief</Button
-			>
-			<Button
-				variant="ghost"
-				size="sm"
-				class="h-7 text-xs text-(--text-warning-strong) hover:bg-(--bg-warning-muted-hover)"
-				onclick={() => (focused = null)}>Done</Button
-			>
-		</div>
-	{/if}
 
 	{#if data.unavailable}
 		<Card class="border-destructive">
@@ -398,7 +353,26 @@
 
 		<!-- Add / edit -->
 		<UnitForm bind:open={formOpen} mode={formMode} unit={selected} onoutcome={onFormOutcome} />
-		<ExercisePanel bind:open={exerciseOpen} bind:detail={exerciseDetail} onfocus={focusExercise} />
+		<ExerciseDialog bind:open={exerciseOpen} bind:detail={exerciseDetail} onfocus={focusExercise} />
+
+		{#if incomplete.length > 0}
+			<!-- Workshop layer — floating on purpose: it is an annotation over the console, not part of
+			     it. Opens the exercise dialog. See WORKSHOP.md. -->
+			<div class="fixed right-6 bottom-6 z-40" in:fly={{ y: 24, duration: 350, delay: 200 }}>
+				<Button
+					class="h-11 gap-2 rounded-full bg-(--workshop-strong) px-4 text-sm font-bold text-(--workshop-fg) shadow-xl ring-2 shadow-black/30 ring-background transition-transform duration-200 hover:scale-105 hover:bg-(--workshop-strong)/90 active:scale-95"
+					onclick={() => openExercises()}
+				>
+					<Construction class="size-4" aria-hidden="true" />
+					Exercises
+					<span
+						class="grid size-5 place-items-center rounded-full bg-(--workshop-fg) text-[11px] text-(--workshop-text) tabular-nums"
+					>
+						{incomplete.length}
+					</span>
+				</Button>
+			</div>
+		{/if}
 
 		<!-- Delete — confirmation names the unit; the action is a real form post. -->
 		<AlertDialog bind:open={deleteOpen}>

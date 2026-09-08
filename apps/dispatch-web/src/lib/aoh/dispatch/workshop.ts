@@ -85,12 +85,13 @@ export function completedExercises(): Exercise[] {
 }
 
 /**
- * Shared look for every placeholder. Loud on purpose — warning colour, thick dashed border —
- * because a placeholder exists to be noticed, not to blend into the console.
+ * Shared look for the exercise cards. The workshop palette (`--workshop-*`, defined in
+ * app.css) is used by nothing else in the console, so the layer reads as an annotation over
+ * the UI rather than part of it.
  */
 export const PLACEHOLDER_CLASS =
-	'border-2 border-dashed border-(--border-warning) bg-(--bg-warning-muted) text-(--text-warning-strong)';
+	'border border-dashed border-(--workshop-border) bg-(--workshop-muted) text-(--workshop-text) transition-shadow duration-300';
 
 /** Added to a placeholder while the console is focused on its exercise. */
 export const FOCUS_CLASS =
-	'animate-pulse ring-4 ring-(--border-warning) ring-offset-2 ring-offset-background';
+	'animate-pulse ring-2 ring-(--workshop) ring-offset-2 ring-offset-background';
