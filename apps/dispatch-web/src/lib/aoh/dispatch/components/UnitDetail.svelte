@@ -115,7 +115,6 @@
 									variant="ghost"
 									size="sm"
 									class="h-7 gap-1.5 px-2 text-xs {sketch}"
-									title="Exercise 1 — not built yet"
 									onclick={() => onexercise?.(1)}
 								>
 									{@render marker(1)}
@@ -214,7 +213,6 @@
 						variant="ghost"
 						size="sm"
 						class="h-auto w-full flex-col items-stretch gap-2 rounded-md p-3 text-left {sketch}"
-						title="Exercise 2 — not built yet"
 						onclick={() => onexercise?.(2)}
 					>
 						{#each [72, 52, 64] as width, i (width)}
@@ -230,9 +228,6 @@
 								<Skeleton class="ml-auto h-2.5 w-10 animate-none rounded-sm bg-(--workshop)/25" />
 							</span>
 						{/each}
-						<span class="text-[11px] font-normal"
-							>Not built yet — what happened to this unit will show here.</span
-						>
 					</Button>
 				</section>
 			{/if}
@@ -256,7 +251,6 @@
 									variant="ghost"
 									size="sm"
 									class="h-6 gap-1.5 px-2 text-xs {sketch}"
-									title="Exercise 3 — not built yet"
 									onclick={() => onexercise?.(3)}
 								>
 									{@render marker(3)}
