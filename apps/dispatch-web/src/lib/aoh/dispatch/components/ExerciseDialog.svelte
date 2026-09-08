@@ -122,10 +122,7 @@
 			</div>
 		</ScrollArea>
 
-		<AlertDialogFooter class="flex-row items-center justify-between gap-2 border-t px-6 py-3">
-			<p class="text-xs text-muted-foreground">
-				Full brief in <code class="font-mono">WORKSHOP.md</code>.
-			</p>
+		<AlertDialogFooter class="flex-row justify-end gap-2 border-t px-6 py-3">
 			<AlertDialogCancel>Got it</AlertDialogCancel>
 		</AlertDialogFooter>
 	</AlertDialogContent>
