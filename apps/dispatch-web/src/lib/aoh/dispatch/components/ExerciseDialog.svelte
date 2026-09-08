@@ -63,9 +63,10 @@
 			<AlertDialogDescription>{intro}</AlertDialogDescription>
 		</AlertDialogHeader>
 
-		<!-- ScrollArea needs a definite height to scroll; the flex chain alone was not giving it
-		     one, so cap it directly. -->
-		<ScrollArea class="max-h-[60dvh]">
+		<!-- The primitive's viewport is `height: 100%` of its root, and a root with only a max-height
+		     gives that percentage nothing to resolve against — the viewport grew and the root clipped
+		     it, so nothing scrolled. The cap has to sit on the viewport itself. -->
+		<ScrollArea class="[&_[data-scroll-area-viewport]]:max-h-[60dvh]">
 			<div class="space-y-3 px-6 py-2">
 				{#each todo as ex, i (ex.number)}
 					<!-- Staggered entrance: the cards arrive one after another when the dialog opens. -->
