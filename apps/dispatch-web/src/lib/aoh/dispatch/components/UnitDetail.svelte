@@ -58,20 +58,6 @@
 	});
 	const focusClass = (n: ExerciseNumber) =>
 		`${FOCUS_BASE_CLASS} ${focus === n ? FOCUS_ON_CLASS : ''}`;
-	// Spotlight: while pointing at an exercise, everything that is not its sketch steps back.
-	// A default, not `keep?:` — see the note on the sectionTitle snippet: the `?` survives TS stripping.
-	const dim = (keep: ExerciseNumber | null = null) =>
-		focus === null || focus === keep
-			? 'transition-opacity duration-300'
-			: 'opacity-40 transition-opacity duration-300';
-	// One ripple when focus lands, then quiet.
-	let ping = $state(false);
-	$effect(() => {
-		if (focus === null) return;
-		ping = true;
-		const t = setTimeout(() => (ping = false), 1400);
-		return () => clearTimeout(t);
-	});
 </script>
 
 <!-- A default, not `count?:` — Svelte strips the TS annotation but leaves the `?`, and
@@ -96,7 +82,7 @@
 {#if unit}
 	<!-- Identity header -->
 	<header class="flex items-start justify-between gap-4 px-5 py-4">
-		<div class="min-w-0 {dim()}">
+		<div class="min-w-0">
 			<div class="flex items-baseline gap-2">
 				<h2 class="truncate text-lg leading-6 font-semibold">{unit.callSign}</h2>
 				<span class="font-mono text-xs text-muted-foreground tabular-nums">{unit.id}</span>
@@ -121,13 +107,10 @@
 							<!-- Workshop exercise 1: a sketch of the Dispatch / Stand down button. -->
 							<span
 								bind:this={targets[1]}
-								class="relative inline-flex {focusClass(1)}"
+								class="inline-flex {focusClass(1)}"
 								in:fly={{ y: -6, duration: 250, delay: 80 }}
 								out:fade={{ duration: 150 }}
 							>
-								{#if ping}<span
-										class="pointer-events-none absolute inset-0 -m-1 animate-ping rounded-md border-2 border-(--workshop)"
-									></span>{/if}
 								<Button
 									variant="ghost"
 									size="sm"
@@ -160,8 +143,8 @@
 					{/if}
 				</div>
 			{/if}
-			<Badge variant="soft" color={statusColor[unit.status]} class={dim(1)}>{unit.status}</Badge>
-			<span class="font-mono text-xs text-muted-foreground tabular-nums {dim(1)}">
+			<Badge variant="soft" color={statusColor[unit.status]}>{unit.status}</Badge>
+			<span class="font-mono text-xs text-muted-foreground tabular-nums">
 				{sinceLabel(unit.lastContact, now)}
 			</span>
 		</div>
@@ -170,7 +153,7 @@
 	<Separator />
 
 	<div class="space-y-5 px-5 py-4">
-		<section class={dim()}>
+		<section>
 			{@render sectionTitle('Overview')}
 			<dl class="grid grid-cols-[120px_1fr] gap-x-4 gap-y-1.5 text-xs">
 				<dt class="text-muted-foreground">Sector</dt>
@@ -187,7 +170,7 @@
 			</dl>
 		</section>
 
-		<section class={dim()}>
+		<section>
 			{@render sectionTitle('Assignment')}
 			{#if unit.assignment}
 				<div class="rounded-md border bg-muted/60 p-3">
@@ -219,13 +202,10 @@
 				<!-- Workshop exercise 2: a sketch of the Activity section — a title and three timeline rows. -->
 				<section
 					bind:this={targets[2]}
-					class="relative {focusClass(2)}"
+					class={focusClass(2)}
 					in:fly={{ y: 6, duration: 250, delay: 160 }}
 					out:fade={{ duration: 150 }}
 				>
-					{#if ping}<span
-							class="pointer-events-none absolute inset-0 -m-1 animate-ping rounded-md border-2 border-(--workshop)"
-						></span>{/if}
 					<div class="flex items-center gap-2">
 						{@render sectionTitle('Activity')}
 						<span class="mb-2">{@render marker(2)}</span>
@@ -268,13 +248,10 @@
 							<!-- Workshop exercise 3: a sketch of the Manage button. -->
 							<span
 								bind:this={targets[3]}
-								class="relative -mt-1 inline-flex {focusClass(3)}"
+								class="-mt-1 inline-flex {focusClass(3)}"
 								in:fly={{ y: -6, duration: 250, delay: 240 }}
 								out:fade={{ duration: 150 }}
 							>
-								{#if ping}<span
-										class="pointer-events-none absolute inset-0 -m-1 animate-ping rounded-md border-2 border-(--workshop)"
-									></span>{/if}
 								<Button
 									variant="ghost"
 									size="sm"
@@ -290,7 +267,7 @@
 					{/key}
 				</div>
 				{#if unit.crew.length > 0}
-					<ul class="divide-y divide-border {dim(3)}">
+					<ul class="divide-y divide-border">
 						{#each unit.crew as member (member.name)}
 							<li class="flex items-baseline justify-between gap-3 py-1.5">
 								<span class="text-sm">{member.name}</span>
@@ -299,11 +276,11 @@
 						{/each}
 					</ul>
 				{:else}
-					<p class="text-xs text-muted-foreground {dim(3)}">None recorded.</p>
+					<p class="text-xs text-muted-foreground">None recorded.</p>
 				{/if}
 			</section>
 
-			<section class={dim()}>
+			<section>
 				{@render sectionTitle('Capabilities')}
 				{#if unit.capabilities.length > 0}
 					<div class="flex flex-wrap gap-1.5">
