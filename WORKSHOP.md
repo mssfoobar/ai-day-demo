@@ -10,8 +10,12 @@ build it end to end, remove its placeholder.
 | 2 | Unit activity timeline | dashed **Activity** section in the detail pane; `GET /v1/units/{unit_code}/events` answers 501 |
 | 3 | Manage crew | **Manage** button beside the **Crew** heading; `PUT /v1/units/{unit_code}/crew` answers 501 |
 
-Clicking a placeholder button raises a toast naming the exercise. The 501s carry the AOH
-error contract with `errorCode: DISPATCH_NOT_IMPLEMENTED`:
+In the console, the amber **Exercises** button in the header opens the workshop layer: a
+panel listing whatever is not complete, each with its brief. **Focus in console** selects a
+unit and pulses the placeholder where that feature is meant to be built. Clicking a
+placeholder itself opens the same panel on that exercise. When you finish one, flip its
+`complete` flag in `apps/dispatch-web/src/lib/aoh/dispatch/workshop.ts` and it drops off the
+list. The 501s carry the AOH error contract with `errorCode: DISPATCH_NOT_IMPLEMENTED`:
 
 ```sh
 curl -i -X POST http://localhost:8081/v1/units/FU-101/assignment
@@ -29,8 +33,9 @@ curl -i -X POST http://localhost:8081/v1/units/FU-101/assignment
   is a 409 `DISPATCH_UNIT_STALE`, never a silent overwrite.
 - **Errors follow the contract.** Validation failures list every bad field in `details`
   via `aoherr.FieldDetail`; new error codes are `DISPATCH_*` in `internal/service/errors.go`.
-- **Placeholders go when the feature arrives.** Delete the `notImplemented` route, the
-  `Workshop exercise N` markup, and the toast wiring for the exercise you built.
+- **Placeholders go when the feature arrives.** Delete the `notImplemented` route and the
+  `Workshop exercise N` markup for the exercise you built, and mark it `complete` in
+  `workshop.ts`. When all three are done, delete `workshop.ts` and `ExercisePanel.svelte`.
 - `pnpm verify` must stay green.
 
 Each exercise is written as a user story with acceptance criteria. Anything not listed is

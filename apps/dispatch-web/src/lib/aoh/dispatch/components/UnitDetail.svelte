@@ -19,7 +19,7 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import UserPlus from '@lucide/svelte/icons/user-plus';
 	import type { FieldUnit } from '../types';
-	import { EXERCISES, PLACEHOLDER_CLASS, type ExerciseNumber } from '../workshop';
+	import { FOCUS_CLASS, PLACEHOLDER_CLASS, type ExerciseNumber } from '../workshop';
 	import { fleetSummary } from '../filters';
 	import { priorityColor, sinceLabel, statusColor } from '../format';
 
@@ -29,7 +29,8 @@
 		now,
 		onedit,
 		ondelete,
-		onexercise
+		onexercise,
+		focus = null
 	}: {
 		unit: FieldUnit | null;
 		units: FieldUnit[];
@@ -40,9 +41,18 @@
 		/** Workshop placeholders (WORKSHOP.md). When provided, the stubbed Dispatch / Activity /
 		 *  Manage crew controls render and open the exercise brief. */
 		onexercise?: (exercise: ExerciseNumber) => void;
+		/** Workshop focus mode: the exercise whose placeholder should pulse and scroll into view. */
+		focus?: ExerciseNumber | null;
 	} = $props();
 
 	const fleet = $derived(fleetSummary(units));
+
+	// Workshop focus mode: bring the focused placeholder into view.
+	let targets = $state<Record<ExerciseNumber, HTMLElement | null>>({ 1: null, 2: null, 3: null });
+	$effect(() => {
+		const el = focus === null ? null : targets[focus];
+		if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+	});
 </script>
 
 <!-- A default, not `count?:` — Svelte strips the TS annotation but leaves the `?`, and
@@ -80,15 +90,19 @@
 				<div class="flex gap-1">
 					{#if onexercise}
 						<!-- Workshop exercise 1 — placeholder; see WORKSHOP.md. -->
-						<Button
-							variant="outline"
-							size="sm"
-							onclick={() => onexercise?.(1)}
-							class="h-7 gap-1.5 px-2 text-xs font-bold {PLACEHOLDER_CLASS}"
-						>
-							<Construction class="size-3.5" aria-hidden="true" />
-							Exercise 1 · {unit.assignment ? 'Stand down' : 'Dispatch'}
-						</Button>
+						<span class="inline-flex" bind:this={targets[1]}>
+							<Button
+								variant="outline"
+								size="sm"
+								onclick={() => onexercise?.(1)}
+								class="h-7 gap-1.5 px-2 text-xs font-bold {PLACEHOLDER_CLASS} {focus === 1
+									? FOCUS_CLASS
+									: ''}"
+							>
+								<Construction class="size-3.5" aria-hidden="true" />
+								Exercise 1 · {unit.assignment ? 'Stand down' : 'Dispatch'}
+							</Button>
+						</span>
 					{/if}
 					{#if onedit}
 						<Button variant="ghost" size="sm" onclick={onedit} class="h-7 gap-1 px-2 text-xs">
@@ -165,7 +179,12 @@
 		<!-- Workshop exercise 2 — placeholder; see WORKSHOP.md. -->
 		<section>
 			{@render sectionTitle('Activity')}
-			<div class="{PLACEHOLDER_CLASS} flex items-start gap-3 rounded-md p-3 text-xs">
+			<div
+				bind:this={targets[2]}
+				class="{PLACEHOLDER_CLASS} flex items-start gap-3 rounded-md p-3 text-xs {focus === 2
+					? FOCUS_CLASS
+					: ''}"
+			>
 				<Construction class="mt-0.5 size-5 shrink-0" aria-hidden="true" />
 				<div>
 					<p class="text-sm font-bold tracking-wide uppercase">
@@ -195,15 +214,19 @@
 					{@render sectionTitle('Crew', unit.crew.length)}
 					{#if onexercise}
 						<!-- Workshop exercise 3 — placeholder; see WORKSHOP.md. -->
-						<Button
-							variant="ghost"
-							size="sm"
-							onclick={() => onexercise?.(3)}
-							class="-mt-1 h-7 gap-1.5 px-2 text-xs font-bold {PLACEHOLDER_CLASS}"
-						>
-							<UserPlus class="size-3" aria-hidden="true" />
-							Exercise 3 · Manage
-						</Button>
+						<span class="inline-flex" bind:this={targets[3]}>
+							<Button
+								variant="ghost"
+								size="sm"
+								onclick={() => onexercise?.(3)}
+								class="-mt-1 h-7 gap-1.5 px-2 text-xs font-bold {PLACEHOLDER_CLASS} {focus === 3
+									? FOCUS_CLASS
+									: ''}"
+							>
+								<UserPlus class="size-3" aria-hidden="true" />
+								Exercise 3 · Manage
+							</Button>
+						</span>
 					{/if}
 				</div>
 				{#if unit.crew.length > 0}
@@ -292,31 +315,6 @@
 						{sinceLabel(fleet.quietest.lastContact, now)}
 					</span>
 				</p>
-			</section>
-		{/if}
-
-		{#if onexercise}
-			<!-- Workshop placeholders — see WORKSHOP.md. Listed here so they are visible before any unit is selected. -->
-			<section>
-				{@render sectionTitle('Workshop exercises', 3)}
-				<ul class="{PLACEHOLDER_CLASS} divide-y divide-(--border-warning-muted) rounded-md">
-					{#each Object.values(EXERCISES) as ex (ex.number)}
-						<li>
-							<button
-								type="button"
-								class="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-(--bg-warning-muted-hover)"
-								onclick={() => onexercise?.(ex.number)}
-							>
-								<Construction class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-								<span class="min-w-0 flex-1">
-									<span class="block font-medium">{ex.title}</span>
-									<span class="block truncate text-xs text-muted-foreground">{ex.where}</span>
-								</span>
-								<Badge variant="solid" color="warning">Exercise {ex.number}</Badge>
-							</button>
-						</li>
-					{/each}
-				</ul>
 			</section>
 		{/if}
 	</div>

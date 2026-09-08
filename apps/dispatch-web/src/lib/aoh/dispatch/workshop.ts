@@ -1,15 +1,20 @@
 /**
  * The three workshop exercises — stubbed in the UI and the API, not built.
  *
- * This is the one place their titles, stories and stub routes are written down for the
- * console; WORKSHOP.md at the repo root is the full brief. When an exercise is built,
- * delete its entry here and every `Workshop exercise N` placeholder goes with it.
+ * This is the one place their titles, stories, stub routes and completion state are written
+ * down for the console; WORKSHOP.md at the repo root is the full brief. The console's
+ * **Exercises** button lists whatever is not complete and can focus the console on an
+ * exercise's placeholder. When you finish one, flip its `complete` to `true`: it drops out
+ * of the list, and the count on the button goes down. When all three are done, delete this
+ * module and every `Workshop` placeholder with it.
  */
 export type ExerciseNumber = 1 | 2 | 3;
 
 export interface Exercise {
 	number: ExerciseNumber;
 	title: string;
+	/** Flip to `true` when the exercise passes its acceptance criteria. */
+	complete: boolean;
 	/** Where the placeholder sits in the console. */
 	where: string;
 	/** The user story, in one sentence. */
@@ -24,6 +29,7 @@ export const EXERCISES: Record<ExerciseNumber, Exercise> = {
 	1: {
 		number: 1,
 		title: 'Dispatch a unit',
+		complete: false,
 		where: 'The Dispatch / Stand down button in the unit header.',
 		story:
 			'As a dispatcher, I want to dispatch an available unit to an incident and stand it down when the job is done, so the console shows who is working what.',
@@ -39,6 +45,7 @@ export const EXERCISES: Record<ExerciseNumber, Exercise> = {
 	2: {
 		number: 2,
 		title: 'Unit activity timeline',
+		complete: false,
 		where: 'The dashed Activity section in the unit detail.',
 		story:
 			'As a dispatcher, I want to see a unit’s recent status and assignment changes with timestamps, so I can tell what happened to it during the shift.',
@@ -54,6 +61,7 @@ export const EXERCISES: Record<ExerciseNumber, Exercise> = {
 	3: {
 		number: 3,
 		title: 'Manage crew',
+		complete: false,
 		where: 'The Manage button beside the Crew heading.',
 		story:
 			'As a dispatcher, I want to add and remove the crew on a unit, so the roster matches who is actually on the vehicle this shift.',
@@ -68,9 +76,21 @@ export const EXERCISES: Record<ExerciseNumber, Exercise> = {
 	}
 };
 
+export function incompleteExercises(): Exercise[] {
+	return Object.values(EXERCISES).filter((exercise) => !exercise.complete);
+}
+
+export function completedExercises(): Exercise[] {
+	return Object.values(EXERCISES).filter((exercise) => exercise.complete);
+}
+
 /**
  * Shared look for every placeholder. Loud on purpose — warning colour, thick dashed border —
  * because a placeholder exists to be noticed, not to blend into the console.
  */
 export const PLACEHOLDER_CLASS =
 	'border-2 border-dashed border-(--border-warning) bg-(--bg-warning-muted) text-(--text-warning-strong)';
+
+/** Added to a placeholder while the console is focused on its exercise. */
+export const FOCUS_CLASS =
+	'animate-pulse ring-4 ring-(--border-warning) ring-offset-2 ring-offset-background';

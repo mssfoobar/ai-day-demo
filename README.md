@@ -53,8 +53,9 @@ service starts.
 ## Workshop exercises
 
 Three features are deliberately **stubbed, not built**: dispatching a unit to an incident,
-a per-unit activity timeline, and crew management. Each has a visible placeholder in the
-console (a button or a dashed section) and a `501` route in the service. Their user stories,
+a per-unit activity timeline, and crew management. An amber **Exercises** button in the console header
+lists them and can focus the console on each one's placeholder; the service answers `501`
+on their routes. Their user stories,
 acceptance criteria and pointers to the code to copy are in **[WORKSHOP.md](WORKSHOP.md)**.
 
 ## Layout

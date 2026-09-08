@@ -37,10 +37,10 @@
 	import X from '@lucide/svelte/icons/x';
 
 	import StatusFilter from '$lib/aoh/dispatch/components/StatusFilter.svelte';
+	import ExercisePanel from '$lib/aoh/dispatch/components/ExercisePanel.svelte';
 	import UnitDetail from '$lib/aoh/dispatch/components/UnitDetail.svelte';
 	import UnitForm from '$lib/aoh/dispatch/components/UnitForm.svelte';
 	import UnitRow from '$lib/aoh/dispatch/components/UnitRow.svelte';
-	import WorkshopPlaceholder from '$lib/aoh/dispatch/components/WorkshopPlaceholder.svelte';
 	import {
 		countByStatus,
 		filterUnits,
@@ -52,7 +52,12 @@
 	import { sinceLabel } from '$lib/aoh/dispatch/format';
 	import type { FieldUnit, UnitStatus } from '$lib/aoh/dispatch/types';
 	import type { UnitFormErrors } from '$lib/aoh/dispatch/forms';
-	import { EXERCISES, PLACEHOLDER_CLASS, type ExerciseNumber } from '$lib/aoh/dispatch/workshop';
+	import {
+		EXERCISES,
+		incompleteExercises,
+		PLACEHOLDER_CLASS,
+		type ExerciseNumber
+	} from '$lib/aoh/dispatch/workshop';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -67,9 +72,11 @@
 
 	// Write UI state.
 	let formOpen = $state(false);
-	// Workshop placeholders — see WORKSHOP.md.
-	let exercise = $state<ExerciseNumber | null>(null);
+	// Workshop layer — see WORKSHOP.md.
 	let exerciseOpen = $state(false);
+	let exerciseDetail = $state<ExerciseNumber | null>(null);
+	let focused = $state<ExerciseNumber | null>(null);
+	const incomplete = incompleteExercises();
 	let formMode = $state<'create' | 'edit'>('create');
 	let deleteOpen = $state(false);
 	let deleting = $state(false);
@@ -118,10 +125,23 @@
 		formOpen = true;
 	}
 
-	/** Workshop placeholders — see WORKSHOP.md. Opens the brief where the real form will go. */
-	function openExercise(n: ExerciseNumber) {
-		exercise = n;
+	/** Workshop layer — see WORKSHOP.md. */
+	function openExercises(detail: ExerciseNumber | null = null) {
+		exerciseDetail = detail;
 		exerciseOpen = true;
+	}
+
+	/**
+	 * Focus mode: close the panel, make sure a unit is selected so the detail pane is showing,
+	 * then let UnitDetail pulse and scroll to the placeholder for that exercise.
+	 */
+	function focusExercise(n: ExerciseNumber) {
+		exerciseOpen = false;
+		if (!selected) {
+			const pick = n === 1 ? (units.find((u) => !u.assignment) ?? units[0]) : units[0];
+			if (pick) selectedId = pick.id;
+		}
+		focused = n;
 	}
 
 	function onFormOutcome(
@@ -193,8 +213,8 @@
 			{/if}
 		</div>
 
-		{#if !data.unavailable}
-			<div class="flex flex-wrap items-center gap-2">
+		<div class="flex flex-wrap items-center gap-2">
+			{#if !data.unavailable}
 				<div class="relative">
 					<Search
 						class="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
@@ -233,40 +253,55 @@
 					<Plus class="size-3.5" aria-hidden="true" />
 					Add unit
 				</Button>
-			</div>
-		{/if}
-	</header>
+			{/if}
 
-	<!-- Workshop placeholders — loud on purpose; see WORKSHOP.md. Delete once all three are built. -->
-	<div
-		class="{PLACEHOLDER_CLASS} flex flex-wrap items-center gap-3 rounded-md px-4 py-2.5"
-		role="note"
-	>
-		<Construction class="size-5 shrink-0" aria-hidden="true" />
-		<div class="min-w-0 flex-1">
-			<p class="text-sm font-bold tracking-wide uppercase">Workshop · 3 features not built yet</p>
-			<p class="text-xs">
-				Each has a marked placeholder in the console and a 501 stub in the service. Click one for
-				its brief, or read WORKSHOP.md.
-			</p>
-		</div>
-		<div class="flex flex-wrap gap-2">
-			{#each Object.values(EXERCISES) as ex (ex.number)}
+			{#if incomplete.length > 0}
+				<!-- Workshop layer — see WORKSHOP.md. Lists what is not built and can focus the console on it. -->
 				<Button
 					variant="outline"
 					size="sm"
-					class="h-8 gap-1.5 border-(--border-warning) text-xs font-semibold text-(--text-warning-strong) hover:bg-(--bg-warning-muted-hover)"
-					onclick={() => openExercise(ex.number)}
+					class="gap-1.5 border-(--border-warning) text-xs font-semibold text-(--text-warning-strong) hover:bg-(--bg-warning-muted-hover)"
+					onclick={() => openExercises()}
 				>
+					<Construction class="size-3.5" aria-hidden="true" />
+					Exercises
 					<span
-						class="grid size-5 place-items-center rounded-full bg-(--bg-warning-strong) text-[10px] text-(--text-on-color)"
-						>{ex.number}</span
+						class="rounded-full bg-(--bg-warning-strong) px-1.5 text-[10px] leading-4 text-(--text-on-color) tabular-nums"
 					>
-					{ex.title}
+						{incomplete.length}
+					</span>
 				</Button>
-			{/each}
+			{/if}
 		</div>
-	</div>
+	</header>
+
+	{#if focused !== null}
+		<!-- Workshop focus mode — see WORKSHOP.md. -->
+		<div
+			class="{PLACEHOLDER_CLASS} flex flex-wrap items-center gap-3 rounded-md px-4 py-2"
+			role="status"
+		>
+			<Construction class="size-4 shrink-0" aria-hidden="true" />
+			<p class="min-w-0 flex-1 text-xs">
+				<span class="font-bold tracking-wide uppercase"
+					>Focusing exercise {focused} · {EXERCISES[focused].title}</span
+				>
+				— the pulsing control in the unit detail is where it gets built.
+			</p>
+			<Button
+				variant="outline"
+				size="sm"
+				class="h-7 border-(--border-warning) text-xs text-(--text-warning-strong) hover:bg-(--bg-warning-muted-hover)"
+				onclick={() => openExercises(focused)}>Brief</Button
+			>
+			<Button
+				variant="ghost"
+				size="sm"
+				class="h-7 text-xs text-(--text-warning-strong) hover:bg-(--bg-warning-muted-hover)"
+				onclick={() => (focused = null)}>Done</Button
+			>
+		</div>
+	{/if}
 
 	{#if data.unavailable}
 		<Card class="border-destructive">
@@ -352,7 +387,8 @@
 							{units}
 							{now}
 							onedit={openEdit}
-							onexercise={openExercise}
+							onexercise={(n) => openExercises(n)}
+							focus={focused}
 							ondelete={() => (deleteOpen = true)}
 						/>
 					</div>
@@ -362,7 +398,7 @@
 
 		<!-- Add / edit -->
 		<UnitForm bind:open={formOpen} mode={formMode} unit={selected} onoutcome={onFormOutcome} />
-		<WorkshopPlaceholder bind:open={exerciseOpen} {exercise} />
+		<ExercisePanel bind:open={exerciseOpen} bind:detail={exerciseDetail} onfocus={focusExercise} />
 
 		<!-- Delete — confirmation names the unit; the action is a real form post. -->
 		<AlertDialog bind:open={deleteOpen}>
