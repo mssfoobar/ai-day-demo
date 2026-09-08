@@ -6,15 +6,15 @@ build it end to end, remove its placeholder.
 
 | # | Feature | Where the placeholder is |
 |---|---|---|
-| 1 | Dispatch a unit to an incident / stand it down | violet pin floating over the unit header; `POST` / `DELETE /v1/units/{unit_code}/assignment` answer 501 |
+| 1 | Dispatch a unit to an incident / stand it down | a dashed **Dispatch** button sketched in the unit header; `POST` / `DELETE /v1/units/{unit_code}/assignment` answer 501 |
 | 2 | Unit activity timeline | dashed **Activity** section in the detail pane; `GET /v1/units/{unit_code}/events` answers 501 |
 | 3 | Manage crew | **Manage** button beside the **Crew** heading; `PUT /v1/units/{unit_code}/crew` answers 501 |
 
 In the console, everything workshop-related floats over the UI rather than being part of it:
-muted-violet annotation pins mark where each feature goes, and the round **Exercises** button at
-the bottom right opens a dialog listing whatever is not complete, each with its brief. **Focus in console** selects a
-unit and pulses the placeholder where that feature is meant to be built. Clicking a
-pin opens the same dialog on that exercise. When you finish one, flip its
+dashed sketches of the missing controls sit where each feature goes, and the floating button
+at the bottom right opens a dialog listing what is still to build, each with its story.
+**Show me where** selects a unit and draws a highlighted border around the sketch. Clicking a
+sketch opens the same dialog on that exercise. When you finish one, flip its
 `complete` flag in `apps/dispatch-web/src/lib/aoh/dispatch/workshop.ts` and it drops off the
 list. The 501s carry the AOH error contract with `errorCode: DISPATCH_NOT_IMPLEMENTED`:
 
@@ -35,7 +35,7 @@ curl -i -X POST http://localhost:8081/v1/units/FU-101/assignment
 - **Errors follow the contract.** Validation failures list every bad field in `details`
   via `aoherr.FieldDetail`; new error codes are `DISPATCH_*` in `internal/service/errors.go`.
 - **Placeholders go when the feature arrives.** Delete the `notImplemented` route and the
-  `Workshop exercise N` markup for the exercise you built, and mark it `complete` in
+  `Workshop exercise N` sketch for the exercise you built, and mark it `complete` in
   `workshop.ts`. When all three are done, delete `workshop.ts` and `ExerciseDialog.svelte`.
 - `pnpm verify` must stay green.
 

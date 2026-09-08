@@ -131,8 +131,8 @@
 
 	/**
 	 * Focus mode: close the panel, make sure a unit is selected so the detail pane is showing,
-	 * then let UnitDetail pulse and scroll to the placeholder for that exercise. The focus
-	 * clears itself after a few seconds — there is nothing to dismiss.
+	 * then let UnitDetail scroll to the sketch for that exercise and draw a border around it. The
+	 * border fades on its own after a few seconds — there is nothing to dismiss.
 	 */
 	function focusExercise(n: ExerciseNumber) {
 		exerciseOpen = false;
@@ -360,16 +360,13 @@
 			     it. Opens the exercise dialog. See WORKSHOP.md. -->
 			<div class="fixed right-6 bottom-6 z-40" in:fly={{ y: 24, duration: 350, delay: 200 }}>
 				<Button
-					class="h-11 gap-2 rounded-full bg-(--workshop-strong) px-4 text-sm font-bold text-(--workshop-fg) shadow-xl ring-2 shadow-black/30 ring-background transition-transform duration-200 hover:scale-105 hover:bg-(--workshop-strong)/90 active:scale-95"
+					class="h-11 gap-2 rounded-full bg-(--workshop-strong) px-4 text-sm font-bold text-(--workshop-fg) shadow-lg ring-2 ring-background transition-transform duration-200 hover:scale-105 hover:bg-(--workshop-strong)/90 active:scale-95"
 					onclick={() => openExercises()}
 				>
 					<Construction class="size-4" aria-hidden="true" />
-					Exercises
-					<span
-						class="grid size-5 place-items-center rounded-full bg-(--workshop-fg) text-[11px] text-(--workshop-text) tabular-nums"
-					>
-						{incomplete.length}
-					</span>
+					{incomplete.length === 1
+						? 'One thing left to build'
+						: `${incomplete.length} things left to build`}
 				</Button>
 			</div>
 		{/if}

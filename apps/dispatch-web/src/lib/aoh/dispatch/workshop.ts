@@ -2,11 +2,14 @@
  * The three workshop exercises — stubbed in the UI and the API, not built.
  *
  * This is the one place their titles, stories, stub routes and completion state are written
- * down for the console; WORKSHOP.md at the repo root is the full brief. The console's
- * **Exercises** button lists whatever is not complete and can focus the console on an
- * exercise's placeholder. When you finish one, flip its `complete` to `true`: it drops out
- * of the list, and the count on the button goes down. When all three are done, delete this
- * module and every `Workshop` placeholder with it.
+ * down for the console; WORKSHOP.md at the repo root is the full brief. The floating button
+ * in the console lists whatever is still to build and can point at where each one goes.
+ * When you finish one, flip its `complete` to `true`: it moves to "already built" and the
+ * count on the button goes down. When all three are done, delete this module and every
+ * `Workshop` sketch with it.
+ *
+ * The copy here is written for the person doing the exercise, not for a spec reader —
+ * keep it that way if you edit it.
  */
 export type ExerciseNumber = 1 | 2 | 3;
 
@@ -15,12 +18,12 @@ export interface Exercise {
 	title: string;
 	/** Flip to `true` when the exercise passes its acceptance criteria. */
 	complete: boolean;
-	/** Where the placeholder sits in the console. */
+	/** Where to look in the console. */
 	where: string;
-	/** The user story, in one sentence. */
+	/** Why it matters, in plain words. */
 	story: string;
-	/** Acceptance criteria, abbreviated — WORKSHOP.md has the full list. */
-	criteria: string[];
+	/** "You're done when…" — abbreviated; WORKSHOP.md has the full list. */
+	done: string[];
 	/** The service routes that answer 501 until the exercise is built. */
 	routes: string[];
 }
@@ -28,49 +31,49 @@ export interface Exercise {
 export const EXERCISES: Record<ExerciseNumber, Exercise> = {
 	1: {
 		number: 1,
-		title: 'Dispatch a unit',
+		title: 'Send a unit to an incident',
 		complete: false,
-		where: 'The Dispatch / Stand down button in the unit header.',
+		where: 'Look for the dashed Dispatch button next to Edit and Delete in the unit header.',
 		story:
-			'As a dispatcher, I want to dispatch an available unit to an incident and stand it down when the job is done, so the console shows who is working what.',
-		criteria: [
-			'Dispatch opens a form: incident code, title, priority (P1–P3), location — all required.',
-			'Saving sets the assignment and the status becomes En route; the pane, row and tiles update.',
-			'Stand down clears the assignment and the status returns to Available.',
-			'A stale occ_lock is a 409, shown in the form like edit does today.',
-			'Survives a service restart.'
+			'Right now the console can show who is assigned to what, but nobody can change it. A dispatcher needs to pick an available unit, send it to an incident, and bring it back when the job is done.',
+		done: [
+			'Dispatch opens a small form: incident code, title, priority (P1–P3) and location.',
+			'Saving it marks the unit En route, and the pane, the row and the tiles all catch up.',
+			'On an assigned unit the same button reads Stand down, and clears it.',
+			'If someone else changed the unit first, you see a conflict instead of overwriting them.',
+			'Restart the service and it is all still there.'
 		],
 		routes: ['POST /v1/units/{unit_code}/assignment', 'DELETE /v1/units/{unit_code}/assignment']
 	},
 	2: {
 		number: 2,
-		title: 'Unit activity timeline',
+		title: 'Show what happened to a unit',
 		complete: false,
-		where: 'The dashed Activity section in the unit detail.',
+		where: 'Look for the sketched Activity section between Assignment and Crew.',
 		story:
-			'As a dispatcher, I want to see a unit’s recent status and assignment changes with timestamps, so I can tell what happened to it during the shift.',
-		criteria: [
-			'Lists the last 20 events, newest first: when, and what changed.',
-			'Every write to a unit records an event in the same transaction.',
-			'A unit with no history shows “No activity yet.”',
-			'Seed data includes a few events so the section is not empty on first boot.',
-			'Survives a service restart.'
+			'When a unit has been busy, the dispatcher wants to know what it did without asking over the radio. A short timeline of status and assignment changes, newest first, answers that.',
+		done: [
+			'The unit detail shows its last 20 events, newest first: when, and what changed.',
+			'Every change to a unit leaves an event behind, written in the same transaction.',
+			'A quiet unit says “No activity yet” rather than showing nothing.',
+			'The seeded units come with a little history, so the section is not empty on day one.',
+			'Restart the service and the history is still there.'
 		],
 		routes: ['GET /v1/units/{unit_code}/events']
 	},
 	3: {
 		number: 3,
-		title: 'Manage crew',
+		title: 'Fix up who is on the crew',
 		complete: false,
-		where: 'The Manage button beside the Crew heading.',
+		where: 'Look for the dashed Manage button beside the Crew heading.',
 		story:
-			'As a dispatcher, I want to add and remove the crew on a unit, so the roster matches who is actually on the vehicle this shift.',
-		criteria: [
-			'Manage opens a form listing the crew, each removable, plus one row to add (name, role).',
-			'Saving replaces the crew in one request; the section and its count update.',
-			'Two members with the same name on one unit is refused, beside the offending row.',
-			'A stale occ_lock is a 409.',
-			'Survives a service restart.'
+			'Crews change every shift, but today the roster is whatever the seed data says. The dispatcher needs to add and remove people on a unit so the console matches who is actually on the vehicle.',
+		done: [
+			'Manage opens a list of the crew, each with a remove control, plus a row to add someone (name, role).',
+			'Saving replaces the crew in one go, and the heading count updates.',
+			'Two people with the same name on one unit is refused, with the error next to the row.',
+			'If someone else changed the unit first, you see a conflict instead of overwriting them.',
+			'Restart the service and the crew is still right.'
 		],
 		routes: ['PUT /v1/units/{unit_code}/crew']
 	}
@@ -84,6 +87,11 @@ export function completedExercises(): Exercise[] {
 	return Object.values(EXERCISES).filter((exercise) => exercise.complete);
 }
 
-/** Added to a placeholder while the console is focused on its exercise. */
-export const FOCUS_CLASS =
-	'animate-pulse ring-2 ring-(--workshop) ring-offset-2 ring-offset-background';
+/**
+ * Focus mode is nothing more than a highlighted border around the area where the exercise
+ * gets built. Both classes are always present on a target so the colour can transition; the
+ * page swaps `transparent` for the workshop colour while pointing at it.
+ */
+export const FOCUS_BASE_CLASS =
+	'rounded-md outline-2 outline-offset-4 outline-transparent transition-[outline-color,transform] duration-300';
+export const FOCUS_ON_CLASS = 'outline-(--workshop) scale-[1.02]';

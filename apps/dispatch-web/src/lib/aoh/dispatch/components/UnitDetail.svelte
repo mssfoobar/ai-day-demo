@@ -13,13 +13,13 @@
 	import { Badge } from '@mssfoobar/ui/badge';
 	import { Button } from '@mssfoobar/ui/button';
 	import { Separator } from '@mssfoobar/ui/separator';
-	import Crosshair from '@lucide/svelte/icons/crosshair';
+	import { Skeleton } from '@mssfoobar/ui/skeleton';
 	import MapPin from '@lucide/svelte/icons/map-pin';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Radio from '@lucide/svelte/icons/radio';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import type { FieldUnit } from '../types';
-	import { FOCUS_CLASS, type ExerciseNumber } from '../workshop';
+	import { FOCUS_BASE_CLASS, FOCUS_ON_CLASS, type ExerciseNumber } from '../workshop';
 	import { fleetSummary } from '../filters';
 	import { priorityColor, sinceLabel, statusColor } from '../format';
 
@@ -38,21 +38,26 @@
 		/** Optional: when provided, Edit / Delete appear in the identity header. */
 		onedit?: () => void;
 		ondelete?: () => void;
-		/** Workshop layer (WORKSHOP.md): when provided, violet pins float over the pane where each
-		 *  exercise is meant to be built, and clicking one opens its brief. */
+		/** Workshop layer (WORKSHOP.md): when provided, dashed sketches of the missing controls sit
+		 *  where each exercise is meant to be built, and clicking one opens its story. */
 		onexercise?: (exercise: ExerciseNumber) => void;
-		/** Workshop focus mode: the exercise whose pin should pulse and scroll into view. */
+		/** Workshop focus: the exercise whose sketch gets a highlighted border. */
 		focus?: ExerciseNumber | null;
 	} = $props();
 
 	const fleet = $derived(fleetSummary(units));
 
-	// Workshop focus mode: bring the focused pin into view.
+	// Workshop sketches: dashed, tinted, clearly not real controls. See WORKSHOP.md.
+	const sketch =
+		'border border-dashed border-(--workshop) bg-(--workshop-muted) text-(--workshop-text) hover:bg-(--workshop-muted-hover) transition-all duration-200 hover:-translate-y-0.5 active:scale-95';
+	// Workshop focus: the sketch being pointed at scrolls into view and gets a highlighted border.
 	let targets = $state<Record<ExerciseNumber, HTMLElement | null>>({ 1: null, 2: null, 3: null });
 	$effect(() => {
 		const el = focus === null ? null : targets[focus];
 		if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
 	});
+	const focusClass = (n: ExerciseNumber) =>
+		`${FOCUS_BASE_CLASS} ${focus === n ? FOCUS_ON_CLASS : ''}`;
 </script>
 
 <!-- A default, not `count?:` — Svelte strips the TS annotation but leaves the `?`, and
@@ -66,51 +71,17 @@
 	</h3>
 {/snippet}
 
-<!--
-  Workshop pins. Absolutely positioned and deliberately styled as annotations — tilted,
-  shadowed, overlapping the content — so nobody mistakes them for console controls. They take
-  no layout space; delete an exercise's pin when you build it. See WORKSHOP.md.
--->
-{#snippet pin(exercise: ExerciseNumber, label: string, position: string)}
-	{#if onexercise}
-		<span
-			class="pointer-events-none absolute z-10 flex items-center gap-2 {position}"
-			bind:this={targets[exercise]}
-			in:fly={{ y: -8, duration: 300 }}
-		>
-			<Button
-				variant="ghost"
-				size="sm"
-				class="pointer-events-auto h-7 -rotate-1 gap-1.5 rounded-md bg-(--workshop-strong) px-2 text-[11px] font-bold text-(--workshop-fg) shadow-lg ring-2 shadow-black/30 ring-background transition-transform duration-200 hover:scale-105 hover:rotate-0 hover:bg-(--workshop-strong) {focus ===
-				exercise
-					? `${FOCUS_CLASS} scale-110 rotate-0`
-					: ''}"
-				onclick={() => onexercise?.(exercise)}
-			>
-				<span
-					class="grid size-4 place-items-center rounded-full bg-(--workshop-fg) text-[10px] text-(--workshop-text) tabular-nums"
-					>{exercise}</span
-				>
-				{label}
-			</Button>
-			{#if focus === exercise}
-				<span
-					in:fly={{ x: -10, duration: 260 }}
-					out:fade={{ duration: 220 }}
-					class="inline-flex items-center gap-1 rounded-full bg-(--workshop-strong) px-2 py-0.5 text-[10px] font-bold tracking-wide text-(--workshop-fg) uppercase shadow-md"
-				>
-					<Crosshair class="size-3" aria-hidden="true" />
-					Build here
-				</span>
-			{/if}
-		</span>
-	{/if}
+{#snippet marker(exercise: ExerciseNumber)}
+	<span
+		class="grid size-4 shrink-0 place-items-center rounded-full bg-(--workshop-strong) text-[10px] font-bold text-(--workshop-fg) tabular-nums"
+	>
+		{exercise}
+	</span>
 {/snippet}
 
 {#if unit}
 	<!-- Identity header -->
-	<header class="relative flex items-start justify-between gap-4 px-5 py-4">
-		{@render pin(1, 'Dispatch goes here', '-top-3 right-40')}
+	<header class="flex items-start justify-between gap-4 px-5 py-4">
 		<div class="min-w-0">
 			<div class="flex items-baseline gap-2">
 				<h2 class="truncate text-lg leading-6 font-semibold">{unit.callSign}</h2>
@@ -128,8 +99,31 @@
 			</p>
 		</div>
 		<div class="flex shrink-0 flex-col items-end gap-1.5">
-			{#if onedit || ondelete}
+			{#if onexercise || onedit || ondelete}
 				<div class="flex gap-1">
+					<!-- Keyed on the unit so the sketches replay their entrance when the selection changes. -->
+					{#key unit.id}
+						{#if onexercise}
+							<!-- Workshop exercise 1: a sketch of the Dispatch / Stand down button. -->
+							<span
+								bind:this={targets[1]}
+								class="inline-flex {focusClass(1)}"
+								in:fly={{ y: -6, duration: 250, delay: 80 }}
+								out:fade={{ duration: 150 }}
+							>
+								<Button
+									variant="ghost"
+									size="sm"
+									class="h-7 gap-1.5 px-2 text-xs {sketch}"
+									title="Exercise 1 — not built yet"
+									onclick={() => onexercise?.(1)}
+								>
+									{@render marker(1)}
+									{unit.assignment ? 'Stand down' : 'Dispatch'}
+								</Button>
+							</span>
+						{/if}
+					{/key}
 					{#if onedit}
 						<Button variant="ghost" size="sm" onclick={onedit} class="h-7 gap-1 px-2 text-xs">
 							<Pencil class="size-3.5" aria-hidden="true" />
@@ -202,15 +196,76 @@
 			{/if}
 		</section>
 
-		<!-- Workshop exercise 2 anchor: zero height, the pin floats over the section boundary. -->
-		<div class="relative h-0">
-			{@render pin(2, 'Activity timeline goes here', '-top-3 left-1/2 -translate-x-1/2')}
-		</div>
+		<!-- Keyed on the unit so the sketches replay their entrance when the selection changes. -->
+		{#key unit.id}
+			{#if onexercise}
+				<!-- Workshop exercise 2: a sketch of the Activity section — a title and three timeline rows. -->
+				<section
+					bind:this={targets[2]}
+					class={focusClass(2)}
+					in:fly={{ y: 6, duration: 250, delay: 160 }}
+					out:fade={{ duration: 150 }}
+				>
+					<div class="flex items-center gap-2">
+						{@render sectionTitle('Activity')}
+						<span class="mb-2">{@render marker(2)}</span>
+					</div>
+					<Button
+						variant="ghost"
+						size="sm"
+						class="h-auto w-full flex-col items-stretch gap-2 rounded-md p-3 text-left {sketch}"
+						title="Exercise 2 — not built yet"
+						onclick={() => onexercise?.(2)}
+					>
+						{#each [72, 52, 64] as width, i (width)}
+							<span
+								class="flex items-center gap-2"
+								in:fly={{ x: -8, duration: 250, delay: 240 + i * 70 }}
+							>
+								<span class="size-2 shrink-0 rounded-full bg-(--workshop)/50"></span>
+								<Skeleton
+									class="h-2.5 animate-none rounded-sm bg-(--workshop)/25"
+									style="width: {width}%"
+								/>
+								<Skeleton class="ml-auto h-2.5 w-10 animate-none rounded-sm bg-(--workshop)/25" />
+							</span>
+						{/each}
+						<span class="text-[11px] font-normal"
+							>Not built yet — what happened to this unit will show here.</span
+						>
+					</Button>
+				</section>
+			{/if}
+		{/key}
 
 		<div class="grid gap-5 sm:grid-cols-2">
-			<section class="relative">
-				{@render pin(3, 'Manage crew goes here', '-top-3 right-0')}
-				{@render sectionTitle('Crew', unit.crew.length)}
+			<section>
+				<div class="flex items-start justify-between gap-2">
+					{@render sectionTitle('Crew', unit.crew.length)}
+					<!-- Keyed on the unit so the sketches replay their entrance when the selection changes. -->
+					{#key unit.id}
+						{#if onexercise}
+							<!-- Workshop exercise 3: a sketch of the Manage button. -->
+							<span
+								bind:this={targets[3]}
+								class="-mt-1 inline-flex {focusClass(3)}"
+								in:fly={{ y: -6, duration: 250, delay: 240 }}
+								out:fade={{ duration: 150 }}
+							>
+								<Button
+									variant="ghost"
+									size="sm"
+									class="h-6 gap-1.5 px-2 text-xs {sketch}"
+									title="Exercise 3 — not built yet"
+									onclick={() => onexercise?.(3)}
+								>
+									{@render marker(3)}
+									Manage
+								</Button>
+							</span>
+						{/if}
+					{/key}
+				</div>
 				{#if unit.crew.length > 0}
 					<ul class="divide-y divide-border">
 						{#each unit.crew as member (member.name)}
