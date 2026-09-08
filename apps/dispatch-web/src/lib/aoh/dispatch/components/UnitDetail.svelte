@@ -107,7 +107,7 @@
 							<!-- Workshop exercise 1: a sketch of the Dispatch / Stand down button. -->
 							<span
 								bind:this={targets[1]}
-								class="inline-flex {focusClass(1)}"
+								class="workshop-sketch inline-flex {focusClass(1)}"
 								in:fly={{ y: -6, duration: 250, delay: 80 }}
 								out:fade={{ duration: 150 }}
 							>
@@ -201,7 +201,7 @@
 				<!-- Workshop exercise 2: a sketch of the Activity section — a title and three timeline rows. -->
 				<section
 					bind:this={targets[2]}
-					class={focusClass(2)}
+					class="workshop-sketch {focusClass(2)}"
 					in:fly={{ y: 6, duration: 250, delay: 160 }}
 					out:fade={{ duration: 150 }}
 				>
@@ -243,7 +243,7 @@
 							<!-- Workshop exercise 3: a sketch of the Manage button. -->
 							<span
 								bind:this={targets[3]}
-								class="-mt-1 inline-flex {focusClass(3)}"
+								class="workshop-sketch -mt-1 inline-flex {focusClass(3)}"
 								in:fly={{ y: -6, duration: 250, delay: 240 }}
 								out:fade={{ duration: 150 }}
 							>

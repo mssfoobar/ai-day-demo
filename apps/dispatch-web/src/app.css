@@ -68,3 +68,26 @@
 	--workshop-muted: oklch(0.74 0.12 295 / 0.1);
 	--workshop-muted-hover: oklch(0.74 0.12 295 / 0.18);
 }
+
+/*
+ * Workshop sketches breathe — a slow fade in and out that never stops while one is on screen.
+ * Nothing real in the console animates like this, which is the point: it marks the sketch as
+ * an exercise overlay, not part of the product. Delete with the workshop layer.
+ */
+@keyframes workshop-breathe {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.5;
+	}
+}
+.workshop-sketch {
+	animation: workshop-breathe 2.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+	.workshop-sketch {
+		animation: none;
+	}
+}
