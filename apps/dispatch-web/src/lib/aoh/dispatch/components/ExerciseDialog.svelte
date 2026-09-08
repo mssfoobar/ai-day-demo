@@ -24,7 +24,6 @@
 		AlertDialogHeader,
 		AlertDialogTitle
 	} from '@mssfoobar/ui/alert-dialog';
-	import { Badge } from '@mssfoobar/ui/badge';
 	import { Button } from '@mssfoobar/ui/button';
 	import { ScrollArea } from '@mssfoobar/ui/scroll-area';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -89,12 +88,10 @@
 							</span>
 							<div class="min-w-0 flex-1">
 								<h3 class="text-sm font-bold">{ex.title}</h3>
-								<p class="text-xs text-muted-foreground">{ex.where}</p>
 							</div>
-							<Badge variant="outline">Up for grabs</Badge>
 						</div>
 
-						<p class="mt-2.5 text-xs text-muted-foreground">{ex.story}</p>
+						<p class="mt-2.5 text-sm leading-6">{ex.story}</p>
 
 						<div class="mt-3 flex flex-wrap items-center gap-2">
 							<Button
@@ -127,6 +124,10 @@
 								transition:slide={{ duration: 220 }}
 								class="mt-3 space-y-3 border-t border-border pt-3 text-xs"
 							>
+								<section>
+									<h4 class="mb-1 font-semibold text-muted-foreground">Where it goes</h4>
+									<p>{ex.where}</p>
+								</section>
 								<section>
 									<h4 class="mb-1 font-semibold text-muted-foreground">You’re done when…</h4>
 									<ul class="space-y-1">

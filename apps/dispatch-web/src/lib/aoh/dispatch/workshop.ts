@@ -20,7 +20,7 @@ export interface Exercise {
 	complete: boolean;
 	/** Where to look in the console. */
 	where: string;
-	/** Why it matters, in plain words. */
+	/** The user story, as the dispatcher would say it. */
 	story: string;
 	/** "You're done when…" — abbreviated; WORKSHOP.md has the full list. */
 	done: string[];
@@ -35,7 +35,7 @@ export const EXERCISES: Record<ExerciseNumber, Exercise> = {
 		complete: false,
 		where: 'Look for the dashed Dispatch button next to Edit and Delete in the unit header.',
 		story:
-			'Right now the console can show who is assigned to what, but nobody can change it. A dispatcher needs to pick an available unit, send it to an incident, and bring it back when the job is done.',
+			'As a dispatcher, I want to send an available unit to an incident and bring it back when the job is done, so that the console shows who is working what instead of only what the seed data says.',
 		done: [
 			'Dispatch opens a small form: incident code, title, priority (P1–P3) and location.',
 			'Saving it marks the unit En route, and the pane, the row and the tiles all catch up.',
@@ -51,7 +51,7 @@ export const EXERCISES: Record<ExerciseNumber, Exercise> = {
 		complete: false,
 		where: 'Look for the sketched Activity section between Assignment and Crew.',
 		story:
-			'When a unit has been busy, the dispatcher wants to know what it did without asking over the radio. A short timeline of status and assignment changes, newest first, answers that.',
+			'As a dispatcher, I want to see what a unit has been doing — its status and assignment changes, newest first — so that I know what happened on the shift without asking over the radio.',
 		done: [
 			'The unit detail shows its last 20 events, newest first: when, and what changed.',
 			'Every change to a unit leaves an event behind, written in the same transaction.',
@@ -67,7 +67,7 @@ export const EXERCISES: Record<ExerciseNumber, Exercise> = {
 		complete: false,
 		where: 'Look for the dashed Manage button beside the Crew heading.',
 		story:
-			'Crews change every shift, but today the roster is whatever the seed data says. The dispatcher needs to add and remove people on a unit so the console matches who is actually on the vehicle.',
+			'As a dispatcher, I want to add and remove the people on a unit, so that the console matches who is actually on the vehicle this shift.',
 		done: [
 			'Manage opens a list of the crew, each with a remove control, plus a row to add someone (name, role).',
 			'Saving replaces the crew in one go, and the heading count updates.',
