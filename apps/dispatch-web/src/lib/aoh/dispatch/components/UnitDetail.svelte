@@ -12,14 +12,14 @@
 	import { Badge } from '@mssfoobar/ui/badge';
 	import { Button } from '@mssfoobar/ui/button';
 	import { Separator } from '@mssfoobar/ui/separator';
-	import History from '@lucide/svelte/icons/history';
+	import Construction from '@lucide/svelte/icons/construction';
 	import MapPin from '@lucide/svelte/icons/map-pin';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Radio from '@lucide/svelte/icons/radio';
-	import Send from '@lucide/svelte/icons/send';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import UserPlus from '@lucide/svelte/icons/user-plus';
 	import type { FieldUnit } from '../types';
+	import { EXERCISES, PLACEHOLDER_CLASS, type ExerciseNumber } from '../workshop';
 	import { fleetSummary } from '../filters';
 	import { priorityColor, sinceLabel, statusColor } from '../format';
 
@@ -29,8 +29,7 @@
 		now,
 		onedit,
 		ondelete,
-		ondispatch,
-		onmanagecrew
+		onexercise
 	}: {
 		unit: FieldUnit | null;
 		units: FieldUnit[];
@@ -38,10 +37,9 @@
 		/** Optional: when provided, Edit / Delete appear in the identity header. */
 		onedit?: () => void;
 		ondelete?: () => void;
-		/** Workshop placeholders (WORKSHOP.md): exercise 1 and exercise 3. The buttons render only
-		 *  when these are provided, so the component stays usable without them. */
-		ondispatch?: () => void;
-		onmanagecrew?: () => void;
+		/** Workshop placeholders (WORKSHOP.md). When provided, the stubbed Dispatch / Activity /
+		 *  Manage crew controls render and open the exercise brief. */
+		onexercise?: (exercise: ExerciseNumber) => void;
 	} = $props();
 
 	const fleet = $derived(fleetSummary(units));
@@ -78,13 +76,18 @@
 			</p>
 		</div>
 		<div class="flex shrink-0 flex-col items-end gap-1.5">
-			{#if ondispatch || onedit || ondelete}
+			{#if onexercise || onedit || ondelete}
 				<div class="flex gap-1">
-					{#if ondispatch}
+					{#if onexercise}
 						<!-- Workshop exercise 1 — placeholder; see WORKSHOP.md. -->
-						<Button variant="outline" size="sm" onclick={ondispatch} class="h-7 gap-1 px-2 text-xs">
-							<Send class="size-3.5" aria-hidden="true" />
-							{unit.assignment ? 'Stand down' : 'Dispatch'}
+						<Button
+							variant="outline"
+							size="sm"
+							onclick={() => onexercise?.(1)}
+							class="h-7 gap-1.5 px-2 text-xs font-bold {PLACEHOLDER_CLASS}"
+						>
+							<Construction class="size-3.5" aria-hidden="true" />
+							Exercise 1 · {unit.assignment ? 'Stand down' : 'Dispatch'}
 						</Button>
 					{/if}
 					{#if onedit}
@@ -162,17 +165,27 @@
 		<!-- Workshop exercise 2 — placeholder; see WORKSHOP.md. -->
 		<section>
 			{@render sectionTitle('Activity')}
-			<div
-				class="flex items-start gap-3 rounded-md border border-dashed p-3 text-xs text-muted-foreground"
-			>
-				<History class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+			<div class="{PLACEHOLDER_CLASS} flex items-start gap-3 rounded-md p-3 text-xs">
+				<Construction class="mt-0.5 size-5 shrink-0" aria-hidden="true" />
 				<div>
-					<p class="font-medium text-foreground">Exercise 2 — not implemented yet</p>
+					<p class="text-sm font-bold tracking-wide uppercase">
+						Exercise 2 · Activity timeline — not built yet
+					</p>
 					<p class="mt-0.5">
 						Show this unit's recent status and assignment changes here, newest first. The service
 						has a <code class="font-mono">GET /v1/units/&#123;unit_code&#125;/events</code> stub waiting.
 					</p>
 				</div>
+				{#if onexercise}
+					<Button
+						variant="outline"
+						size="sm"
+						class="ml-auto h-7 shrink-0 border-(--border-warning) px-2 text-xs font-semibold text-(--text-warning-strong) hover:bg-(--bg-warning-muted-hover)"
+						onclick={() => onexercise?.(2)}
+					>
+						Details
+					</Button>
+				{/if}
 			</div>
 		</section>
 
@@ -180,16 +193,16 @@
 			<section>
 				<div class="flex items-start justify-between gap-2">
 					{@render sectionTitle('Crew', unit.crew.length)}
-					{#if onmanagecrew}
+					{#if onexercise}
 						<!-- Workshop exercise 3 — placeholder; see WORKSHOP.md. -->
 						<Button
 							variant="ghost"
 							size="sm"
-							onclick={onmanagecrew}
-							class="-mt-1 h-6 gap-1 px-1.5 text-xs"
+							onclick={() => onexercise?.(3)}
+							class="-mt-1 h-7 gap-1.5 px-2 text-xs font-bold {PLACEHOLDER_CLASS}"
 						>
 							<UserPlus class="size-3" aria-hidden="true" />
-							Manage
+							Exercise 3 · Manage
 						</Button>
 					{/if}
 				</div>
@@ -279,6 +292,31 @@
 						{sinceLabel(fleet.quietest.lastContact, now)}
 					</span>
 				</p>
+			</section>
+		{/if}
+
+		{#if onexercise}
+			<!-- Workshop placeholders — see WORKSHOP.md. Listed here so they are visible before any unit is selected. -->
+			<section>
+				{@render sectionTitle('Workshop exercises', 3)}
+				<ul class="{PLACEHOLDER_CLASS} divide-y divide-(--border-warning-muted) rounded-md">
+					{#each Object.values(EXERCISES) as ex (ex.number)}
+						<li>
+							<button
+								type="button"
+								class="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-(--bg-warning-muted-hover)"
+								onclick={() => onexercise?.(ex.number)}
+							>
+								<Construction class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+								<span class="min-w-0 flex-1">
+									<span class="block font-medium">{ex.title}</span>
+									<span class="block truncate text-xs text-muted-foreground">{ex.where}</span>
+								</span>
+								<Badge variant="solid" color="warning">Exercise {ex.number}</Badge>
+							</button>
+						</li>
+					{/each}
+				</ul>
 			</section>
 		{/if}
 	</div>

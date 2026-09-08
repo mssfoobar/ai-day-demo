@@ -29,6 +29,7 @@
 	import { Separator } from '@mssfoobar/ui/separator';
 	import { toast } from '@mssfoobar/ui/toast';
 	import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
+	import Construction from '@lucide/svelte/icons/construction';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Search from '@lucide/svelte/icons/search';
 	import SearchX from '@lucide/svelte/icons/search-x';
@@ -39,6 +40,7 @@
 	import UnitDetail from '$lib/aoh/dispatch/components/UnitDetail.svelte';
 	import UnitForm from '$lib/aoh/dispatch/components/UnitForm.svelte';
 	import UnitRow from '$lib/aoh/dispatch/components/UnitRow.svelte';
+	import WorkshopPlaceholder from '$lib/aoh/dispatch/components/WorkshopPlaceholder.svelte';
 	import {
 		countByStatus,
 		filterUnits,
@@ -50,6 +52,7 @@
 	import { sinceLabel } from '$lib/aoh/dispatch/format';
 	import type { FieldUnit, UnitStatus } from '$lib/aoh/dispatch/types';
 	import type { UnitFormErrors } from '$lib/aoh/dispatch/forms';
+	import { EXERCISES, PLACEHOLDER_CLASS, type ExerciseNumber } from '$lib/aoh/dispatch/workshop';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -64,6 +67,9 @@
 
 	// Write UI state.
 	let formOpen = $state(false);
+	// Workshop placeholders — see WORKSHOP.md.
+	let exercise = $state<ExerciseNumber | null>(null);
+	let exerciseOpen = $state(false);
 	let formMode = $state<'create' | 'edit'>('create');
 	let deleteOpen = $state(false);
 	let deleting = $state(false);
@@ -76,7 +82,7 @@
 	const selected = $derived(units.find((u) => u.id === selectedId) ?? null);
 	const filtering = $derived(query.trim() !== '' || statuses.length > 0);
 	const sortLabel = $derived(SORT_OPTIONS.find((o) => o.value === sortKey)?.label ?? 'Sort');
-	const overlayOpen = $derived(formOpen || deleteOpen);
+	const overlayOpen = $derived(formOpen || deleteOpen || exerciseOpen);
 
 	// Recency labels ("3 min ago") re-render every 30s without any data refetch. The
 	// header's "updated …" is anchored to the last load.
@@ -112,14 +118,10 @@
 		formOpen = true;
 	}
 
-	/**
-	 * Workshop placeholders — see WORKSHOP.md. The buttons exist so attendees can see where
-	 * each feature lands; wire them to a real form action when you build the exercise.
-	 */
-	function notImplemented(exercise: number, title: string) {
-		toast.info(`Exercise ${exercise} · ${title}`, {
-			description: 'Not implemented yet — this one is yours to build. See WORKSHOP.md.'
-		});
+	/** Workshop placeholders — see WORKSHOP.md. Opens the brief where the real form will go. */
+	function openExercise(n: ExerciseNumber) {
+		exercise = n;
+		exerciseOpen = true;
 	}
 
 	function onFormOutcome(
@@ -235,6 +237,37 @@
 		{/if}
 	</header>
 
+	<!-- Workshop placeholders — loud on purpose; see WORKSHOP.md. Delete once all three are built. -->
+	<div
+		class="{PLACEHOLDER_CLASS} flex flex-wrap items-center gap-3 rounded-md px-4 py-2.5"
+		role="note"
+	>
+		<Construction class="size-5 shrink-0" aria-hidden="true" />
+		<div class="min-w-0 flex-1">
+			<p class="text-sm font-bold tracking-wide uppercase">Workshop · 3 features not built yet</p>
+			<p class="text-xs">
+				Each has a marked placeholder in the console and a 501 stub in the service. Click one for
+				its brief, or read WORKSHOP.md.
+			</p>
+		</div>
+		<div class="flex flex-wrap gap-2">
+			{#each Object.values(EXERCISES) as ex (ex.number)}
+				<Button
+					variant="outline"
+					size="sm"
+					class="h-8 gap-1.5 border-(--border-warning) text-xs font-semibold text-(--text-warning-strong) hover:bg-(--bg-warning-muted-hover)"
+					onclick={() => openExercise(ex.number)}
+				>
+					<span
+						class="grid size-5 place-items-center rounded-full bg-(--bg-warning-strong) text-[10px] text-(--text-on-color)"
+						>{ex.number}</span
+					>
+					{ex.title}
+				</Button>
+			{/each}
+		</div>
+	</div>
+
 	{#if data.unavailable}
 		<Card class="border-destructive">
 			<CardHeader>
@@ -319,9 +352,7 @@
 							{units}
 							{now}
 							onedit={openEdit}
-							ondispatch={() =>
-								notImplemented(1, selected?.assignment ? 'Stand down' : 'Dispatch a unit')}
-							onmanagecrew={() => notImplemented(3, 'Manage crew')}
+							onexercise={openExercise}
 							ondelete={() => (deleteOpen = true)}
 						/>
 					</div>
@@ -331,6 +362,7 @@
 
 		<!-- Add / edit -->
 		<UnitForm bind:open={formOpen} mode={formMode} unit={selected} onoutcome={onFormOutcome} />
+		<WorkshopPlaceholder bind:open={exerciseOpen} {exercise} />
 
 		<!-- Delete — confirmation names the unit; the action is a real form post. -->
 		<AlertDialog bind:open={deleteOpen}>
