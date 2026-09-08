@@ -31,12 +31,7 @@
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import Construction from '@lucide/svelte/icons/construction';
 	import Crosshair from '@lucide/svelte/icons/crosshair';
-	import {
-		completedExercises,
-		incompleteExercises,
-		PLACEHOLDER_CLASS,
-		type ExerciseNumber
-	} from '../workshop';
+	import { completedExercises, incompleteExercises, type ExerciseNumber } from '../workshop';
 
 	let {
 		open = $bindable(false),
@@ -80,7 +75,7 @@
 					<!-- Staggered entrance: the cards arrive one after another when the dialog opens. -->
 					<article
 						in:fly={{ y: 16, duration: 280, delay: 60 + i * 70 }}
-						class="{PLACEHOLDER_CLASS} rounded-md p-3 transition-transform duration-200 hover:-translate-y-0.5"
+						class="rounded-md border border-border bg-card p-3 text-card-foreground shadow-[var(--shadow-button)] transition-transform duration-200 hover:-translate-y-0.5"
 					>
 						<div class="flex items-start gap-3">
 							<span
@@ -90,14 +85,12 @@
 							</span>
 							<div class="min-w-0 flex-1">
 								<h3 class="text-sm font-bold">{ex.title}</h3>
-								<p class="text-xs">{ex.where}</p>
+								<p class="text-xs text-muted-foreground">{ex.where}</p>
 							</div>
-							<Badge variant="outline" class="border-(--workshop-border) text-(--workshop-text)"
-								>Not complete</Badge
-							>
+							<Badge variant="outline">Not complete</Badge>
 						</div>
 
-						<p class="mt-2.5 text-xs">{ex.story}</p>
+						<p class="mt-2.5 text-xs text-muted-foreground">{ex.story}</p>
 
 						<div class="mt-3 flex flex-wrap items-center gap-2">
 							<Button
@@ -111,7 +104,7 @@
 							<Button
 								variant="ghost"
 								size="sm"
-								class="h-8 gap-1 text-xs text-(--workshop-text) hover:bg-(--workshop-muted-hover)"
+								class="h-8 gap-1 text-xs"
 								aria-expanded={detail === ex.number}
 								onclick={() => toggle(ex.number)}
 							>
@@ -128,10 +121,12 @@
 						{#if detail === ex.number}
 							<div
 								transition:slide={{ duration: 220 }}
-								class="mt-3 space-y-3 border-t border-(--workshop-border) pt-3 text-xs"
+								class="mt-3 space-y-3 border-t border-border pt-3 text-xs"
 							>
 								<section>
-									<h4 class="mb-1 font-semibold tracking-wide uppercase">Acceptance criteria</h4>
+									<h4 class="mb-1 font-semibold tracking-wide text-muted-foreground uppercase">
+										Acceptance criteria
+									</h4>
 									<ol class="list-decimal space-y-1 pl-5">
 										{#each ex.criteria as criterion (criterion)}
 											<li>{criterion}</li>
@@ -139,7 +134,7 @@
 									</ol>
 								</section>
 								<section>
-									<h4 class="mb-1 font-semibold tracking-wide uppercase">
+									<h4 class="mb-1 font-semibold tracking-wide text-muted-foreground uppercase">
 										Service stub — answers 501 today
 									</h4>
 									<ul class="space-y-0.5">

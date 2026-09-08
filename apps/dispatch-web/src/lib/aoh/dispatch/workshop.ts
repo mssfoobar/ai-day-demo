@@ -84,14 +84,6 @@ export function completedExercises(): Exercise[] {
 	return Object.values(EXERCISES).filter((exercise) => exercise.complete);
 }
 
-/**
- * Shared look for the exercise cards. The workshop palette (`--workshop-*`, defined in
- * app.css) is used by nothing else in the console, so the layer reads as an annotation over
- * the UI rather than part of it.
- */
-export const PLACEHOLDER_CLASS =
-	'border border-dashed border-(--workshop-border) bg-(--workshop-muted) text-(--workshop-text) transition-shadow duration-300';
-
 /** Added to a placeholder while the console is focused on its exercise. */
 export const FOCUS_CLASS =
 	'animate-pulse ring-2 ring-(--workshop) ring-offset-2 ring-offset-background';
