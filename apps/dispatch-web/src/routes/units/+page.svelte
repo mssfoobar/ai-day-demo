@@ -70,7 +70,6 @@
 	let formOpen = $state(false);
 	// Workshop layer — see WORKSHOP.md.
 	let exerciseOpen = $state(false);
-	let exerciseDetail = $state<ExerciseNumber | null>(null);
 	let focused = $state<ExerciseNumber | null>(null);
 	const incomplete = incompleteExercises();
 	let formMode = $state<'create' | 'edit'>('create');
@@ -122,8 +121,7 @@
 	}
 
 	/** Workshop layer — see WORKSHOP.md. */
-	function openExercises(detail: ExerciseNumber | null = null) {
-		exerciseDetail = detail;
+	function openExercises() {
 		exerciseOpen = true;
 	}
 
@@ -338,7 +336,7 @@
 							{units}
 							{now}
 							onedit={openEdit}
-							onexercise={(n) => openExercises(n)}
+							onexercise={() => openExercises()}
 							focus={focused}
 							ondelete={() => (deleteOpen = true)}
 						/>
@@ -349,7 +347,7 @@
 
 		<!-- Add / edit -->
 		<UnitForm bind:open={formOpen} mode={formMode} unit={selected} onoutcome={onFormOutcome} />
-		<ExerciseDialog bind:open={exerciseOpen} bind:detail={exerciseDetail} onfocus={focusExercise} />
+		<ExerciseDialog bind:open={exerciseOpen} onfocus={focusExercise} />
 
 		{#if incomplete.length > 0}
 			<!-- Workshop layer — floating on purpose: it is an annotation over the console, not part of
