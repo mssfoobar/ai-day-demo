@@ -1,826 +1,717 @@
 ---
-theme: seriph
+theme: default
 title: AI Coder
 info: |
   ## AI Coder
 
   AI Day · InnoRAD.ai
 class: text-center
+colorSchema: light
+fonts:
+  sans: Jost
+  serif: Jost
+  mono: Geist Mono
+  weights: '400,500,600,700,800'
 drawings:
   persist: false
-transition: slide-left
+transition: fade
 mdc: true
 duration: 35min
+clicks: 1
 ---
+<div class="flex flex-col items-center justify-center h-full">
+  <div class="text-8xl font-extrabold tracking-tight">AI Coder</div>
+  <div class="rule-red mt-6"></div>
+  <div class="text-2xl text-center mt-10 transition-all duration-700" :class="$clicks >= 1 ? 'opacity-100' : 'opacity-0'" style="color:#71717a;max-width:44rem">
+  An agentic coding suite for the AGIL Ops Hub platform, focused on the
+  code stage.
+  </div>
+</div>
 
-# AI Coder
-
-<div class="abs-br m-6 text-sm opacity-50">
+<div class="abs-br m-6 text-sm" style="color:#a1a1aa">
 AI Day · InnoRAD.ai
 </div>
 
 <!--
-Title slide. Let it sit, say the name, then move.
+TITLE
+
+Say the name. Let it sit.
+
+Click: the definition. An agentic coding suite for the AGIL Ops Hub
+platform, focused on the code stage. Read it once, do not expand on it.
+The next nine slides are the expansion.
 -->
 
 ---
-
-# The overlap
-
-<div class="text-xl opacity-80 mt-2 mb-8">
-MSS runs many projects at once. Underneath, a lot of the
-<strong>same software</strong>.
-</div>
-
-<v-clicks>
-
-- One team builds a map view. Another starts the same one.
-
-- Nobody is wrong. Under a deadline, waiting on another team is a risk.
-
-- So it gets built three times. Then notifications, forms, dashboards, login.
-
-- Three versions that drift, three sets of bugs.
-
-</v-clicks>
-
-<v-click>
-
-<div class="mt-10 text-center text-xl">
-Our job: find the overlap, build it once, and hand the next team something
-they can <strong>pick up instead of start</strong>.
-</div>
-
-</v-click>
-
-<!--
-WHAT OUR TEAM DOES
-
-Open on the people, not the platform. Most of this room has built one of
-those maps.
-
-Let the second bullet land. Duplication is a rational choice under a
-deadline, not incompetence. Nobody should feel accused.
-
-If you have a real number (weeks spent, or how many projects shipped their
-own map) put it in the first bullet. A figure from our own projects beats the
-general argument.
-
-What came out of it: ten modules (GIS, MSR, Form, WFE, UNH, Dash, IAMS, AMM,
-RTUS, SDS), a shared design system, a Go foundation library, and the SDKs
-that wire them into an app. That is AOH.
-
-If challenged: reuse is not free. A module has to serve three customers
-without turning into a configuration swamp. That is why the platform ships
-opinions, not just code.
-
-Bridge: reuse solved the duplicated *code*, not the duplicated *knowing*.
-Every team still has to learn the platform before using any of it. That gap
-is where AI Coder comes from.
--->
-
+clicks: 1
+class: flex flex-col justify-center items-center
 ---
 
-# Layer 1: the project starts right
+# Where it fits
 
-<div class="text-xl opacity-80 mt-4 mb-10">
-An empty directory knows nothing about AOH. Ten modules, a Go and SvelteKit
-split, conventions for errors, observability and deploys. <strong>None of it
-is discoverable</strong>.
+<div class="mt-10">
+<div class="flex justify-center" style="width:48.0rem;gap:1.0rem">
+<div class="rounded-lg border text-sm py-1.5 font-medium text-center" style="width:5.375rem;border-color:#d4d4d8;background:#fafafa;color:#18181b">Planning</div>
+<div class="rounded-lg border text-sm py-1.5 font-medium text-center" style="width:5.375rem;border-color:#d4d4d8;background:#fafafa;color:#18181b">Requirements</div>
+<div class="rounded-lg border text-sm py-1.5 font-medium text-center" style="width:5.375rem;border-color:#d4d4d8;background:#fafafa;color:#18181b">Design</div>
+<div class="rounded-lg border text-sm py-1.5 font-medium text-center transition-all duration-700" :style="'width:16.125rem;' + ($clicks >= 1 ? 'border-color:#dc2626;background:rgba(220,38,38,0.08);color:#dc2626' : 'border-color:#d4d4d8;background:#fafafa;color:#18181b')">Implementation</div>
+<div class="rounded-lg border text-sm py-1.5 font-medium text-center" style="width:5.375rem;border-color:#d4d4d8;background:#fafafa;color:#18181b">Testing</div>
+<div class="rounded-lg border text-sm py-1.5 font-medium text-center" style="width:5.375rem;border-color:#d4d4d8;background:#fafafa;color:#18181b">Maintenance</div>
 </div>
-
-<div class="grid grid-cols-2 gap-8">
-
-<div v-click>
-
-### `aia check`
-
-<div class="text-sm opacity-75 mt-2">Fail in two seconds, not halfway through.</div>
-
-- Node 24+ · pnpm · Git 2.30+
-- OpenSpec · Podman · make · Python 3.10+
-- Reports version-too-old separately from missing
-
+<div class="flex justify-center mt-2 transition-all duration-700" style="width:48.0rem;gap:1.0rem" :class="$clicks >= 1 ? 'opacity-100' : 'opacity-0'">
+<div style="width:5.375rem"></div>
+<div style="width:5.375rem"></div>
+<div style="width:5.375rem"></div>
+<div class="rounded-lg border text-lg py-2 font-bold text-center" style="width:16.125rem;border-color:#dc2626;background:#dc2626;color:#ffffff">AI Coder</div>
+<div style="width:5.375rem"></div>
+<div style="width:5.375rem"></div>
 </div>
-
-<div v-click>
-
-### `aia init`
-
-<div class="text-sm opacity-75 mt-2">One tagged template, unpacked and stamped.</div>
-
-- Turborepo skeleton, pnpm version pinned
-- OpenSpec with all 12 workflows enabled
-- `AGENTS.md` layering, then `git init`
-
-</div>
-
-</div>
-
-<v-click>
-
-<div class="mt-10 text-center text-lg">
-Without this, every team hand-rolls a scaffold and drifts. With it, the next
-layer has <strong>somewhere to install to</strong>.
-</div>
-
-</v-click>
-
-<!--
-LAYER 1
-
-The unglamorous layer. Worth one minute, not five. It is table stakes, and
-the audience has seen a scaffolder before.
-
-The line that matters is the last one: consistency is not bureaucracy here,
-it is the precondition for layer 2. Skills fan out into agent directories
-that only exist because init created them.
-
-Evidence from the demo repo: fleet-dispatch-console was scaffolded this way.
-First commit is `chore: initial commit`, and the root package.json still
-carries the template's pnpm and Node pins.
-
-Honest nuance, if challenged: init sets OpenSpec's workflow profile in the
-per-user global config, not per project, so it affects your other OpenSpec
-projects too. That is an OpenSpec limitation, not a choice.
--->
-
----
-
-# Layer 2: the agent stays right
-
-<div class="text-xl opacity-80 mt-4 mb-10">
-Platform knowledge changes faster than anyone re-reads it. So stop asking
-people to re-read it. <strong>Version it, and ship it to the agent</strong>.
-</div>
-
-<div class="grid grid-cols-2 gap-8 items-center">
-
-<div>
-
-```json
-// skills-lock.json
-{
-  "aoh-conventions": {
-    "tag": "@mssfoobar/agent-skills@v0.9.0",
-    "hash": "3d0d3d92…"
-  }
-}
-```
-
-</div>
-
-<div v-click>
-
-- A **registry**: one tagged release of ops-hub
-- A **lockfile**: tag and content hash per skill
-- `add` · `remove` · `update` · `status`
-- One canonical copy, linked into Claude, Cursor, Codex, Windsurf
-
-</div>
-
-</div>
-
-<v-click>
-
-<div class="mt-10 text-center text-xl">
-Agent context is a <strong>dependency</strong>.
-<code>aia skills update</code> is a dependency bump.
-</div>
-
-</v-click>
-
-<!--
-LAYER 2
-
-This is the slide. Layer 1 is a scaffolder; this is the actual idea.
-
-The argument: an agent that does not know the conventions will not ask. It
-will write clean, idiomatic, confidently wrong code. You cannot fix that with
-documentation nobody opens, so you package the knowledge and give the agent
-a way to pull it, with a pin and a hash, like any other dependency.
-
-Concrete numbers: 23 skills, pinned at @mssfoobar/agent-skills@v0.9.0 in the
-demo repo. A platform team changes a convention, cuts a tag, and every
-project pulls it with one command.
-
-Honest nuance: the fan-out is a relative symlink by design, with a copy
-fallback on Windows. In the demo repo they landed as real copies, so edits to
-.agents/skills/ do not propagate there. Do not demo live editing of a skill.
--->
-
----
-transition: fade-out
----
-
-# What is Slidev?
-
-Slidev is a slides maker and presenter designed for developers, consist of the following features
-
-- 📝 **Text-based** - focus on the content with Markdown, and then style them later
-- 🎨 **Themable** - themes can be shared and re-used as npm packages
-- 🧑‍💻 **Developer Friendly** - code highlighting, live coding with autocompletion
-- 🤹 **Interactive** - embed Vue components to enhance your expressions
-- 🎥 **Recording** - built-in recording and camera view
-- 📤 **Portable** - export to PDF, PPTX, PNGs, or even a hostable SPA
-- 🛠 **Hackable** - virtually anything that's possible on a webpage is possible in Slidev
-<br>
-<br>
-
-Read more about [Why Slidev?](https://sli.dev/guide/why)
-
-<!--
-You can have `style` tag in markdown to override the style for the current page.
-Learn more: https://sli.dev/features/slide-scope-style
--->
-
-<style>
-h1 {
-  background-color: #2B90B6;
-  background-image: linear-gradient(45deg, #4EC5D4 10%, #146b8c 20%);
-  background-size: 100%;
-  -webkit-background-clip: text;
-  -moz-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  -moz-text-fill-color: transparent;
-}
-</style>
-
-<!--
-Here is another comment.
--->
-
----
-transition: slide-up
-level: 2
----
-
-# Navigation
-
-Hover on the bottom-left corner to see the navigation's controls panel, [learn more](https://sli.dev/guide/ui#navigation-bar)
-
-## Keyboard Shortcuts
-
-|                                                     |                             |
-| --------------------------------------------------- | --------------------------- |
-| <kbd>right</kbd> / <kbd>space</kbd>                 | next animation or slide     |
-| <kbd>left</kbd>  / <kbd>shift</kbd><kbd>space</kbd> | previous animation or slide |
-| <kbd>up</kbd>                                       | previous slide              |
-| <kbd>down</kbd>                                     | next slide                  |
-
-<!-- https://sli.dev/guide/animations.html#click-animation -->
-<img
-  v-click
-  class="absolute -bottom-9 -left-7 w-80 opacity-50"
-  src="https://sli.dev/assets/arrow-bottom-left.svg"
-  alt=""
-/>
-<p v-after class="absolute bottom-23 left-45 opacity-30 transform -rotate-10">Here!</p>
-
----
-layout: two-cols
-layoutClass: gap-16
----
-
-# Table of contents
-
-You can use the `Toc` component to generate a table of contents for your slides:
-
-```html
-<Toc minDepth="1" maxDepth="1" />
-```
-
-The title will be inferred from your slide content, or you can override it with `title` and `level` in your frontmatter.
-
-::right::
-
-<Toc text-sm minDepth="1" maxDepth="2" />
-
----
-layout: image-right
-image: https://cover.sli.dev
----
-
-# Code
-
-Use code snippets and get the highlighting directly, and even types hover!
-
-```ts [filename-example.ts] {all|4|6|6-7|9|all} twoslash
-// TwoSlash enables TypeScript hover information
-// and errors in markdown code blocks
-// More at https://shiki.style/packages/twoslash
-import { computed, ref } from 'vue'
-
-const count = ref(0)
-const doubled = computed(() => count.value * 2)
-
-doubled.value = 2
-```
-
-<arrow v-click="[4, 5]" x1="350" y1="310" x2="195" y2="342" color="#953" width="2" arrowSize="1" />
-
-<!-- This allow you to embed external code blocks -->
-<<< @/snippets/external.ts#snippet
-
-<!-- Footer -->
-
-[Learn more](https://sli.dev/features/line-highlighting)
-
-<!-- Inline style -->
-<style>
-.footnotes-sep {
-  @apply mt-5 opacity-10;
-}
-.footnotes {
-  @apply text-sm opacity-75;
-}
-.footnote-backref {
-  display: none;
-}
-</style>
-
-<!--
-Notes can also sync with clicks
-
-[click] This will be highlighted after the first click
-
-[click] Highlighted with `count = ref(0)`
-
-[click:3] Last click (skip two clicks)
--->
-
----
-level: 2
----
-
-# Shiki Magic Move
-
-Powered by [shiki-magic-move](https://shiki-magic-move.netlify.app/), Slidev supports animations across multiple code snippets.
-
-Add multiple code blocks and wrap them with <code>````md magic-move</code> (four backticks) to enable the magic move. For example:
-
-````md magic-move {lines: true}
-```ts {*|2|*}
-// step 1
-const author = reactive({
-  name: 'John Doe',
-  books: [
-    'Vue 2 - Advanced Guide',
-    'Vue 3 - Basic Guide',
-    'Vue 4 - The Mystery'
-  ]
-})
-```
-
-```ts {*|1-2|3-4|3-4,8}
-// step 2
-export default {
-  data() {
-    return {
-      author: {
-        name: 'John Doe',
-        books: [
-          'Vue 2 - Advanced Guide',
-          'Vue 3 - Basic Guide',
-          'Vue 4 - The Mystery'
-        ]
-      }
-    }
-  }
-}
-```
-
-```ts
-// step 3
-export default {
-  data: () => ({
-    author: {
-      name: 'John Doe',
-      books: [
-        'Vue 2 - Advanced Guide',
-        'Vue 3 - Basic Guide',
-        'Vue 4 - The Mystery'
-      ]
-    }
-  })
-}
-```
-
-Non-code blocks are ignored.
-
-```vue
-<!-- step 4 -->
-<script setup>
-const author = {
-  name: 'John Doe',
-  books: [
-    'Vue 2 - Advanced Guide',
-    'Vue 3 - Basic Guide',
-    'Vue 4 - The Mystery'
-  ]
-}
-</script>
-```
-````
-
----
-
-# Components
-
-<div grid="~ cols-2 gap-4">
-<div>
-
-You can use Vue components directly inside your slides.
-
-We have provided a few built-in components like `<Tweet/>`, `<BlueSky/>`, and `<Youtube/>` that you can use directly. And adding your custom components is also super easy.
-
-```html
-<Counter :count="10" />
-```
-
-<!-- ./components/Counter.vue -->
-<Counter :count="10" m="t-4" />
-
-Check out [the guides](https://sli.dev/builtin/components.html) for more.
-
-</div>
-<div>
-
-```html
-<Tweet id="1390115482657726468" />
-```
-
-<Tweet id="1390115482657726468" scale="0.65" />
-
+<div class="flex justify-center mt-2 transition-all duration-700" style="width:48.0rem;gap:1.0rem" :class="$clicks >= 1 ? 'opacity-100' : 'opacity-0'">
+<div style="width:5.375rem"></div>
+<div style="width:5.375rem"></div>
+<div style="width:5.375rem"></div>
+<div class="rounded-lg border text-xs py-1.5 font-medium text-center" style="width:16.125rem;border-color:rgba(220,38,38,0.25);background:rgba(220,38,38,0.05);color:#9f5f5f">Design principles &middot; Coding standards &middot; AGIL Ops Hub</div>
+<div style="width:5.375rem"></div>
+<div style="width:5.375rem"></div>
 </div>
 </div>
 
 <!--
-Presenter note with **bold**, *italic*, and ~~striked~~ text.
+WHAT AI CODER IS
 
-Also, HTML elements are valid:
-<div class="flex w-full">
-  <span style="flex-grow: 1;">Left content</span>
-  <span>Right content</span>
-</div>
+Be precise about what it is. The model is off the shelf. The tool that
+runs it is off the shelf too. AI Coder is the layer we own.
+
+Full definition if you need it: an agentic coding suite for the AGIL Ops
+Hub platform, focused on the code stage. Underneath it is a swappable
+coding harness, extended with agent skills and spec-driven development.
+
+The band at the bottom of the diagram is what it carries: our design
+principles, our coding standards, the platform.
+
+That is the part worth having. Anyone can buy the same model next quarter.
+Nobody can buy how MSS builds.
+
+It also means we are not betting on a model. When a better one arrives,
+our knowledge still applies.
+
+The command is `aia init`, if you want to name it, but the room does
+not need it.
+
+Beat one: this is how we deliver, end to end. Build is the long pole.
+
+Beat two, click: AI Coder assists the developer through the build, and it
+arrives carrying our design principles, our coding standards, and the
+AGIL Ops Hub platform.
+
+Say "assists". The developer is still building. AI Coder is not replacing
+anyone, and this audience will hear the difference.
+
+The point for this room: nobody has to remember our standards or look them
+up. They are in the project from the first minute, so the work starts
+consistent instead of being corrected later.
+
+Planning, test and deploy stay with the team.
 -->
 
 ---
-class: px-20
+clicks: 1
+class: flex flex-col justify-center items-center
 ---
 
-# Themes
+# One command
 
-Slidev comes with powerful theming support. Themes can provide styles, layouts, components, or even configurations for tools. Switching between themes by just **one edit** in your frontmatter:
-
-<div grid="~ cols-2 gap-2" m="t-2">
-
-```yaml
----
-theme: default
----
-```
-
-```yaml
----
-theme: seriph
----
-```
-
-<img border="rounded" src="https://github.com/slidevjs/themes/blob/main/screenshots/theme-default/01.png?raw=true" alt="">
-
-<img border="rounded" src="https://github.com/slidevjs/themes/blob/main/screenshots/theme-seriph/01.png?raw=true" alt="">
-
+<div class="rounded-xl px-8 py-6 text-left" style="width:46rem;background:#18181b">
+<div class="flex items-center gap-2 mb-5">
+<div style="width:0.7rem;height:0.7rem;border-radius:50%;background:#52525b"></div>
+<div style="width:0.7rem;height:0.7rem;border-radius:50%;background:#52525b"></div>
+<div style="width:0.7rem;height:0.7rem;border-radius:50%;background:#52525b"></div>
+<div class="font-mono text-xs ml-3" style="color:#71717a">terminal</div>
+</div>
+<div class="font-mono text-lg">
+<span style="color:#71717a">$ </span><span style="color:#fafafa">aia init</span></div>
+<div class="font-mono text-sm mt-3"><span style="color:#71717a">? </span><span style="color:#a1a1aa">Project name</span><span class="pl-4" style="color:#fafafa">fleet-dispatch-console</span></div>
+<div class="mt-4">
+<div class="font-mono text-sm flex gap-3 mt-1.5"><span style="color:#4ade80">&check;</span><span style="color:#a1a1aa">Resolving template source</span></div>
+<div class="font-mono text-sm flex gap-3 mt-1.5"><span style="color:#4ade80">&check;</span><span style="color:#a1a1aa">Configuring OpenSpec workflows</span></div>
+<div class="font-mono text-sm flex gap-3 mt-1.5"><span style="color:#4ade80">&check;</span><span style="color:#a1a1aa">Initializing OpenSpec</span></div>
+<div class="font-mono text-sm flex gap-3 mt-1.5"><span style="color:#4ade80">&check;</span><span style="color:#a1a1aa">Installing agent skills</span></div>
+<div class="font-mono text-sm flex gap-3 mt-1.5"><span style="color:#4ade80">&check;</span><span style="color:#a1a1aa">Initializing git repository</span></div>
+</div>
+<div class="font-mono text-base font-bold mt-5" style="color:#fafafa">Project ready</div>
 </div>
 
-Read more about [How to use a theme](https://sli.dev/guide/theme-addon#use-theme) and
-check out the [Awesome Themes Gallery](https://sli.dev/resources/theme-gallery).
-
----
-
-# Clicks Animations
-
-You can add `v-click` to elements to add a click animation.
-
-<div v-click>
-
-This shows up when you press <kbd>space</kbd> or <kbd>right</kbd>, or click outside the slide on the right.
-
-```html
-<div v-click>This shows up when you trigger a click animation.</div>
-```
-
+<div class="text-2xl text-center mt-8 transition-all duration-700" :class="$clicks >= 1 ? 'opacity-100' : 'opacity-0'" style="color:#71717a;max-width:44rem">
+It <strong>equips</strong> a new project with our way of building.
 </div>
 
-<p v-click>
-You can also add modifiers to change the animation:
-</p>
+<!--
+ONE COMMAND
 
-<div class="grid gap-3 mt-4 text-sm" style="grid-template-columns: repeat(3, 1fr) 1.5fr 1fr">
-  <div v-after.up class="p-3 rounded border border-primary/20 bg-primary/10">
-    <div class="font-mono text-xs opacity-60 mb-1">v-click.up</div>
-    <div>Slide from bottom</div>
-  </div>
-  <div v-click.fade-in class="p-3 rounded border border-primary/30 bg-primary/15">
-    <div class="font-mono text-xs opacity-60 mb-1">v-click.fade-in</div>
-    <div>Fade in</div>
-  </div>
-  <div v-click.fade class="p-3 rounded border border-primary/40 bg-primary/20">
-    <div class="font-mono text-xs opacity-60 mb-1">v-click.fade</div>
-    <div>Dim (0.5 opacity)</div>
-  </div>
-  <div v-click.fade.right.scale class="p-3 rounded border border-primary/50 bg-primary/25">
-    <div class="font-mono text-xs opacity-60 mb-1">v-click.fade.right.scale</div>
-    <div>Composed</div>
-  </div>
-  <div v-click.none class="p-3 rounded border border-primary/60 bg-primary/30">
-    <div class="font-mono text-xs opacity-60 mb-1">v-click.none</div>
-    <div>No transition</div>
-  </div>
+This is the answer to "what is it". It is a command-line tool. Show the
+terminal and let it speak.
+
+The command is just `aia init`. It asks for the project name, so the name
+is an answer, not part of the command.
+
+Then the real steps, in the real order. It pulls the template, configures
+the spec workflow, installs the twenty-three agent skills, and commits.
+About twenty seconds.
+
+Click for the line underneath. Equips is the word: the project arrives
+already carrying how we build, so nobody has to remember it or look it up.
+
+Do not say "nothing to install". There are prerequisites, and the room may
+know it: Node, pnpm, Podman, OpenSpec, Git, make and Python. The CLI checks
+them for you with `aia check` and tells you what is missing. What you do not
+install is our standards, our skills or the workflow. Those arrive with the
+project.
+
+Be straight if asked what is not in there: the application. No app code,
+no platform modules. The repository is not the product, it is everything
+the product needs to be built our way.
+
+This is exactly the first commit of the demo repository, pinned at
+@mssfoobar/agent-skills v0.9.0. Run it today and you get the same tree.
+-->
+
+---
+clicks: 1
+class: flex flex-col justify-center items-center
+---
+
+# Then you describe the work
+
+<div class="rounded-xl px-8 py-6 text-left" style="width:46rem;background:#18181b">
+<div class="flex items-center gap-8 mb-6">
+<div style="display:flex;flex-direction:column;gap:0">
+<div style="display:flex;gap:0">
+<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
+</div>
+<div style="display:flex;gap:0">
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+</div>
+<div style="display:flex;gap:0">
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#000000"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#000000"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+</div>
+<div style="display:flex;gap:0">
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#000000"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#000000"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+</div>
+<div style="display:flex;gap:0">
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+</div>
+<div style="display:flex;gap:0">
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+</div>
+<div style="display:flex;gap:0">
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
+<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+</div>
+</div>
+<div class="font-mono text-sm" style="line-height:1.7">
+<div><span style="color:#fafafa;font-weight:700">Claude Code</span> <span style="color:#71717a">v2.1.221</span></div>
+<div style="color:#71717a">Opus 5 (1M context) with xhigh effort</div>
+<div style="color:#71717a">~/Desktop/projects/ai-day-demo</div>
+</div>
+</div>
+<div class="font-mono text-lg"><span style="color:#71717a">&gt; </span><span style="color:#fafafa">/opsx:propose</span></div>
+<div class="font-mono text-sm mt-3" style="color:#d4d4d8;line-height:1.6">
+As a dispatcher, I want to dispatch an available unit to an<br/>
+incident and stand it down when the job is done.
+</div>
+<div class="mt-5">
+<div class="font-mono text-sm flex gap-3 mt-1.5"><span style="color:#4ade80">&check;</span><span style="color:#fafafa;width:9rem">proposal.md</span><span style="color:#71717a">why, and what changes</span></div>
+<div class="font-mono text-sm flex gap-3 mt-1.5"><span style="color:#4ade80">&check;</span><span style="color:#fafafa;width:9rem">design.md</span><span style="color:#71717a">how it will be built</span></div>
+<div class="font-mono text-sm flex gap-3 mt-1.5"><span style="color:#4ade80">&check;</span><span style="color:#fafafa;width:9rem">specs/</span><span style="color:#71717a">36 requirements, 77 scenarios</span></div>
+<div class="font-mono text-sm flex gap-3 mt-1.5"><span style="color:#4ade80">&check;</span><span style="color:#fafafa;width:9rem">tasks.md</span><span style="color:#71717a">82 steps, in order</span></div>
+</div>
 </div>
 
-<v-click>
-
-The <span v-mark.red="7"><code>v-mark</code> directive</span>
-also allows you to add
-<span v-mark.circle.orange="8">inline marks</span>
-, powered by [Rough Notation](https://roughnotation.com/):
-
-```html
-<span v-mark.underline.orange>inline markers</span>
-```
-
-</v-click>
-
-<div v-click mt-12>
-
-[Learn more](https://sli.dev/guide/animations#click-animation)
-
+<div class="text-2xl text-center mt-8 transition-all duration-700" :class="$clicks >= 1 ? 'opacity-100' : 'opacity-0'" style="color:#71717a;max-width:44rem">
+One sentence in. A written plan out, <strong>before any code</strong>.
 </div>
 
----
+<!--
+THEN YOU DESCRIBE THE WORK
 
-# Motions
+This is the developer doing their actual job. They write the work the way
+they already write it, as a user story, and hand it over.
 
-Motion animations are powered by [@vueuse/motion](https://motion.vueuse.org/), triggered by `v-motion` directive.
+That story is real, straight out of the demo repo. One sentence.
 
-```html
-<div
-  v-motion
-  :initial="{ x: -80 }"
-  :enter="{ x: 0 }"
-  :click-3="{ x: 80 }"
-  :leave="{ x: 1000 }"
->
-  Slidev
-</div>
-```
+Out comes a written plan: why the change is needed, how it will be built,
+the requirements with their testable scenarios, and the tasks in order.
 
-<div class="w-60 relative">
-  <div class="relative w-40 h-40">
-    <img
-      v-motion
-      :initial="{ x: 800, y: -100, scale: 1.5, rotate: -50 }"
-      :enter="final"
-      class="absolute inset-0"
-      src="https://sli.dev/logo-square.png"
-      alt=""
-    />
-    <img
-      v-motion
-      :initial="{ y: 500, x: -100, scale: 2 }"
-      :enter="final"
-      class="absolute inset-0"
-      src="https://sli.dev/logo-circle.png"
-      alt=""
-    />
-    <img
-      v-motion
-      :initial="{ x: 600, y: 400, scale: 2, rotate: 100 }"
-      :enter="final"
-      class="absolute inset-0"
-      src="https://sli.dev/logo-triangle.png"
-      alt=""
-    />
-  </div>
+The numbers are from the demo repo. Three stories became thirty-six
+requirements, seventy-seven scenarios and eighty-two tasks.
 
-  <div
-    class="text-5xl absolute top-14 left-40 text-[#2B90B6] -z-1"
-    v-motion
-    :initial="{ x: -80, opacity: 0}"
-    :enter="{ x: 0, opacity: 1, transition: { delay: 2000, duration: 1000 } }">
-    Slidev
-  </div>
-</div>
+Click: one sentence in, a written plan out, before any code. That is the
+whole value of this step. Nothing has been built yet, so nothing has been
+wasted if the plan is wrong.
 
-<!-- vue script setup scripts can be directly used in markdown, and will only affects current page -->
-<script setup lang="ts">
-const final = {
-  x: 0,
-  y: 0,
-  rotate: 0,
-  scale: 1,
-  transition: {
-    type: 'spring',
-    damping: 10,
-    stiffness: 20,
-    mass: 2
-  }
-}
-</script>
+Note the window title: this one runs inside Claude Code, not a shell.
+The previous slide was a plain terminal. That is the honest sequence:
+scaffold from the shell, then do the work inside the agent.
 
-<div
-  v-motion
-  :initial="{ x:35, y: 30, opacity: 0}"
-  :enter="{ y: 0, opacity: 1, transition: { delay: 3500 } }">
-
-[Learn more](https://sli.dev/guide/animations.html#motion)
-
-</div>
+It is OpenSpec doing the spec work, an open-source tool, if anyone asks
+by name.
+-->
 
 ---
-
-# $\LaTeX$
-
-$\LaTeX$ is supported out-of-box. Powered by [$\KaTeX$](https://katex.org/).
-
-<div h-3 />
-
-Inline $\sqrt{3x-1}+(1+x)^2$
-
-Block
-$$ {1|3|all}
-\begin{aligned}
-\nabla \cdot \vec{E} &= \frac{\rho}{\varepsilon_0} \\
-\nabla \cdot \vec{B} &= 0 \\
-\nabla \times \vec{E} &= -\frac{\partial\vec{B}}{\partial t} \\
-\nabla \times \vec{B} &= \mu_0\vec{J} + \mu_0\varepsilon_0\frac{\partial\vec{E}}{\partial t}
-\end{aligned}
-$$
-
-[Learn more](https://sli.dev/features/latex)
-
+clicks: 3
+class: flex flex-col justify-center items-center
 ---
 
-# Diagrams
+# What you review
 
-You can create diagrams / graphs from textual descriptions, directly in your Markdown.
-
-<div class="grid grid-cols-4 gap-5 pt-4 -mb-6">
-
-```mermaid {scale: 0.5, alt: 'A simple sequence diagram'}
-sequenceDiagram
-    Alice->John: Hello John, how are you?
-    Note over Alice,John: A typical interaction
-```
-
-```mermaid {theme: 'neutral', scale: 0.8}
-graph TD
-B[Text] --> C{Decision}
-C -->|One| D[Result 1]
-C -->|Two| E[Result 2]
-```
-
-```mermaid
-mindmap
-  root((mindmap))
-    Origins
-      Long history
-      ::icon(fa fa-book)
-      Popularisation
-        British popular psychology author Tony Buzan
-    Research
-      On effectiveness<br/>and features
-      On Automatic creation
-        Uses
-            Creative techniques
-            Strategic planning
-            Argument mapping
-    Tools
-      Pen and paper
-      Mermaid
-```
-
-```plantuml {scale: 0.7}
-@startuml
-
-package "Some Group" {
-  HTTP - [First Component]
-  [Another Component]
-}
-
-node "Other Groups" {
-  FTP - [Second Component]
-  [First Component] --> FTP
-}
-
-cloud {
-  [Example 1]
-}
-
-database "MySql" {
-  folder "This is my folder" {
-    [Folder 3]
-  }
-  frame "Foo" {
-    [Frame 4]
-  }
-}
-
-[Another Component] --> [Example 1]
-[Example 1] --> [Folder 3]
-[Folder 3] --> [Frame 4]
-
-@enduml
-```
-
+<div class="flex flex-col gap-2 mt-6" style="width:44rem">
+<div class="rounded-lg overflow-hidden transition-all duration-700 ease-in-out" :style="$clicks === 0 ? 'background:#ffffff;border:1px solid #e4e4e7;box-shadow:0 2px 8px rgba(0,0,0,0.08)' : 'background:#fafafa;border:1px solid #f4f4f5;box-shadow:none'">
+<div class="flex items-center justify-between px-5 py-2.5">
+<div class="font-mono text-sm font-bold transition-all duration-700 ease-in-out" :style="$clicks === 0 ? 'color:#dc2626' : 'color:#d4a0a0'">proposal.md</div>
+<div class="text-[11px]" style="color:#a1a1aa">why are we doing this</div>
+</div>
+<div class="overflow-hidden transition-all duration-700 ease-in-out" :style="$clicks === 0 ? 'max-height:9.5rem;opacity:1' : 'max-height:0;opacity:0'">
+<div class="px-5 pb-4" style="height:9.5rem">
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">## </span><span style="color:#3f3f46;font-weight:700">Why</span></div>
+<div class="font-mono text-[13px] leading-relaxed" style="color:#3f3f46">Nothing ever writes to the database.</div>
+<div class="font-mono text-[13px] leading-relaxed" style="color:#3f3f46">Persistence is only the seed.</div>
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">## </span><span style="color:#3f3f46;font-weight:700">What Changes</span></div>
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- </span><span style="color:#3f3f46">dispatch-svc gains write endpoints</span></div>
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- </span><span style="color:#3f3f46">the console gains add, edit and delete</span></div>
+</div>
+</div>
+</div>
+<div class="rounded-lg overflow-hidden transition-all duration-700 ease-in-out" :style="$clicks === 1 ? 'background:#ffffff;border:1px solid #e4e4e7;box-shadow:0 2px 8px rgba(0,0,0,0.08)' : 'background:#fafafa;border:1px solid #f4f4f5;box-shadow:none'">
+<div class="flex items-center justify-between px-5 py-2.5">
+<div class="font-mono text-sm font-bold transition-all duration-700 ease-in-out" :style="$clicks === 1 ? 'color:#dc2626' : 'color:#d4a0a0'">design.md</div>
+<div class="text-[11px]" style="color:#a1a1aa">how it will be built</div>
+</div>
+<div class="overflow-hidden transition-all duration-700 ease-in-out" :style="$clicks === 1 ? 'max-height:9.5rem;opacity:1' : 'max-height:0;opacity:0'">
+<div class="px-5 pb-4" style="height:9.5rem">
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">## </span><span style="color:#3f3f46;font-weight:700">Context</span></div>
+<div class="font-mono text-[13px] leading-relaxed" style="color:#3f3f46">dispatch-svc is read-only and the console renders it.</div>
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">## </span><span style="color:#3f3f46;font-weight:700">Goals / Non-Goals</span></div>
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- </span><span style="color:#3f3f46">create, replace and delete a unit from the console</span></div>
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- </span><span style="color:#3f3f46">prove persistence across a restart</span></div>
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- </span><span style="color:#3f3f46">not in scope: bulk edit, audit history</span></div>
+</div>
+</div>
+</div>
+<div class="rounded-lg overflow-hidden transition-all duration-700 ease-in-out" :style="$clicks === 2 ? 'background:#ffffff;border:1px solid #e4e4e7;box-shadow:0 2px 8px rgba(0,0,0,0.08)' : 'background:#fafafa;border:1px solid #f4f4f5;box-shadow:none'">
+<div class="flex items-center justify-between px-5 py-2.5">
+<div class="font-mono text-sm font-bold transition-all duration-700 ease-in-out" :style="$clicks === 2 ? 'color:#dc2626' : 'color:#d4a0a0'">specs/</div>
+<div class="text-[11px]" style="color:#a1a1aa">how we will know it works</div>
+</div>
+<div class="overflow-hidden transition-all duration-700 ease-in-out" :style="$clicks === 2 ? 'max-height:9.5rem;opacity:1' : 'max-height:0;opacity:0'">
+<div class="px-5 pb-4" style="height:9.5rem">
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">### </span><span style="color:#3f3f46;font-weight:700">Requirement: Add a unit from the console</span></div>
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">#### </span><span style="color:#3f3f46">Scenario: Successful add</span></div>
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- </span><span style="color:#3f3f46">WHEN an operator submits the form with valid values</span></div>
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- </span><span style="color:#3f3f46">THEN the new unit appears in the list</span></div>
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">#### </span><span style="color:#3f3f46">Scenario: Add rejected by validation</span></div>
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- </span><span style="color:#3f3f46">WHEN a blank required field or a duplicate code</span></div>
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- </span><span style="color:#3f3f46">THEN the form stays open and shows the message</span></div>
+</div>
+</div>
+</div>
+<div class="rounded-lg overflow-hidden transition-all duration-700 ease-in-out" :style="$clicks === 3 ? 'background:#ffffff;border:1px solid #e4e4e7;box-shadow:0 2px 8px rgba(0,0,0,0.08)' : 'background:#fafafa;border:1px solid #f4f4f5;box-shadow:none'">
+<div class="flex items-center justify-between px-5 py-2.5">
+<div class="font-mono text-sm font-bold transition-all duration-700 ease-in-out" :style="$clicks === 3 ? 'color:#dc2626' : 'color:#d4a0a0'">tasks.md</div>
+<div class="text-[11px]" style="color:#a1a1aa">what happens, in what order</div>
+</div>
+<div class="overflow-hidden transition-all duration-700 ease-in-out" :style="$clicks === 3 ? 'max-height:9.5rem;opacity:1' : 'max-height:0;opacity:0'">
+<div class="px-5 pb-4" style="height:9.5rem">
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">## </span><span style="color:#3f3f46;font-weight:700">1. Implement dispatch-svc</span></div>
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- [ ] </span><span style="color:#3f3f46">1.1 Consult the aoh-conventions skill</span></div>
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- [ ] </span><span style="color:#3f3f46">1.2 Add OccLock to the unit model</span></div>
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- [ ] </span><span style="color:#3f3f46">1.3 Repository: create, update, delete</span></div>
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">## </span><span style="color:#3f3f46;font-weight:700">2. Implement dispatch-web</span></div>
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- [ ] </span><span style="color:#3f3f46">2.1 Consult the aoh-conventions and aoh-design skills</span></div>
+<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- [ ] </span><span style="color:#3f3f46">2.2 Add unit form, edit form, delete confirm</span></div>
+</div>
+</div>
+</div>
 </div>
 
-Learn more: [Mermaid Diagrams](https://sli.dev/features/mermaid) and [PlantUML Diagrams](https://sli.dev/features/plantuml)
+<!--
+WHAT YOU REVIEW
+
+Four documents, one at a time. Click through them.
+
+proposal.md: why. The problem and what changes because of it.
+
+design.md: how. The approach, and what is deliberately out of scope.
+
+specs/: how we will know. Point out that the second scenario is a failure
+case. The plan states what happens when validation rejects the input, not
+just when it works.
+
+tasks.md: the order. Point at 1.1 and 2.1, both "consult the
+aoh-conventions skill". The plan tells the AI to read our standards before
+it writes a line. That is the platform knowledge being used, not just
+installed.
+
+The boxes are empty on purpose. Nothing has happened yet. This is the
+plan, not a progress report.
+
+Land it: a developer reads all four in a few minutes, and nothing is built
+until they agree it.
+-->
 
 ---
-foo: bar
-dragPos:
-  square: 691,32,167,_,-16
+clicks: 2
+class: flex flex-col justify-center items-center
 ---
 
-# Draggable Elements
+# Then you let it run
 
-Double-click on the draggable elements to edit their positions.
+<div class="rounded-xl px-8 py-6 text-left" style="width:46rem;background:#18181b">
+<div class="flex items-center gap-8 mb-5">
+<div style="display:flex;flex-direction:column;gap:0">
+<div style="display:flex;gap:0">
+<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
+</div>
+<div style="display:flex;gap:0">
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+</div>
+<div style="display:flex;gap:0">
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#000000"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#000000"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+</div>
+<div style="display:flex;gap:0">
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#000000"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#000000"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+</div>
+<div style="display:flex;gap:0">
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+</div>
+<div style="display:flex;gap:0">
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+</div>
+<div style="display:flex;gap:0">
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
+<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
+<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
+</div>
+</div>
+<div class="font-mono text-sm" style="line-height:1.7">
+<div><span style="color:#fafafa;font-weight:700">Claude Code</span></div>
+<div style="color:#71717a">~/Desktop/projects/ai-day-demo</div>
+</div>
+</div>
+<div class="font-mono text-lg mb-1"><span style="color:#71717a">&gt; </span><span style="color:#fafafa">/opsx:apply</span></div>
+<div class="font-mono text-[13px] mt-3"><span style="color:#52525b">## </span><span style="color:#fafafa;font-weight:700">1. Implement dispatch-svc</span></div>
+<div class="font-mono text-[13px] leading-relaxed transition-all duration-500"><span class="pr-2" :style="$clicks >= 1 ? 'color:#4ade80' : 'color:#52525b'">{{ $clicks >= 1 ? '- [x]' : '- [ ]' }} </span><span :style="$clicks >= 1 ? 'color:#fafafa' : 'color:#71717a'">1.1 Consult the aoh-conventions skill</span></div>
+<div class="font-mono text-[13px] leading-relaxed transition-all duration-500"><span class="pr-2" :style="$clicks >= 1 ? 'color:#4ade80' : 'color:#52525b'">{{ $clicks >= 1 ? '- [x]' : '- [ ]' }} </span><span :style="$clicks >= 1 ? 'color:#fafafa' : 'color:#71717a'">1.2 Add OccLock to the unit model</span></div>
+<div class="font-mono text-[13px] leading-relaxed transition-all duration-500"><span class="pr-2" :style="$clicks >= 1 ? 'color:#4ade80' : 'color:#52525b'">{{ $clicks >= 1 ? '- [x]' : '- [ ]' }} </span><span :style="$clicks >= 1 ? 'color:#fafafa' : 'color:#71717a'">1.3 Repository: create, update, delete</span></div>
+<div class="font-mono text-[13px] leading-relaxed transition-all duration-500"><span class="pr-2" :style="$clicks >= 1 ? 'color:#4ade80' : 'color:#52525b'">{{ $clicks >= 1 ? '- [x]' : '- [ ]' }} </span><span :style="$clicks >= 1 ? 'color:#fafafa' : 'color:#71717a'">1.4 Service: validate fields, classify errors</span></div>
+<div class="font-mono text-[13px] mt-3"><span style="color:#52525b">## </span><span style="color:#fafafa;font-weight:700">2. Implement dispatch-web</span></div>
+<div class="font-mono text-[13px] leading-relaxed transition-all duration-500"><span class="pr-2" :style="$clicks >= 2 ? 'color:#4ade80' : 'color:#52525b'">{{ $clicks >= 2 ? '- [x]' : '- [ ]' }} </span><span :style="$clicks >= 2 ? 'color:#fafafa' : 'color:#71717a'">2.1 Consult the aoh-conventions and aoh-design skills</span></div>
+<div class="font-mono text-[13px] leading-relaxed transition-all duration-500"><span class="pr-2" :style="$clicks >= 2 ? 'color:#4ade80' : 'color:#52525b'">{{ $clicks >= 2 ? '- [x]' : '- [ ]' }} </span><span :style="$clicks >= 2 ? 'color:#fafafa' : 'color:#71717a'">2.2 Add create, update and delete to the client</span></div>
+<div class="font-mono text-[13px] leading-relaxed transition-all duration-500"><span class="pr-2" :style="$clicks >= 2 ? 'color:#4ade80' : 'color:#52525b'">{{ $clicks >= 2 ? '- [x]' : '- [ ]' }} </span><span :style="$clicks >= 2 ? 'color:#fafafa' : 'color:#71717a'">2.3 Add unit form, edit form, delete confirm</span></div>
+<div class="font-mono text-[13px] leading-relaxed transition-all duration-500"><span class="pr-2" :style="$clicks >= 2 ? 'color:#4ade80' : 'color:#52525b'">{{ $clicks >= 2 ? '- [x]' : '- [ ]' }} </span><span :style="$clicks >= 2 ? 'color:#fafafa' : 'color:#71717a'">2.4 Verify: build, lint, test</span></div>
+<div class="font-mono text-sm mt-4 transition-all duration-500" :class="$clicks >= 2 ? 'opacity-100' : 'opacity-0'" style="color:#4ade80;font-weight:700">All 82 steps complete.</div>
+</div>
 
-<br>
+<!--
+THEN YOU LET IT RUN
 
-###### Directive Usage
+The plan is agreed, so now it builds. Same checklist as the last slide,
+ticking off.
 
-```md
-<img v-drag="'square'" src="https://sli.dev/logo.png">
-```
+Click through the two sections. The service first, then the console. Each
+box ticks when that step is done, so the developer can see where it is
+rather than waiting for a wall of output at the end.
 
-<br>
+This is the part that takes the time, and it is the part nobody has to
+watch. The developer agreed the plan; the agent works through it.
 
-###### Component Usage
+Note 1.1 and 2.1 again: it consults our conventions before writing each
+part. Not once at the start, but at the point it matters.
 
-```md
-<v-drag text-3xl>
-  <div class="i-carbon:arrow-up" />
-  Use the `v-drag` component to have a draggable container!
-</v-drag>
-```
-
-<v-drag pos="663,206,261,_,-15">
-  <div text-center text-3xl border border-main rounded>
-    Double-click me!
-  </div>
-</v-drag>
-
-<img v-drag="'square'" src="https://sli.dev/logo.png">
-
-###### Draggable Arrow
-
-```md
-<v-drag-arrow two-way />
-```
-
-<v-drag-arrow pos="67,452,253,46" two-way op70 />
+If asked what happens when a step fails: it stops and says so, against a
+named step, rather than carrying on and reporting at the end.
+-->
 
 ---
-src: ./pages/imported-slides.md
-hide: false
+class: flex flex-col justify-center items-center
 ---
 
+# Our stack
+
+<div class="text-xl text-center mt-3 mb-10" style="color:#71717a;max-width:42rem">
+The tool and the engine can change. The knowledge stays.
+</div>
+
+<div class="flex flex-col gap-3">
+<div class="rounded-lg border-2 text-lg py-3 font-medium text-center" style="width:30.0rem;border-color:#dc2626;background:rgba(220,38,38,0.08);color:#dc2626">Coding agent</div>
+<div class="rounded-lg border-2 text-lg py-3 font-bold text-center" style="width:30.0rem;border-color:#dc2626;background:#dc2626;color:#ffffff">AGIL Ops Hub knowledge and skills</div>
+<div class="rounded-lg border-2 text-lg py-3 font-medium text-center" style="width:30.0rem;border-color:#dc2626;background:rgba(220,38,38,0.08);color:#dc2626">LLM</div>
+</div>
+
+<!--
+OUR STACK
+
+Three layers, top to bottom: the tool the developer works in, our
+knowledge loaded into it, and the model underneath doing the writing.
+
+The labels are deliberately generic. Today the coding agent is Claude Code
+and the model is Claude, and say so if asked. They are named as categories
+here because both are replaceable, and the slide would contradict itself if
+it named a vendor.
+
+Present it as one thing. This is the stack we run, and we built it to work
+together.
+
+The point of the subtitle: we are not tied to any vendor. A better tool
+arrives, we swap the tool. A better model arrives, we swap the model. The
+middle layer carries over every time, because it is ours.
+
+That is worth saying plainly to this room. Choosing a stack is usually a
+bet on a supplier. This one is not.
+
+Straight answer if someone asks who makes the tool or the model: both are
+licensed, chosen because they are the best available today and because
+they are replaceable. What makes the stack ours is the middle layer and
+the way the three are put together.
+-->
+
+---
+class: flex flex-col justify-center items-center
 ---
 
-# Monaco Editor
+# Why not just use an LLM?
 
-Slidev provides built-in Monaco Editor support.
+<div class="flex gap-6 justify-center mt-10">
+<div class="rounded-xl border-2 px-7 py-6 text-left" style="width:20.0rem;border-color:#d4d4d8;background:#fafafa">
+<div class="text-lg font-bold mb-4" style="color:#18181b">An LLM on its own</div>
+<div class="text-base mb-2.5" style="color:#71717a">Has never seen our code.</div>
+<div class="text-base mb-2.5" style="color:#71717a">Fills in the blanks, confidently.</div>
+<div class="text-base mb-2.5" style="color:#71717a">Nothing keeps it on course.</div>
+<div class="text-base mb-2.5" style="color:#71717a">You only find out at the end.</div>
+</div>
+<div class="rounded-xl border-2 px-7 py-6 text-left" style="width:20.0rem;border-color:#dc2626;background:rgba(220,38,38,0.06)">
+<div class="text-lg font-bold mb-4" style="color:#dc2626">AI Coder</div>
+<div class="text-base mb-2.5" style="color:#18181b">Already knows how we build.</div>
+<div class="text-base mb-2.5" style="color:#18181b">Keeps to the rules we set.</div>
+<div class="text-base mb-2.5" style="color:#18181b">You agree the plan first.</div>
+<div class="text-base mb-2.5" style="color:#18181b">You know where it is going.</div>
+</div>
+</div>
 
-Add `{monaco}` to the code block to turn it into an editor:
+<!--
+WHY NOT JUST AN LLM
 
-```ts {monaco}
-import { ref } from 'vue'
-import { emptyArray } from './external'
+This is the question the room is already holding. Answer it straight.
 
-const arr = ref(emptyArray(10))
-```
+Be fair about it: an off-the-shelf LLM is fast, and the code often looks
+fine. The problem is not speed. The problem is that nothing is steering.
 
-Use `{monaco-run}` to create an editor that can execute the code directly in the slide:
+It has never seen our codebase and it will not say so. It fills the gap
+with something plausible, and it keeps going, whatever direction it took.
 
-```ts {monaco-run}
-import { version } from 'vue'
-import { emptyArray, sayHello } from './external'
+Third and fourth lines are the ones to dwell on. Left on its own, an LLM
+runs the whole job before you see anything. You wait, you pay for the full
+run, and only then do you learn it went the wrong way in the first ten
+minutes.
 
-sayHello()
-console.log(`vue ${version}`)
-console.log(emptyArray<number>(10).reduce(fib => [...fib, fib.at(-1)! + fib.at(-2)!], [1, 1]))
-```
+AI Coder puts a checkpoint before the code. The plan is written down and
+you agree it first, so a wrong turn costs a conversation instead of a
+rewrite. That is OpenSpec doing the work, if anyone asks by name.
+
+The point of the whole slide: the result is something we chose, not
+something we were handed.
+
+Do not oversell it. AI Coder does not remove review. It keeps the work
+inside what we already decided, and moves the checking earlier, where it
+is cheap.
+-->
 
 ---
-layout: center
-class: text-center
+clicks: 1
+class: flex flex-col justify-center
 ---
 
-# Learn More
+# How it works {.text-center}
 
-[Documentation](https://sli.dev) · [GitHub](https://github.com/slidevjs/slidev) · [Showcases](https://sli.dev/resources/showcases)
+<div class="mx-auto" style="width:51.00rem">
+<div class="dgm-wide text-xs mt-8 mb-6" style="color:#a1a1aa;letter-spacing:0.08em">AI on its own</div>
+<div class="flex items-center" style="width:51.00rem">
+<div class="rounded-lg border text-sm py-2 font-medium text-center" style="width:4.00rem;border-color:#e4e4e7;background:#fafafa;color:#71717a">Prompt</div>
+<div class="text-center" style="width:1.0rem;color:#e4e4e7">&rarr;</div>
+<div class="rounded-lg border text-sm py-2 font-medium text-center" style="width:16.00rem;border-color:#e4e4e7;background:#fafafa;color:#71717a">Develop</div>
+<div class="text-center" style="width:1.0rem;color:#e4e4e7">&rarr;</div>
+<div class="rounded-lg border text-sm py-2 font-medium text-center" style="width:12.00rem;border-color:#e4e4e7;background:#fafafa;color:#71717a">Verify</div>
+<div class="text-center" style="width:1.0rem;color:#e4e4e7">&rarr;</div>
+<div class="rounded-lg border text-sm py-2 font-medium text-center" style="width:16.00rem;border-color:#e4e4e7;background:#fafafa;color:#71717a">Redo</div>
+</div>
+<div class="flex items-start mt-1.5" style="width:51.00rem">
+<div style="width:4.00rem"></div>
+<div style="width:1.0rem"></div>
+<div style="width:16.00rem"></div>
+<div style="width:1.0rem"></div>
+<div class="text-xs text-center " style="width:12.00rem;color:#a1a1aa">your only checkpoint</div>
+<div style="width:1.0rem"></div>
+<div class="text-xs text-center " style="width:16.00rem;color:#a1a1aa">and again</div>
+</div>
+<div class="flex" style="width:51.00rem">
+<div style="width:2.00rem"></div>
+<div style="width:41.00rem;height:1.4rem;border-left:2px solid #e4e4e7;border-right:2px solid #e4e4e7;border-bottom:2px solid #e4e4e7;border-radius:0 0 0.5rem 0.5rem"></div>
+</div>
+<div class="flex" style="width:51.00rem">
+<div style="width:2.00rem"></div>
+<div class="text-xs text-center mt-1" style="width:41.00rem;color:#a1a1aa">back to nothing</div>
+</div>
+<div class="transition-all duration-700" :class="$clicks >= 1 ? 'opacity-100' : 'opacity-0'">
+<div class="dgm-wide text-xs mt-10 mb-6" style="color:#a1a1aa;letter-spacing:0.08em">With AI Coder</div>
+<div class="flex items-center" style="width:43.00rem">
+<div class="rounded-lg border text-sm py-2 font-medium text-center" style="width:4.00rem;border-color:#d4d4d8;background:#fafafa;color:#18181b">Set up</div>
+<div class="text-center" style="width:1.0rem;color:#d4d4d8">&rarr;</div>
+<div class="rounded-lg border text-sm py-2 font-medium text-center" style="width:6.00rem;border-color:#d4d4d8;background:#fafafa;color:#18181b">Propose</div>
+<div class="text-center" style="width:1.0rem;color:#d4d4d8">&rarr;</div>
+<div class="rounded-lg border-2 text-sm py-2 font-bold text-center" style="width:4.00rem;border-color:#dc2626;background:#dc2626;color:#ffffff">Change</div>
+<div class="text-center" style="width:1.0rem;color:#d4d4d8">&rarr;</div>
+<div class="rounded-lg border text-sm py-2 font-medium text-center" style="width:16.00rem;border-color:#d4d4d8;background:#fafafa;color:#18181b">Develop</div>
+<div class="text-center" style="width:1.0rem;color:#d4d4d8">&rarr;</div>
+<div class="rounded-lg border-2 text-sm py-2 font-bold text-center" style="width:4.00rem;border-color:#dc2626;background:#dc2626;color:#ffffff">Verify</div>
+<div class="text-center" style="width:1.0rem;color:#d4d4d8">&rarr;</div>
+<div class="rounded-lg border text-sm py-2 font-medium text-center" style="width:4.00rem;border-color:#d4d4d8;background:#fafafa;color:#18181b">Archive</div>
+</div>
+<div class="flex items-start mt-1.5" style="width:43.00rem">
+<div style="width:4.00rem"></div>
+<div style="width:1.0rem"></div>
+<div style="width:6.00rem"></div>
+<div style="width:1.0rem"></div>
+<div class="text-xs text-center font-bold" style="width:4.00rem;color:#dc2626">you</div>
+<div style="width:1.0rem"></div>
+<div style="width:16.00rem"></div>
+<div style="width:1.0rem"></div>
+<div class="text-xs text-center font-bold" style="width:4.00rem;color:#dc2626">you</div>
+<div style="width:1.0rem"></div>
+<div style="width:4.00rem"></div>
+</div>
+<div class="flex" style="width:43.00rem">
+<div style="width:8.00rem"></div>
+<div style="width:33.00rem;height:1.4rem;border-left:2px solid rgba(220,38,38,0.35);border-right:2px solid rgba(220,38,38,0.35);border-bottom:2px solid rgba(220,38,38,0.35);border-radius:0 0 0.5rem 0.5rem"></div>
+</div>
+<div class="flex" style="width:43.00rem">
+<div style="width:8.00rem"></div>
+<div class="text-xs text-center mt-1" style="width:33.00rem;color:#9f5f5f">next change</div>
+</div>
+</div>
+</div>
 
-<PoweredBySlidev mt-10 />
+<!--
+HOW IT WORKS
+
+Box width is time. Both rows start at the same point, so the length of the
+row is how long the work takes.
+
+Top: you prompt, it develops for a long stretch, you review the lot, and
+if it went the wrong way you redo it. The loop goes back to nothing.
+
+Click. Bottom: Develop is exactly as long. Nothing about the coding got
+faster. What changed is everything around it.
+
+Propose and Change are short, and they happen before a line is written.
+Because you already agreed the plan, Verify is short too, and there is no
+Redo block at all. The loop comes back to the next change, not to nothing.
+
+Set up sits outside the loop. One command, once.
+
+The honest claim: we are not making the AI faster. We are removing the
+part you throw away.
+-->

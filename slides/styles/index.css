@@ -1,0 +1,63 @@
+/* White canvas, red accent. Greys come from the AOH token set. */
+:root {
+  --deck-red: #dc2626;
+  --deck-red-dark: #b91c1c;
+  --deck-ink: #18181b;
+  --deck-muted: #71717a;
+  --deck-line: #e4e4e7;
+
+  --slidev-theme-primary: var(--deck-red);
+}
+
+.slidev-layout {
+  background: #ffffff;
+  color: var(--deck-ink);
+}
+
+.slidev-layout h1,
+.slidev-layout h2,
+.slidev-layout h3 {
+  color: var(--deck-ink);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.slidev-layout h1 {
+  font-size: 3.75rem;
+  line-height: 1.05;
+}
+
+.slidev-layout a {
+  color: var(--deck-red);
+  border-bottom-color: var(--deck-red);
+}
+
+.slidev-layout code {
+  color: var(--deck-red-dark);
+}
+
+/* Red accent applied to one word or phrase inside a statement. */
+.accent {
+  color: var(--deck-red);
+}
+
+/* Short rule under the deck title. */
+.rule-red {
+  width: 4rem;
+  height: 4px;
+  background: var(--deck-red);
+  border-radius: 2px;
+}
+
+/* Diagram labels: small uppercase, wide tracking. */
+.dgm {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+}
+
+.dgm-wide {
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-weight: 500;
+}

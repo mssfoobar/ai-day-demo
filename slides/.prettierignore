@@ -1,0 +1,6 @@
+# Prettier rewrites Slidev per-slide frontmatter into setext headings and
+# inserts a blank line after each `---`, which breaks the slide separators.
+# The repo-root .prettierignore only applies when Prettier runs from the root;
+# this file covers editors that run it from this directory.
+slides.md
+pages/
