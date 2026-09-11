@@ -5,7 +5,7 @@ info: |
   ## AI Coder
 
   AI Day · InnoRAD.ai
-class: text-center
+class: flex flex-col justify-center text-center
 colorSchema: light
 fonts:
   sans: Jost
@@ -17,8 +17,59 @@ drawings:
 transition: fade
 mdc: true
 duration: 35min
-clicks: 1
+clicks: 2
 ---
+<div class="text-4xl font-extrabold leading-tight px-16">
+Everyone is already using AI to write code.
+</div>
+
+<div class="transition-all duration-700 mt-10" :class="$clicks >= 1 ? 'opacity-100' : 'opacity-0'">
+<div class="text-xl mb-5" style="color:#71717a">
+But writing code is the easy part. Every project is built inside rules
+that were decided long before it.
+</div>
+<div class="flex flex-wrap justify-center gap-3" style="max-width:52rem;margin:0 auto">
+<div class="rounded-lg border px-4 py-2 text-base" style="border-color:#d4d4d8;background:#fafafa;color:#52525b">Coding standards</div>
+<div class="rounded-lg border px-4 py-2 text-base" style="border-color:#d4d4d8;background:#fafafa;color:#52525b">Architecture decisions already made</div>
+<div class="rounded-lg border px-4 py-2 text-base" style="border-color:#d4d4d8;background:#fafafa;color:#52525b">Approved libraries</div>
+<div class="rounded-lg border px-4 py-2 text-base" style="border-color:#d4d4d8;background:#fafafa;color:#52525b">How errors are handled</div>
+<div class="rounded-lg border px-4 py-2 text-base" style="border-color:#d4d4d8;background:#fafafa;color:#52525b">Security and audit rules</div>
+<div class="rounded-lg border px-4 py-2 text-base" style="border-color:#d4d4d8;background:#fafafa;color:#52525b">What the platform already gives us</div>
+</div>
+</div>
+
+<div class="text-4xl font-extrabold leading-tight px-16 mt-10 transition-all duration-700" :class="$clicks >= 2 ? 'opacity-100' : 'opacity-0'">
+An AI knows <span class="accent">none of it</span>.
+</div>
+
+<!--
+THE PROBLEM
+
+Open on the thing everyone already knows. Developers are using AI. That
+argument is over and we are not here to have it. Let it sit.
+
+Click. This is the part people skip. Writing code was never the hard part.
+The hard part is writing it inside the rules: the standards we hold to,
+the architecture decisions already made, the libraries we are allowed to
+use, how errors have to be handled, what security and audit require, and
+what the platform already gives us so nobody rebuilds it.
+
+A developer learns those over months. They are not in the code, they are
+in people, in review comments, and in documents nobody reads twice.
+
+Click. An AI knows none of it. It has never seen our codebase and it will
+not say so. It fills the gap with something plausible.
+
+Do not blame the tool. It is doing exactly what it was asked. Nothing told
+it how we build. That is the gap the rest of this deck closes.
+-->
+
+
+---
+clicks: 1
+class: text-center
+---
+
 <div class="flex flex-col items-center justify-center h-full">
   <div class="text-8xl font-extrabold tracking-tight">AI Coder</div>
   <div class="rule-red mt-6"></div>
