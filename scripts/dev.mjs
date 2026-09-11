@@ -42,6 +42,16 @@ function composeRunner() {
 	return null;
 }
 
+/** pnpm invocation: the binary on PATH, falling back to corepack. */
+function pnpmCommand() {
+	for (const candidate of ['pnpm', 'corepack pnpm']) {
+		const probe = spawnSync(`${candidate} --version`, { stdio: 'ignore', shell: true });
+		if (probe.status === 0) return candidate;
+	}
+	log('web', 'no pnpm found — install it with `npm i -g pnpm`, then retry');
+	process.exit(1);
+}
+
 function startDatabase() {
 	const runner = composeRunner();
 	if (!runner) {
@@ -206,12 +216,10 @@ if (await waitForHttp('svc', `${SVC_URL}/readyz`)) {
 }
 
 log('web', 'vite dev');
-// `corepack pnpm`, not bare `pnpm`: corepack ships with Node and activates the version
-// pinned in package.json, so this works even when pnpm itself is not on PATH.
 run(
 	'web',
-	'corepack',
-	['pnpm', 'exec', 'env-cmd', '-f', '.env.development', 'vite', 'dev', '--port', '5173', '--strictPort'],
+	pnpmCommand(),
+	['exec', 'env-cmd', '-f', '.env.development', 'vite', 'dev', '--port', '5173', '--strictPort'],
 	join(ROOT, 'apps', 'dispatch-web')
 );
 

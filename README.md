@@ -6,7 +6,8 @@ by design, for the workshop.
 
 ## Prerequisites
 
-- **Node 24+** (pnpm comes with it via corepack — `corepack enable` once if `pnpm` is not found)
+- **Node 24+**
+- **pnpm 10** — `npm i -g pnpm`, or `corepack enable` on Node 24 (Node 25+ dropped corepack)
 - **Go 1.25+**
 - **Podman or Docker** — only PostgreSQL runs in a container
 - **A GitHub token with `read:packages`** in `~/.npmrc`, because the design system
