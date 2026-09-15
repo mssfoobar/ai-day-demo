@@ -9,7 +9,7 @@ by design, for the workshop.
 - **Node 24+**
 - **pnpm 10** — `npm i -g pnpm`, or `corepack enable` on Node 24 (Node 25+ dropped corepack)
 - **Go 1.25+**
-- **Podman or Docker** — only PostgreSQL runs in a container
+- **Podman** — only PostgreSQL runs in a container
 - **A GitHub token with `read:packages`** in `~/.npmrc`, because the design system
   `@mssfoobar/ui` is published to GitHub Packages:
 
@@ -23,45 +23,46 @@ by design, for the workshop.
 
 ## Run it in a container
 
-The devcontainer carries the whole toolchain, so the only thing you install is a
-container runtime. Node, pnpm, Go, Claude Code and an already warm Go build
-cache are all in the image, and none of them appear in the prerequisite list
-above.
+The devcontainer carries the whole toolchain, so the only thing you install is
+Podman. Node, pnpm, Go, Claude Code and an already warm Go build cache are all
+in the image, and none of them appear in the prerequisite list above.
 
 The GitHub token is still required. Those six packages cannot be baked into a
-public image without republishing them. Create `~/.npmrc` **before** you open
-the container: Docker creates a directory in its place when the file is missing,
-and the install then fails confusingly.
-
-In VS Code, open the folder and choose **Reopen in Container**. It installs the
-node dependencies for you, then:
+public image without republishing them. Create `~/.npmrc` **before** you start
+the container: a missing host file is mounted as an empty directory, and the
+install then fails confusingly.
 
 ```sh
+podman compose -f compose/compose.yml -f compose/compose.devcontainer.yml up -d
+podman compose exec workshop bash
 pnpm start
 ```
 
-It notices PostgreSQL is already up as a sibling container and skips the
-compose step, so there is no flag to remember.
-
-Without VS Code, the same flow by hand:
-
-```sh
-docker compose -f compose/compose.yml -f compose/compose.devcontainer.yml up -d
-docker compose exec workshop bash
-pnpm install && pnpm start
-```
+Then open <http://localhost:5173>. `pnpm start` installs dependencies, notices
+PostgreSQL is already up as a sibling container, and starts the service and the
+console. It is idempotent, so running it again is a sub-second no-op.
 
 The image is published public at `ghcr.io/mssfoobar/ai-day-workshop`, so the
-pull needs no credential. Compose builds it locally if the tag is unavailable,
-which takes a few minutes.
+pull needs no credential. Compose builds it locally when the tag is
+unavailable, which takes a few minutes.
+
+VS Code's Dev Containers extension does the same thing with **Reopen in
+Container**. It assumes Docker, so point it at Podman first:
+
+```json
+"dev.containers.dockerPath": "podman",
+"dev.containers.dockerComposePath": "podman-compose"
+```
 
 Use `pnpm` on the host or in the container, not both. `node_modules` lands on
 the bind mount, and the two platforms need different native binaries.
 
+The deck under `slides/` is its own pnpm workspace, so the install above does
+not reach it. `pnpm slides` installs it on demand.
+
 ## Run it natively
 
 ```sh
-pnpm install
 pnpm start
 ```
 
@@ -72,7 +73,7 @@ running (`pnpm stop` removes it, `pnpm reset-db` also wipes its data).
 order, and nothing else — run them yourself if you prefer to see the parts:
 
 ```sh
-podman compose -f compose/compose.yml up -d postgres     # or: docker compose ...
+podman compose -f compose/compose.yml up -d postgres
 (cd apps/dispatch-svc && go run ./cmd/server)            # http://localhost:8081
 (cd apps/dispatch-web && pnpm dev)                       # http://localhost:5173
 ```
@@ -83,7 +84,7 @@ service starts.
 
 | Command | Does |
 |---|---|
-| `pnpm start` | db → service → console, with a port preflight and a health wait |
+| `pnpm start` | install → db → service → console, with a port preflight |
 | `pnpm start --no-db` | same, assuming Postgres is already up |
 | `pnpm stop` / `pnpm reset-db` | stop the database / stop it **and delete its data** |
 | `pnpm verify` | lint, type-check and build across both apps |
