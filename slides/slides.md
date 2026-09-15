@@ -773,63 +773,54 @@ class: flex flex-col justify-center items-center
 
 # Setting up
 
-<div class="mt-6 text-left" style="width:44rem">
-<div class="flex items-baseline py-1.5">
-<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">01</div>
-<div class="text-lg" style="width:13rem;color:#18181b">Install Podman</div>
-<div class="text-sm" style="color:#a1a1aa">the only thing you install</div>
-</div>
-<div class="flex items-baseline py-1.5">
-<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">02</div>
-<div class="text-lg" style="width:13rem;color:#18181b">Create <span class="font-mono text-base">~/.npmrc</span></div>
-<div class="font-mono text-sm" style="color:#a1a1aa">//npm.pkg.github.com/:_authToken=&hellip;</div>
-</div>
-</div>
-
 <div class="mt-8 text-left" style="width:50rem">
-<div class="text-sm mb-2" style="color:#71717a">Then, in the unzipped folder:</div>
-<div class="font-mono text-sm" style="color:#18181b">podman compose -f compose/compose.yml -f compose/compose.devcontainer.yml up -d</div>
-<div class="font-mono text-sm" style="color:#18181b">podman compose exec workshop bash</div>
-<div class="font-mono text-sm mt-2" style="color:#18181b">pnpm start</div>
+<div class="flex items-baseline py-2.5">
+<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">1</div>
+<div class="text-lg" style="color:#18181b">Install Podman</div>
 </div>
-
-<div class="mt-8 text-lg" style="color:#71717a">
-Open <span class="font-mono" style="color:#18181b">http://localhost:5173</span>
+<div class="flex items-baseline py-2.5">
+<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">2</div>
+<div class="text-lg" style="color:#18181b">Put your GitHub token in ~/.npmrc</div>
+</div>
+<div class="flex items-baseline py-2.5">
+<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">3</div>
+<div class="font-mono text-sm" style="color:#18181b">podman compose -f compose/compose.yml -f compose/compose.devcontainer.yml up -d</div>
+</div>
+<div class="flex items-baseline py-2.5">
+<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">4</div>
+<div class="font-mono text-sm" style="color:#18181b">podman compose exec workshop bash</div>
+</div>
+<div class="flex items-baseline py-2.5">
+<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">5</div>
+<div class="font-mono text-sm" style="color:#18181b">pnpm start</div>
+</div>
+<div class="flex items-baseline py-2.5">
+<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">6</div>
+<div class="text-lg" style="color:#18181b">Open http://localhost:5173</div>
+</div>
 </div>
 
 <!--
 SETTING UP
 
-Walk this slowly. It is the only slide where being behind actually costs
-someone the session.
+The only slide where falling behind costs someone the session, so walk it.
 
-Podman is the only install. Node, pnpm, Go and Claude Code all ship inside the
-image, along with the Go caches, already warm.
+Podman is the only install. Node, pnpm, Go, Claude Code and the Go caches are
+in the image.
 
-Step two before anything else, and this is the trap: ~/.npmrc has to exist as a
-FILE before the container starts. A missing host file gets mounted as an empty
-directory and the install then fails in a confusing way. The container checks
-for that and tells you how to fix it.
+Step two before step three. ~/.npmrc has to exist as a file first, because a
+missing host file gets mounted as an empty directory and the install then fails
+confusingly. The container checks for that and says so.
 
-Why a token at all: six of the console's dependencies, including our design
-system, are published to GitHub Packages, and that registry has no anonymous
-read. We cannot bake them into a public image without republishing them, so
-this stays yours to supply. It is the only credential the repository needs.
+Why a token: six dependencies, including our design system, come from GitHub
+Packages, which has no anonymous read. We cannot bake them into a public image
+without republishing them.
 
-The first command is the long one. It pulls about 1.1 GB, once. Ask people to
-do it before they arrive if the wifi is shared. The second gets them a shell
-inside the workshop container, and everything after that runs in there.
+Step three pulls about 1.1 GB, once. Worth doing before they arrive if the wifi
+is shared.
 
-pnpm start does the rest. It installs the node dependencies, about twenty-five
-seconds the first time and under a second after that, then notices Postgres is
-already up as a sibling container and goes straight to the service and the
-console. The first `go run` takes about a second rather than pulling three
-hundred modules. Running it again is safe, so a stuck attendee can just retype
-it.
-
-If someone prefers VS Code, Reopen in Container does the same thing, but the
-Dev Containers extension assumes Docker and has to be pointed at Podman first.
-The two settings are in the README.
+pnpm start installs, then runs. Twenty-five seconds the first time, under a
+second after. Safe to retype if anything goes wrong.
 -->
 
 ---
