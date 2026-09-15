@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * One-shot dev runner: database, backend, frontend.
+ * One-shot dev runner: dependencies, database, backend, frontend.
  *
  *   pnpm start          # everything
  *   pnpm start --no-db  # assume Postgres is already up
@@ -36,13 +36,10 @@ function log(tag, message) {
 	process.stdout.write(`${COLOURS[tag] ?? ''}[${tag}]${RESET} ${message}\n`);
 }
 
-/** Compose runtime: podman first, docker as fallback — the AOH dual form. */
+/** Compose runtime, or null when podman is not on PATH. */
 function composeRunner() {
-	for (const bin of ['podman', 'docker']) {
-		const probe = spawnSync(bin, ['compose', 'version'], { stdio: 'ignore', shell: true });
-		if (probe.status === 0) return bin;
-	}
-	return null;
+	const probe = spawnSync('podman', ['compose', 'version'], { stdio: 'ignore', shell: true });
+	return probe.status === 0 ? 'podman' : null;
 }
 
 /** pnpm invocation: the binary on PATH, falling back to corepack. */
@@ -53,6 +50,20 @@ function pnpmCommand() {
 	}
 	log('web', 'no pnpm found — install it with `npm i -g pnpm`, then retry');
 	process.exit(1);
+}
+
+/** Installs workspace dependencies. A sub-second no-op once they are present. */
+function installDependencies(pnpm) {
+	log('run', 'pnpm install');
+	const result = spawnSync(`${pnpm} install --frozen-lockfile`, {
+		cwd: ROOT,
+		stdio: 'inherit',
+		shell: true
+	});
+	if (result.status !== 0) {
+		log('run', 'install failed. A 401 means ~/.npmrc has no read:packages token');
+		process.exit(result.status ?? 1);
+	}
 }
 
 /** Resolves true when something accepts a TCP connection on the database port. */
@@ -73,13 +84,12 @@ function databaseReachable() {
 async function startDatabase() {
 	const runner = composeRunner();
 	if (!runner) {
-		// Inside the devcontainer there is no runtime on PATH and Postgres is already a
-		// sibling container, so a reachable database means there is nothing to start.
+		// No podman on PATH: fall through when the database is already reachable.
 		if (await databaseReachable()) {
 			log('db', `already up at ${SQL_HOST}:${SQL_PORT}`);
 			return null;
 		}
-		log('db', 'no podman or docker found, and nothing is listening on the database port');
+		log('db', 'no podman found, and nothing is listening on the database port');
 		log('db', 'start Postgres yourself, then retry');
 		process.exit(1);
 	}
@@ -91,7 +101,7 @@ async function startDatabase() {
 		shell: true
 	});
 	if (up.status !== 0) {
-		log('db', 'compose failed — is the container runtime running?');
+		log('db', 'compose failed. Is the podman machine running?');
 		process.exit(up.status ?? 1);
 	}
 	return runner;
@@ -230,6 +240,9 @@ process.on('SIGTERM', () => shutdown(0));
 await requireFreePort('svc', 8081);
 await requireFreePort('web', 5173);
 
+const pnpm = pnpmCommand();
+installDependencies(pnpm);
+
 const runner = skipDb ? null : await startDatabase();
 if (runner) await waitForDatabase(runner);
 
@@ -243,7 +256,7 @@ if (await waitForHttp('svc', `${SVC_URL}/readyz`)) {
 log('web', 'vite dev');
 run(
 	'web',
-	pnpmCommand(),
+	pnpm,
 	// --host binds all interfaces rather than loopback.
 	[
 		'exec',
