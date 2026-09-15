@@ -773,43 +773,28 @@ class: flex flex-col justify-center items-center
 
 # Setting up
 
-<div class="mt-4 text-left" style="width:48rem">
+<div class="mt-6 text-left" style="width:44rem">
 <div class="flex items-baseline py-1.5">
 <div class="font-mono text-base" style="width:2.5rem;color:#dc2626">01</div>
-<div class="text-lg" style="width:19rem;color:#18181b">Install Docker Desktop or Podman</div>
+<div class="text-lg" style="width:13rem;color:#18181b">Install Podman</div>
 <div class="text-sm" style="color:#a1a1aa">the only thing you install</div>
 </div>
 <div class="flex items-baseline py-1.5">
 <div class="font-mono text-base" style="width:2.5rem;color:#dc2626">02</div>
-<div class="text-lg" style="width:19rem;color:#18181b">Create <span class="font-mono text-base">~/.npmrc</span></div>
+<div class="text-lg" style="width:13rem;color:#18181b">Create <span class="font-mono text-base">~/.npmrc</span></div>
 <div class="font-mono text-sm" style="color:#a1a1aa">//npm.pkg.github.com/:_authToken=&hellip;</div>
-</div>
-<div class="flex items-baseline py-1.5">
-<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">03</div>
-<div class="text-lg" style="width:19rem;color:#18181b">Unzip, open the folder in VS Code</div>
-<div class="text-sm" style="color:#a1a1aa">~/.npmrc must already exist</div>
-</div>
-<div class="flex items-baseline py-1.5">
-<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">04</div>
-<div class="text-lg" style="width:19rem;color:#18181b">Reopen in Container</div>
-<div class="text-sm" style="color:#a1a1aa">pulls 1.1 GB once, then installs</div>
-</div>
-<div class="flex items-baseline py-1.5">
-<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">05</div>
-<div class="text-lg" style="width:19rem;color:#18181b">Start the stack</div>
-<div class="font-mono text-sm" style="color:#a1a1aa">pnpm start</div>
-</div>
-<div class="flex items-baseline py-1.5">
-<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">06</div>
-<div class="text-lg" style="width:19rem;color:#18181b">Open the console</div>
-<div class="font-mono text-sm" style="color:#a1a1aa">http://localhost:5173</div>
 </div>
 </div>
 
-<div class="mt-8 text-left" style="width:48rem">
-<div class="text-sm" style="color:#71717a">Without VS Code, the same thing by hand:</div>
-<div class="font-mono text-sm mt-1" style="color:#a1a1aa">docker compose -f compose/compose.yml -f compose/compose.devcontainer.yml up -d</div>
-<div class="font-mono text-sm" style="color:#a1a1aa">docker compose exec workshop bash</div>
+<div class="mt-8 text-left" style="width:50rem">
+<div class="text-sm mb-2" style="color:#71717a">Then, in the unzipped folder:</div>
+<div class="font-mono text-sm" style="color:#18181b">podman compose -f compose/compose.yml -f compose/compose.devcontainer.yml up -d</div>
+<div class="font-mono text-sm" style="color:#18181b">podman compose exec workshop bash</div>
+<div class="font-mono text-sm mt-2" style="color:#18181b">pnpm start</div>
+</div>
+
+<div class="mt-8 text-lg" style="color:#71717a">
+Open <span class="font-mono" style="color:#18181b">http://localhost:5173</span>
 </div>
 
 <!--
@@ -818,36 +803,33 @@ SETTING UP
 Walk this slowly. It is the only slide where being behind actually costs
 someone the session.
 
-Step one is the only install. Node, pnpm, Go and Claude Code all ship
-inside the image, along with the Go caches, already warm.
+Podman is the only install. Node, pnpm, Go and Claude Code all ship inside the
+image, along with the Go caches, already warm.
 
-Step two before step three, and this is the trap: ~/.npmrc has to exist as
-a FILE before you open the container. Docker silently creates a directory
-in its place when the file is missing, and the install then fails in a
-confusing way. The container checks for that and tells you how to fix it.
+Step two before anything else, and this is the trap: ~/.npmrc has to exist as a
+FILE before the container starts. A missing host file gets mounted as an empty
+directory and the install then fails in a confusing way. The container checks
+for that and tells you how to fix it.
 
 Why a token at all: six of the console's dependencies, including our design
-system, are published to GitHub Packages, and that registry has no
-anonymous read. We cannot bake them into a public image without
-republishing them, so this stays yours to supply. It is the only credential
-the repository needs.
+system, are published to GitHub Packages, and that registry has no anonymous
+read. We cannot bake them into a public image without republishing them, so
+this stays yours to supply. It is the only credential the repository needs.
 
-Step four is the long one. The image is about 1.1 GB and the pull happens
-once. Ask people to do this before they arrive if the wifi is shared. When
-it lands, it installs the node dependencies for you, about thirty seconds.
+The first command is the long one. It pulls about 1.1 GB, once. Ask people to
+do it before they arrive if the wifi is shared. The second gets them a shell
+inside the workshop container, and everything after that runs in there.
 
-Step five is just `pnpm start`. It notices Postgres is already up as a
-sibling container and skips straight to the service and the console. No
-flag to remember, and the same command works on a laptop without the
-container. The first `go run` takes about a second rather than pulling
-three hundred modules.
+pnpm start does the rest. It installs the node dependencies, about twenty-five
+seconds the first time and under a second after that, then notices Postgres is
+already up as a sibling container and goes straight to the service and the
+console. The first `go run` takes about a second rather than pulling three
+hundred modules. Running it again is safe, so a stuck attendee can just retype
+it.
 
-The two commands at the bottom are the same flow without VS Code. Bring the
-pair of containers up, get a shell in the workshop one, and everything
-after that is identical.
-
-If Docker Desktop is blocked on someone's machine, Podman is the fallback
-and the compose commands are the same.
+If someone prefers VS Code, Reopen in Container does the same thing, but the
+Dev Containers extension assumes Docker and has to be pointed at Podman first.
+The two settings are in the README.
 -->
 
 ---
