@@ -32,7 +32,7 @@ if [ ! -f "${NPMRC}" ] || ! grep -q "${REGISTRY_LINE}" "${NPMRC}"; then
 fi
 
 echo "Installing node dependencies..."
-if ! pnpm install --frozen-lockfile; then
+if ! pnpm install; then
 	echo
 	echo "pnpm install failed. If it stopped on a 401, the token in ~/.npmrc is missing"
 	echo "read:packages or has expired."

@@ -55,7 +55,9 @@ function pnpmCommand() {
 /** Installs workspace dependencies. A sub-second no-op once they are present. */
 function installDependencies(pnpm) {
 	log('run', 'pnpm install');
-	const result = spawnSync(`${pnpm} install --frozen-lockfile`, {
+	// Not --frozen-lockfile: a pnpm newer than the one that wrote the lockfile rejects
+	// its settings block outright, and an attendee's pnpm version is not ours to pick.
+	const result = spawnSync(`${pnpm} install`, {
 		cwd: ROOT,
 		stdio: 'inherit',
 		shell: true

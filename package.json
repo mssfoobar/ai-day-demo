@@ -12,7 +12,7 @@
     "start:no-db": "node scripts/dev.mjs --no-db",
     "stop": "podman compose -f compose/compose.yml down",
     "reset-db": "podman compose -f compose/compose.yml down -v",
-    "slides": "pnpm -C slides install --frozen-lockfile && pnpm -C slides dev"
+    "slides": "pnpm -C slides install && pnpm -C slides dev"
   },
   "packageManager": "pnpm@10.16.1",
   "engines": {
