@@ -1,0 +1,41 @@
+{
+	"name": "fleet-dispatch-console workshop",
+	"dockerComposeFile": ["../compose/compose.yml", "../compose/compose.devcontainer.yml"],
+	"service": "workshop",
+	"workspaceFolder": "/workspace",
+	"remoteUser": "node",
+	"overrideCommand": false,
+	"shutdownAction": "stopCompose",
+
+	"forwardPorts": [5173, 8081],
+	"portsAttributes": {
+		"5173": { "label": "console", "onAutoForward": "openBrowserOnce" },
+		"8081": { "label": "dispatch-svc", "onAutoForward": "silent" }
+	},
+
+	// Both paths are empty on the platform that does not define them, so one expands and
+	// the other contributes nothing. Create ~/.npmrc on the host BEFORE first open:
+	// Docker silently creates a directory in its place when the file is missing.
+	"mounts": [
+		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.npmrc,target=/home/node/.npmrc,type=bind",
+		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.claude,target=/home/node/.claude,type=bind"
+	],
+
+	"postCreateCommand": "bash .devcontainer/post-create.sh",
+
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"svelte.svelte-vscode",
+				"golang.go",
+				"esbenp.prettier-vscode",
+				"dbaeumer.vscode-eslint",
+				"anthropic.claude-code"
+			],
+			"settings": {
+				"go.gopath": "/home/node/go",
+				"go.toolsManagement.autoUpdate": false
+			}
+		}
+	}
+}

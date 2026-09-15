@@ -21,7 +21,44 @@ by design, for the workshop.
   the repo needs — the Go shared library `aoh-golib` is checked in under
   `packages/aoh-golib`, so no access to the private `ops-hub` repo is required.
 
-## Run it
+## Run it in a container
+
+The devcontainer carries the whole toolchain, so the only thing you install is a
+container runtime. Node, pnpm, Go, Claude Code and an already warm Go build
+cache are all in the image, and none of them appear in the prerequisite list
+above.
+
+The GitHub token is still required. Those six packages cannot be baked into a
+public image without republishing them. Create `~/.npmrc` **before** you open
+the container: Docker creates a directory in its place when the file is missing,
+and the install then fails confusingly.
+
+In VS Code, open the folder and choose **Reopen in Container**. It installs the
+node dependencies for you, then:
+
+```sh
+pnpm start
+```
+
+It notices PostgreSQL is already up as a sibling container and skips the
+compose step, so there is no flag to remember.
+
+Without VS Code, the same flow by hand:
+
+```sh
+docker compose -f compose/compose.yml -f compose/compose.devcontainer.yml up -d
+docker compose exec workshop bash
+pnpm install && pnpm start
+```
+
+The image is published public at `ghcr.io/mssfoobar/ai-day-workshop`, so the
+pull needs no credential. Compose builds it locally if the tag is unavailable,
+which takes a few minutes.
+
+Use `pnpm` on the host or in the container, not both. `node_modules` lands on
+the bind mount, and the two platforms need different native binaries.
+
+## Run it natively
 
 ```sh
 pnpm install
@@ -65,7 +102,8 @@ acceptance criteria and pointers to the code to copy are in **[WORKSHOP.md](WORK
 apps/dispatch-web      SvelteKit console            → apps/dispatch-web/README.md
 apps/dispatch-svc      Go field-unit service        → apps/dispatch-svc/README.md
 packages/aoh-golib     local copy of the AOH Go library (see LOCAL_COPY.md there)
-compose/               the one Postgres container
+compose/               Postgres, plus the devcontainer overlay
+.devcontainer/         the preloaded toolchain image
 scripts/dev.mjs        `pnpm start`
 WORKSHOP.md            the three stubbed features, as user stories
 openspec/              planning artifacts for each change

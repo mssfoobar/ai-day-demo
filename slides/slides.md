@@ -766,3 +766,171 @@ Set up sits outside the loop. One command, once.
 The honest claim: we are not making the AI faster. We are removing the
 part you throw away.
 -->
+
+---
+class: flex flex-col justify-center items-center
+---
+
+# Setting up
+
+<div class="mt-4 text-left" style="width:48rem">
+<div class="flex items-baseline py-1.5">
+<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">01</div>
+<div class="text-lg" style="width:19rem;color:#18181b">Install Docker Desktop or Podman</div>
+<div class="text-sm" style="color:#a1a1aa">the only thing you install</div>
+</div>
+<div class="flex items-baseline py-1.5">
+<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">02</div>
+<div class="text-lg" style="width:19rem;color:#18181b">Create <span class="font-mono text-base">~/.npmrc</span></div>
+<div class="font-mono text-sm" style="color:#a1a1aa">//npm.pkg.github.com/:_authToken=&hellip;</div>
+</div>
+<div class="flex items-baseline py-1.5">
+<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">03</div>
+<div class="text-lg" style="width:19rem;color:#18181b">Unzip, open the folder in VS Code</div>
+<div class="text-sm" style="color:#a1a1aa">~/.npmrc must already exist</div>
+</div>
+<div class="flex items-baseline py-1.5">
+<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">04</div>
+<div class="text-lg" style="width:19rem;color:#18181b">Reopen in Container</div>
+<div class="text-sm" style="color:#a1a1aa">pulls 1.1 GB once, then installs</div>
+</div>
+<div class="flex items-baseline py-1.5">
+<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">05</div>
+<div class="text-lg" style="width:19rem;color:#18181b">Start the stack</div>
+<div class="font-mono text-sm" style="color:#a1a1aa">pnpm start</div>
+</div>
+<div class="flex items-baseline py-1.5">
+<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">06</div>
+<div class="text-lg" style="width:19rem;color:#18181b">Open the console</div>
+<div class="font-mono text-sm" style="color:#a1a1aa">http://localhost:5173</div>
+</div>
+</div>
+
+<div class="mt-8 text-left" style="width:48rem">
+<div class="text-sm" style="color:#71717a">Without VS Code, the same thing by hand:</div>
+<div class="font-mono text-sm mt-1" style="color:#a1a1aa">docker compose -f compose/compose.yml -f compose/compose.devcontainer.yml up -d</div>
+<div class="font-mono text-sm" style="color:#a1a1aa">docker compose exec workshop bash</div>
+</div>
+
+<!--
+SETTING UP
+
+Walk this slowly. It is the only slide where being behind actually costs
+someone the session.
+
+Step one is the only install. Node, pnpm, Go and Claude Code all ship
+inside the image, along with the Go caches, already warm.
+
+Step two before step three, and this is the trap: ~/.npmrc has to exist as
+a FILE before you open the container. Docker silently creates a directory
+in its place when the file is missing, and the install then fails in a
+confusing way. The container checks for that and tells you how to fix it.
+
+Why a token at all: six of the console's dependencies, including our design
+system, are published to GitHub Packages, and that registry has no
+anonymous read. We cannot bake them into a public image without
+republishing them, so this stays yours to supply. It is the only credential
+the repository needs.
+
+Step four is the long one. The image is about 1.1 GB and the pull happens
+once. Ask people to do this before they arrive if the wifi is shared. When
+it lands, it installs the node dependencies for you, about thirty seconds.
+
+Step five is just `pnpm start`. It notices Postgres is already up as a
+sibling container and skips straight to the service and the console. No
+flag to remember, and the same command works on a laptop without the
+container. The first `go run` takes about a second rather than pulling
+three hundred modules.
+
+The two commands at the bottom are the same flow without VS Code. Bring the
+pair of containers up, get a shell in the workshop one, and everything
+after that is identical.
+
+If Docker Desktop is blocked on someone's machine, Podman is the fallback
+and the compose commands are the same.
+-->
+
+---
+class: flex flex-col justify-center items-center
+---
+
+# Three features, not built
+
+<div class="mt-8 text-left" style="width:42rem">
+<div class="flex items-baseline py-2.5">
+<div class="font-mono text-xl" style="width:2.5rem;color:#dc2626">1</div>
+<div class="text-xl" style="color:#18181b">Dispatch a unit to an incident, and stand it down</div>
+</div>
+<div class="flex items-baseline py-2.5">
+<div class="font-mono text-xl" style="width:2.5rem;color:#dc2626">2</div>
+<div class="text-xl" style="color:#18181b">Show what a unit has been doing this shift</div>
+</div>
+<div class="flex items-baseline py-2.5">
+<div class="font-mono text-xl" style="width:2.5rem;color:#dc2626">3</div>
+<div class="text-xl" style="color:#18181b">Add and remove the crew on a unit</div>
+</div>
+</div>
+
+<div class="text-base text-center mt-10" style="color:#71717a;max-width:52rem">
+<div>Each one is sketched into the console where it belongs.</div>
+<div class="mt-1">The service answers 501 until you build it.</div>
+</div>
+
+<!--
+THREE FEATURES, NOT BUILT
+
+Everything else in the repository works. A dispatcher can see the roster,
+open a unit, and add, edit or delete one. These three are missing on
+purpose.
+
+They are not toy problems. Each one crosses the whole stack: a form in the
+console, a form action, a client call, then handler, service and
+repository in Go, and in one case a migration.
+
+You do not have to hunt for where they go. The console draws each missing
+control in dashed outline in the exact place it belongs, and the service
+answers 501 on their routes, with our error contract, so the gap is
+visible from the API too.
+
+The full brief, with acceptance criteria and pointers to the code to copy,
+is in WORKSHOP.md. The user story for each one is written for you.
+-->
+
+---
+class: flex flex-col justify-center items-center
+---
+
+<div class="text-4xl font-extrabold leading-tight text-center px-16">
+Pick one. Build it end to end.
+</div>
+
+<div class="text-xl text-center mt-10" style="color:#71717a;max-width:52rem">
+Describe it in a sentence, agree the plan before any code,<br/>
+let it build, then walk the acceptance criteria.
+</div>
+
+<div class="text-xl text-center mt-5" style="color:#71717a;max-width:52rem">
+Done is the placeholder gone, <code>pnpm verify</code> green,<br/>
+and the data still there after a restart.
+</div>
+
+<!--
+THE OBJECTIVE
+
+One exercise, not three. One feature finished end to end is worth more
+than three left half built.
+
+The loop is the one from earlier in the deck, and the two steps that need
+you are the same two: agreeing the plan while no code exists yet, and
+checking the result against the criteria once it does. In between, it
+works and nobody has to watch.
+
+Done is specific and it is written down. The placeholder is gone from the
+console and from the service, pnpm verify is green, and the last criterion
+on every exercise is a restart, so prove the data survived rather than
+assuming it.
+
+Notice what is not on that list. Nobody has to look up our coding
+standards, our error contract or our concurrency rule. They came with the
+project.
+-->

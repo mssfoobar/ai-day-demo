@@ -1,0 +1,30 @@
+# Devcontainer overlay: the workshop container beside the database.
+#
+# Layered on compose.yml, never used alone:
+#   docker compose -f compose/compose.yml -f compose/compose.devcontainer.yml up -d
+#
+# `.devcontainer/devcontainer.json` lists both files in that order. The plain
+# `pnpm start` flow in the README does not read this file at all.
+
+services:
+  workshop:
+    # Prebuilt and published public, so a participant pulls rather than builds. `build`
+    # is the fallback when the tag is unavailable; it needs network, not a token.
+    image: ghcr.io/mssfoobar/ai-day-workshop:0.1.0
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    container_name: dispatch-workshop
+    # Keeps the container alive for the devcontainer to attach to.
+    command: sleep infinity
+    environment:
+      # Postgres is a sibling container here, not localhost as it is for a native run.
+      SQL_HOST: postgres
+    volumes:
+      - ..:/workspace:cached
+    ports:
+      - "${WEB_PORT:-5173}:5173"
+      - "${SVC_PORT:-8081}:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy

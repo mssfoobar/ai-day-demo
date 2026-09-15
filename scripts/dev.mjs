@@ -13,7 +13,7 @@
  * AOH convention, and it keeps rebuilds instant. Only Postgres is a container.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { createServer } from 'node:net';
+import { createServer, connect } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -21,6 +21,9 @@ import { setTimeout as sleep } from 'node:timers/promises';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const WEB_URL = 'http://localhost:5173';
 const SVC_URL = 'http://localhost:8081';
+// Same defaults as the service's own config, and the same env vars override them.
+const SQL_HOST = process.env.SQL_HOST ?? 'localhost';
+const SQL_PORT = Number(process.env.SQL_PORT ?? 5432);
 
 const skipDb = process.argv.includes('--no-db');
 const children = [];
@@ -52,10 +55,32 @@ function pnpmCommand() {
 	process.exit(1);
 }
 
-function startDatabase() {
+/** Resolves true when something accepts a TCP connection on the database port. */
+function databaseReachable() {
+	return new Promise((resolve) => {
+		const socket = connect({ host: SQL_HOST, port: SQL_PORT });
+		const settle = (reachable) => {
+			socket.destroy();
+			resolve(reachable);
+		};
+		socket.setTimeout(1500);
+		socket.once('connect', () => settle(true));
+		socket.once('timeout', () => settle(false));
+		socket.once('error', () => settle(false));
+	});
+}
+
+async function startDatabase() {
 	const runner = composeRunner();
 	if (!runner) {
-		log('db', 'no podman or docker found — start Postgres yourself, or pass --no-db');
+		// Inside the devcontainer there is no runtime on PATH and Postgres is already a
+		// sibling container, so a reachable database means there is nothing to start.
+		if (await databaseReachable()) {
+			log('db', `already up at ${SQL_HOST}:${SQL_PORT}`);
+			return null;
+		}
+		log('db', 'no podman or docker found, and nothing is listening on the database port');
+		log('db', 'start Postgres yourself, then retry');
 		process.exit(1);
 	}
 
@@ -205,7 +230,7 @@ process.on('SIGTERM', () => shutdown(0));
 await requireFreePort('svc', 8081);
 await requireFreePort('web', 5173);
 
-const runner = skipDb ? null : startDatabase();
+const runner = skipDb ? null : await startDatabase();
 if (runner) await waitForDatabase(runner);
 
 log('svc', 'go run ./cmd/server');
@@ -219,7 +244,19 @@ log('web', 'vite dev');
 run(
 	'web',
 	pnpmCommand(),
-	['exec', 'env-cmd', '-f', '.env.development', 'vite', 'dev', '--port', '5173', '--strictPort'],
+	// --host binds all interfaces rather than loopback.
+	[
+		'exec',
+		'env-cmd',
+		'-f',
+		'.env.development',
+		'vite',
+		'dev',
+		'--host',
+		'--port',
+		'5173',
+		'--strictPort'
+	],
 	join(ROOT, 'apps', 'dispatch-web')
 );
 
