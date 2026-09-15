@@ -1,12 +1,7 @@
-# Workshop image: the toolchain and the Go caches, preloaded.
+# Workshop image: Node, pnpm, Go, Claude Code and both Go caches, preloaded.
 #
-# Carries Node, pnpm, Go, Claude Code, the Go module cache and the Go build cache, so a
-# participant installs only a container runtime.
-#
-# Node dependencies are deliberately NOT baked in. Six of them live under the private
-# @mssfoobar scope on GitHub Packages, and this image is published publicly; shipping
-# them here would republish a private package. `pnpm install` runs in the container
-# instead, against the participant's own ~/.npmrc token.
+# Node dependencies stay out. Six of them are under the private @mssfoobar scope and
+# this image is public, so `pnpm install` runs in the container against ~/.npmrc.
 
 FROM node:24-bookworm-slim
 
@@ -33,11 +28,11 @@ RUN set -eux; \
     rm /tmp/go.tgz; \
     rm -rf /usr/local/go/test /usr/local/go/api
 
-# /etc/profile resets PATH, so the ENV below does not survive a login shell.
+# Login shells rebuild PATH from /etc/profile, dropping the ENV set below.
 RUN printf 'export PATH=/usr/local/go/bin:/home/node/go/bin:$PATH\n' \
     > /etc/profile.d/go-path.sh
 
-# Shared, world-readable corepack cache: prepared here as root, used later as `node`.
+# World-readable corepack cache: prepared as root, read later as `node`.
 ENV COREPACK_HOME=/usr/local/share/corepack
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable \
@@ -56,17 +51,15 @@ ENV GOTOOLCHAIN=local
 USER node
 WORKDIR /workspace
 
-# Warm both Go caches at the same path the bind mount will use, so the compiled
-# dependency tree is a cache hit on the first `go run` in the workshop.
-#
-# `go build` fetches only the modules the packages actually import. `go mod download`
-# fetches the whole module graph instead, which is roughly four times the size.
+# Warms both Go caches at the path the bind mount will use, so the dependency tree is a
+# cache hit on the first `go run`. `go mod download` would instead fetch the whole
+# module graph, roughly four times the size.
 COPY --chown=node:node go.work go.work.sum ./
 COPY --chown=node:node packages/aoh-golib ./packages/aoh-golib
 COPY --chown=node:node apps/dispatch-svc ./apps/dispatch-svc
 RUN cd apps/dispatch-svc && go build ./...
 
-# The bind mount supplies the real source at runtime; these copies only filled the caches.
+# The bind mount supplies the real source at runtime.
 RUN rm -rf /workspace/apps /workspace/packages /workspace/go.work /workspace/go.work.sum
 
 CMD ["sleep", "infinity"]

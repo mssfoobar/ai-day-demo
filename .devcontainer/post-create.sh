@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
-# Runs once when the devcontainer is created: trusts the workspace, checks the
-# GitHub Packages token, and installs node dependencies when it is present.
-#
-# Always exits 0. A missing token is a thing to explain, not a reason to fail the
-# container create and leave the participant with no shell.
+# Trusts the workspace, checks the GitHub Packages token, and installs node
+# dependencies when it is present. Always exits 0: a missing token is explained
+# rather than failing the container create.
 set -uo pipefail
 
 REGISTRY_LINE='//npm.pkg.github.com/:_authToken='
@@ -14,8 +12,8 @@ git config --global --add safe.directory /workspace
 echo
 if [ -d "${NPMRC}" ]; then
 	echo "~/.npmrc is a DIRECTORY, not a file."
-	echo "Docker creates one when the host file is missing. Remove the container, create"
-	echo "~/.npmrc on your host with the line below, then reopen:"
+	echo "A missing host file is mounted as an empty directory. Remove this container,"
+	echo "create ~/.npmrc on your host with the line below, then start again:"
 	echo
 	echo "    ${REGISTRY_LINE}<your-token>"
 	echo
@@ -25,7 +23,7 @@ fi
 if [ ! -f "${NPMRC}" ] || ! grep -q "${REGISTRY_LINE}" "${NPMRC}"; then
 	echo "No GitHub Packages token found in ~/.npmrc."
 	echo "Six dependencies come from npm.pkg.github.com, which refuses anonymous reads,"
-	echo "so pnpm install cannot run yet. Add this line on your host and reopen:"
+	echo "so pnpm install cannot run yet. Add this line on your host and start again:"
 	echo
 	echo "    ${REGISTRY_LINE}<a token with read:packages>"
 	echo

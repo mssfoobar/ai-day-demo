@@ -1,4 +1,7 @@
 {
+	// Podman is the runtime for this repo. Set these in VS Code user settings first:
+	//   "dev.containers.dockerPath": "podman"
+	//   "dev.containers.dockerComposePath": "podman-compose"
 	"name": "fleet-dispatch-console workshop",
 	"dockerComposeFile": ["../compose/compose.yml", "../compose/compose.devcontainer.yml"],
 	"service": "workshop",
@@ -13,9 +16,9 @@
 		"8081": { "label": "dispatch-svc", "onAutoForward": "silent" }
 	},
 
-	// Both paths are empty on the platform that does not define them, so one expands and
-	// the other contributes nothing. Create ~/.npmrc on the host BEFORE first open:
-	// Docker silently creates a directory in its place when the file is missing.
+	// One of the two variables is empty on any given platform, so the pair expands to a
+	// single home directory. Create ~/.npmrc before first open: a missing file is
+	// mounted as an empty directory.
 	"mounts": [
 		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.npmrc,target=/home/node/.npmrc,type=bind",
 		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.claude,target=/home/node/.claude,type=bind"
