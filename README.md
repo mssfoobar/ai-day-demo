@@ -86,6 +86,7 @@ service starts.
 |---|---|
 | `pnpm start` | install → db → service → console, with a port preflight |
 | `pnpm start --no-db` | same, assuming Postgres is already up |
+| `POSTGRES_PORT=5441 pnpm start` | same, when something else already holds 5432 |
 | `pnpm stop` / `pnpm reset-db` | stop the database / stop it **and delete its data** |
 | `pnpm verify` | lint, type-check and build across both apps |
 

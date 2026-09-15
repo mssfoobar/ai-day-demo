@@ -23,7 +23,9 @@ const WEB_URL = 'http://localhost:5173';
 const SVC_URL = 'http://localhost:8081';
 // Same defaults as the service's own config, and the same env vars override them.
 const SQL_HOST = process.env.SQL_HOST ?? 'localhost';
-const SQL_PORT = Number(process.env.SQL_PORT ?? 5432);
+const SQL_PORT = Number(process.env.SQL_PORT ?? process.env.POSTGRES_PORT ?? 5432);
+// POSTGRES_PORT alone moves only the published port; the service reads SQL_PORT.
+process.env.SQL_PORT = String(SQL_PORT);
 
 const skipDb = process.argv.includes('--no-db');
 const children = [];
@@ -83,6 +85,15 @@ function databaseReachable() {
 	});
 }
 
+/** Resolves true when this project's database container is already running. */
+function databaseContainerRunning(runner) {
+	const probe = spawnSync(runner, ['inspect', '-f', '{{.State.Running}}', 'dispatch-postgres'], {
+		encoding: 'utf8',
+		shell: true
+	});
+	return probe.stdout?.trim() === 'true';
+}
+
 async function startDatabase() {
 	const runner = composeRunner();
 	if (!runner) {
@@ -93,6 +104,14 @@ async function startDatabase() {
 		}
 		log('db', 'no podman found, and nothing is listening on the database port');
 		log('db', 'start Postgres yourself, then retry');
+		process.exit(1);
+	}
+
+	// compose reports this as "proxy already running", which names neither the port nor
+	// the offender.
+	if (!databaseContainerRunning(runner) && (await portInUse(SQL_PORT))) {
+		log('db', `port ${SQL_PORT} is held by something that is not this project's database`);
+		log('db', 'stop it, or set POSTGRES_PORT to a free port and start again');
 		process.exit(1);
 	}
 

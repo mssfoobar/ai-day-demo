@@ -821,6 +821,9 @@ is shared.
 
 pnpm start installs, then runs. Twenty-five seconds the first time, under a
 second after. Safe to retype if anything goes wrong.
+
+If someone already runs Postgres on 5432, the runner says so by name and they
+start again with POSTGRES_PORT set to a free port.
 -->
 
 ---
