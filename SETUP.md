@@ -22,8 +22,17 @@ Download both files from the workshop link:
 | `ai-day-demo.zip` | the project |
 | `ai-day-workshop-images.tar.gz` | the container images, 451MB |
 
-Unzip the project somewhere you can find again. Everything below runs from
-inside it.
+Keep both in the same folder and unzip the project there, so you end up with
+this. Everything below runs from inside `ai-day-demo`.
+
+```
+somewhere-you-can-find-again/
+├── ai-day-demo/
+└── ai-day-workshop-images.tar.gz
+```
+
+If you put the tarball elsewhere, use its full path in the load step below
+rather than `../`.
 
 ## Stage 1: on your own internet
 
