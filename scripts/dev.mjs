@@ -65,7 +65,7 @@ function installDependencies(pnpm) {
 		shell: true
 	});
 	if (result.status !== 0) {
-		log('run', 'install failed. A 401 means ~/.npmrc has no read:packages token');
+		log('run', 'install failed. A 401 means the token in .npmrc has expired');
 		process.exit(result.status ?? 1);
 	}
 }

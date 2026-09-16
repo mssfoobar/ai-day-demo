@@ -17,10 +17,8 @@
 	},
 
 	// One of the two variables is empty on any given platform, so the pair expands to a
-	// single home directory. Create ~/.npmrc before first open: a missing file is
-	// mounted as an empty directory.
+	// single home directory.
 	"mounts": [
-		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.npmrc,target=/home/node/.npmrc,type=bind",
 		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.claude,target=/home/node/.claude,type=bind"
 	],
 

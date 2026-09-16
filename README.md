@@ -4,22 +4,20 @@ A workshop dispatch console on the AOH platform: a SvelteKit frontend (`apps/dis
 and a Go + PostgreSQL field-unit service (`apps/dispatch-svc`). **No authentication** —
 by design, for the workshop.
 
+**Attending the workshop? Start with [SETUP.md](SETUP.md).** The rest of this file
+is for working on the repo itself.
+
 ## Prerequisites
 
 - **Node 24+**
 - **pnpm 10** — `npm i -g pnpm`, or `corepack enable` on Node 24 (Node 25+ dropped corepack)
 - **Go 1.25+**
 - **Podman** — only PostgreSQL runs in a container
-- **A GitHub token with `read:packages`** in `~/.npmrc`, because the design system
-  `@mssfoobar/ui` is published to GitHub Packages:
 
-  ```
-  //npm.pkg.github.com/:_authToken=<token>
-  ```
-
-  Without it `pnpm install` fails with `401 Unauthorized`. This is the only credential
-  the repo needs — the Go shared library `aoh-golib` is checked in under
-  `packages/aoh-golib`, so no access to the private `ops-hub` repo is required.
+The one credential this needs is already here. A GitHub Packages token for the six
+`@mssfoobar` dependencies is checked in at `.npmrc`, so there is nothing to create; it
+expires shortly after the workshop. The Go shared library `aoh-golib` is checked in
+under `packages/aoh-golib`, so no access to the private `ops-hub` repo is required.
 
 ## Run it in a container
 
@@ -27,10 +25,8 @@ The devcontainer carries the whole toolchain, so the only thing you install is
 Podman. Node, pnpm, Go, Claude Code and an already warm Go build cache are all
 in the image, and none of them appear in the prerequisite list above.
 
-The GitHub token is still required. Those six packages cannot be baked into a
-public image without republishing them. Create `~/.npmrc` **before** you start
-the container: a missing host file is mounted as an empty directory, and the
-install then fails confusingly.
+The six `@mssfoobar` packages stay out of the public image, so `pnpm install`
+runs on first open against the checked-in `.npmrc`.
 
 ```sh
 podman compose -f compose/compose.yml -f compose/compose.devcontainer.yml up -d
@@ -107,6 +103,7 @@ packages/aoh-golib     local copy of the AOH Go library (see LOCAL_COPY.md there
 compose/               Postgres, plus the devcontainer overlay
 .devcontainer/         the preloaded toolchain image
 scripts/dev.mjs        `pnpm start`
+SETUP.md               participant setup, the two stages
 WORKSHOP.md            the three stubbed features, as user stories
 openspec/              planning artifacts for each change
 ```
