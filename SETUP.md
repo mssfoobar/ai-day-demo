@@ -20,10 +20,12 @@ container images inside it.
 
 | Machine | File |
 | --- | --- |
-| Apple Silicon Mac | `ai-day-workshop-arm64.zip` |
-| Windows, Intel Mac, Linux PC | `ai-day-workshop-amd64.zip` |
+| Mac with Apple Silicon (M1 or later) | `ai-day-workshop-mac.zip` |
+| Windows, Linux, or an Intel Mac | `ai-day-workshop-windows-linux.zip` |
 
-Take the right one. An arm64 image will not start on an amd64 machine.
+Take the right one. The images are built per processor, and the wrong file
+fails to start rather than running slowly. If you are on an Intel Mac, you want
+the Windows and Linux file.
 
 Unzip it. Everything below runs from inside the `ai-day-demo` folder it
 creates.

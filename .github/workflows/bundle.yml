@@ -16,12 +16,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - arch: amd64
+          - label: windows-linux
             platform: linux/amd64
             runner: ubuntu-latest
           # Swap to ubuntu-latest with docker/setup-qemu-action if arm64 runners
           # are unavailable; the Go build is slow under emulation.
-          - arch: arm64
+          - label: mac
             platform: linux/arm64
             runner: ubuntu-24.04-arm
 
@@ -71,12 +71,12 @@ jobs:
       - name: Zip it
         run: |
           cd dist
-          zip -rq ../ai-day-workshop-${{ matrix.arch }}.zip ai-day-demo
-          ls -lh ../ai-day-workshop-${{ matrix.arch }}.zip
+          zip -rq ../ai-day-workshop-${{ matrix.label }}.zip ai-day-demo
+          ls -lh ../ai-day-workshop-${{ matrix.label }}.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ai-day-workshop-${{ matrix.arch }}
-          path: ai-day-workshop-${{ matrix.arch }}.zip
+          name: ai-day-workshop-${{ matrix.label }}
+          path: ai-day-workshop-${{ matrix.label }}.zip
           retention-days: 30
           compression-level: 0
