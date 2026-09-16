@@ -20,8 +20,11 @@ services:
     volumes:
       - ..:/workspace:cached
       # A windows bind mount cannot set file times, so pnpm fails with EPERM
-      # futime while linking. Keep node_modules on a container-native volume.
+      # futime while linking. Every workspace package gets its own node_modules,
+      # so each one needs a container-native volume.
       - workshop-node-modules:/workspace/node_modules
+      - workshop-web-node-modules:/workspace/apps/dispatch-web/node_modules
+      - workshop-svc-node-modules:/workspace/apps/dispatch-svc/node_modules
     ports:
       - "${WEB_PORT:-5173}:5173"
       - "${SVC_PORT:-8081}:8081"
@@ -31,3 +34,5 @@ services:
 
 volumes:
   workshop-node-modules:
+  workshop-web-node-modules:
+  workshop-svc-node-modules:
