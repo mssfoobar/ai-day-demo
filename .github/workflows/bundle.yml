@@ -41,6 +41,9 @@ jobs:
           platforms: ${{ matrix.platform }}
           tags: ghcr.io/mssfoobar/ai-day-workshop:0.1.0
           load: true
+          # Separate scopes: the two platforms share no layers.
+          cache-from: type=gha,scope=${{ matrix.label }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.label }}
 
       - name: Pull postgres
         run: docker pull --platform ${{ matrix.platform }} postgres:16-alpine
