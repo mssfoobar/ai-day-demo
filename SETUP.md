@@ -15,24 +15,18 @@ the container.
 - Linux: `sudo apt install podman podman-compose`, or your distribution's
   equivalent
 
-Download both files from the workshop link:
+Download the one zip that matches your machine. It is around 450MB, with the
+container images inside it.
 
-| File | |
+| Machine | File |
 | --- | --- |
-| `ai-day-demo.zip` | the project |
-| `ai-day-workshop-images.tar.gz` | the container images, 451MB |
+| Apple Silicon Mac | `ai-day-workshop-arm64.zip` |
+| Windows, Intel Mac, Linux PC | `ai-day-workshop-amd64.zip` |
 
-Keep both in the same folder and unzip the project there, so you end up with
-this. Everything below runs from inside `ai-day-demo`.
+Take the right one. An arm64 image will not start on an amd64 machine.
 
-```
-somewhere-you-can-find-again/
-├── ai-day-demo/
-└── ai-day-workshop-images.tar.gz
-```
-
-If you put the tarball elsewhere, use its full path in the load step below
-rather than `../`.
+Unzip it. Everything below runs from inside the `ai-day-demo` folder it
+creates.
 
 ## Stage 1: on your own internet
 
@@ -46,7 +40,7 @@ cd path/to/ai-day-demo
 Load the images. This takes a minute and needs no network.
 
 ```sh
-podman load -i ../ai-day-workshop-images.tar.gz
+podman load -i ai-day-workshop-images.tar.gz
 ```
 
 Start the container and the database:

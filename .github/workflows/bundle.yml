@@ -1,0 +1,82 @@
+# Builds the participant download: the project with its container images inside.
+#
+# One zip per architecture. An arm64 image will not run on an amd64 machine, and
+# the room has both.
+
+name: bundle
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['workshop-*']
+
+jobs:
+  bundle:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            runner: ubuntu-latest
+          # Swap to ubuntu-latest with docker/setup-qemu-action if arm64 runners
+          # are unavailable; the Go build is slow under emulation.
+          - arch: arm64
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the workshop image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: .devcontainer/Dockerfile
+          platforms: ${{ matrix.platform }}
+          tags: ghcr.io/mssfoobar/ai-day-workshop:0.1.0
+          load: true
+
+      - name: Pull postgres
+        run: docker pull --platform ${{ matrix.platform }} postgres:16-alpine
+
+      - name: Save both images
+        run: |
+          docker save \
+            ghcr.io/mssfoobar/ai-day-workshop:0.1.0 \
+            postgres:16-alpine \
+            | gzip -6 > images.tar.gz
+          ls -lh images.tar.gz
+
+      - name: Assemble the folder
+        run: |
+          mkdir -p dist/ai-day-demo
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
+            --exclude='slides' \
+            --exclude='.turbo' \
+            --exclude='.svelte-kit' \
+            --exclude='build' \
+            --exclude='dist' \
+            ./ dist/ai-day-demo/
+          mv images.tar.gz dist/ai-day-demo/ai-day-workshop-images.tar.gz
+
+      - name: Zip it
+        run: |
+          cd dist
+          zip -rq ../ai-day-workshop-${{ matrix.arch }}.zip ai-day-demo
+          ls -lh ../ai-day-workshop-${{ matrix.arch }}.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ai-day-workshop-${{ matrix.arch }}
+          path: ai-day-workshop-${{ matrix.arch }}.zip
+          retention-days: 30
+          compression-level: 0
