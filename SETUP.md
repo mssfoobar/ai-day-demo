@@ -36,6 +36,13 @@ rather than `../`.
 
 ## Stage 1: on your own internet
 
+Open a terminal in the `ai-day-demo` folder. Every command below runs from
+there; the compose paths do not resolve from anywhere else.
+
+```sh
+cd path/to/ai-day-demo
+```
+
 Load the images. This takes a minute and needs no network.
 
 ```sh
@@ -72,7 +79,7 @@ running either way.
 
 ## Stage 2: on the workshop network
 
-Join the workshop wifi, then:
+Join the workshop wifi, then, from the `ai-day-demo` folder again:
 
 ```sh
 podman compose -f compose/compose.yml -f compose/compose.devcontainer.yml up -d
