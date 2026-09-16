@@ -38,9 +38,10 @@ Then open <http://localhost:5173>. `pnpm start` installs dependencies, notices
 PostgreSQL is already up as a sibling container, and starts the service and the
 console. It is idempotent, so running it again is a sub-second no-op.
 
-The image is published public at `ghcr.io/mssfoobar/ai-day-workshop`, so the
-pull needs no credential. Compose builds it locally when the tag is
-unavailable, which takes a few minutes.
+The image is not published to a registry. Load it from
+`ai-day-workshop-images.tar.gz`, which ships alongside the project download and
+also carries `postgres:16-alpine`. Failing that, compose builds it from
+`.devcontainer/Dockerfile`, which takes a few minutes and needs the network.
 
 VS Code's Dev Containers extension does the same thing with **Reopen in
 Container**. It assumes Docker, so point it at Podman first:

@@ -15,12 +15,25 @@ the container.
 - Linux: `sudo apt install podman podman-compose`, or your distribution's
   equivalent
 
-Unzip the workshop folder somewhere you can find again. Everything below runs
-from inside it.
+Download both files from the workshop link:
+
+| File | |
+| --- | --- |
+| `ai-day-demo.zip` | the project |
+| `ai-day-workshop-images.tar.gz` | the container images, 451MB |
+
+Unzip the project somewhere you can find again. Everything below runs from
+inside it.
 
 ## Stage 1: on your own internet
 
-Start the container and the database. The first run downloads a 1.1GB image.
+Load the images. This takes a minute and needs no network.
+
+```sh
+podman load -i ../ai-day-workshop-images.tar.gz
+```
+
+Start the container and the database:
 
 ```sh
 podman compose -f compose/compose.yml -f compose/compose.devcontainer.yml up -d
