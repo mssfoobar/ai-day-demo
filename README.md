@@ -51,8 +51,10 @@ Container**. It assumes Docker, so point it at Podman first:
 "dev.containers.dockerComposePath": "podman-compose"
 ```
 
-Use `pnpm` on the host or in the container, not both. `node_modules` lands on
-the bind mount, and the two platforms need different native binaries.
+The container keeps `node_modules` in a named volume rather than on the bind
+mount. Windows bind mounts cannot set file times, which fails pnpm with `EPERM
+futime`, and the host and the container need different native binaries anyway.
+A native run installs its own copy on the host; the two do not collide.
 
 The deck under `slides/` is its own pnpm workspace, so the install above does
 not reach it. `pnpm slides` installs it on demand.

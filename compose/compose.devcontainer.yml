@@ -19,9 +19,15 @@ services:
       SQL_HOST: postgres
     volumes:
       - ..:/workspace:cached
+      # A windows bind mount cannot set file times, so pnpm fails with EPERM
+      # futime while linking. Keep node_modules on a container-native volume.
+      - workshop-node-modules:/workspace/node_modules
     ports:
       - "${WEB_PORT:-5173}:5173"
       - "${SVC_PORT:-8081}:8081"
     depends_on:
       postgres:
         condition: service_healthy
+
+volumes:
+  workshop-node-modules:
