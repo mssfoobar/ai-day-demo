@@ -6,22 +6,28 @@ Every `/v1/units` operation SHALL be confined to the tenant named by the caller'
 `active_tenant.tenant_id` claim. A unit belonging to another tenant SHALL be invisible and
 unwritable — indistinguishable from one that does not exist.
 
+> Verifiable without standing up a second identity: insert a row carrying a different
+> `tenant_id` directly with `psql`, then exercise the API with the seeded operator's token.
+> The predicate under test is the `WHERE tenant_id = $n` clause, not Keycloak.
+
 #### Scenario: A list returns only the caller's tenant
-- **WHEN** two tenants each hold units and a caller lists units
-- **THEN** only the units of the caller's tenant are returned
+- **WHEN** a unit row belonging to another tenant exists and a caller lists units
+- **THEN** that row is absent from the response
+- **AND** the caller's own units are all present
 
 #### Scenario: Another tenant's unit is not found
-- **WHEN** a caller issues `GET /v1/units/{unit_code}` for a unit that exists only in another tenant
+- **WHEN** a caller issues `GET /v1/units/{unit_code}` for a unit row that exists only under another `tenant_id`
 - **THEN** the response status is 404
 
 #### Scenario: Another tenant's unit cannot be written
-- **WHEN** a caller with the dispatcher role issues `PUT` or `DELETE` against a unit that exists only in another tenant
+- **WHEN** a caller with the dispatcher role issues `PUT` or `DELETE` against a unit row that exists only under another `tenant_id`
 - **THEN** the response status is 404
-- **AND** the other tenant's unit is unchanged
+- **AND** that row is unchanged
 
 #### Scenario: The same unit code may exist in two tenants
-- **WHEN** two tenants each create a unit with the same `unit_code`
-- **THEN** both creates succeed
+- **WHEN** a unit row with a given `unit_code` exists under another `tenant_id` and a dispatcher creates a unit with that same `unit_code`
+- **THEN** the create succeeds
+- **AND** both rows exist, one per tenant
 
 ### Requirement: Audit columns carry the caller's identity
 

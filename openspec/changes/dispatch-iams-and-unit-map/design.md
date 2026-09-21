@@ -4,8 +4,8 @@ The console is an `aoh-web-init` scaffold with its auth layer amputated
 (`baseline-dispatch-console` D1) and a hand-written Go service behind it
 (`dispatch-units-service` D1). Reads happen in a SvelteKit server `load`, writes in form
 actions; the browser only ever talks to its own origin. `UBIQUITOUS_LANGUAGE.md` has mapped
-our *field unit* onto a GIS `geo-entity` since the baseline and recorded that the mapping is
-dormant "until units carry positions."
+our *field unit* onto a GIS `geo-entity` since the baseline and recorded that the mapping
+becomes real *"once units carry positions. They do not today."*
 
 Three platform constraints shape everything below.
 
@@ -43,7 +43,7 @@ composed-up infrastructure. Nothing here targets production.
 - Authoring positions from the console. Positions are seeded and settable through the API;
   no drag-to-move, no simulator.
 - GIS bookmarks, drawing, measurement, geofences, or a layer-management UI beyond what is
-  needed to see the fleet.
+  needed to see the roster on a map.
 - Replay of historical movement (that is MSR) and any second map surface.
 - Production authorization. `roles.yaml` is development-only, as `aoh-knowledge` states.
 - Building the three stubbed workshop exercises. They stay stubbed.
@@ -56,6 +56,7 @@ composed-up infrastructure. Nothing here targets production.
 | `iams-db` | Keycloak's backing PostgreSQL | Platform — added by `aoh-compose` |
 | `iams-keycloak` | OIDC provider; hosts the `aoh` realm, its `web` PKCE client and the seeded users; issues and signs the JWTs | Platform — added by `aoh-compose` |
 | `iams-aas` | Authorization control plane; owns the `dispatch-viewer` / `dispatch-dispatcher` tenant roles and surfaces them as `active_tenant.roles` | Platform — added by `aoh-compose` |
+| `iams-web` | User/role management UI; comes up unconditionally with the IAMS fragment. Not used by this change, but it runs and is worth knowing about | Platform — added by `aoh-compose` |
 | `iams-init` | One-shot Newman runner; creates the `development` tenant and the admin membership | Platform — added by `aoh-compose` |
 | `project-aas-init` | One-shot idempotent reconciler that applies `roles.yaml` to AAS | Platform — added by `aoh-compose`; its `roles.yaml` is owned by this change |
 | `sds-server` | Server-side session store; holds the access + refresh tokens and mints an access token for `rtus-seh` | Platform — added by `aoh-compose` |
@@ -65,7 +66,7 @@ composed-up infrastructure. Nothing here targets production.
 | `rtus-seh` | SSE delivery to the browser; authorises the subscription from the `web_auth_session_id` cookie via SDS | Platform — added by `aoh-compose` |
 | `gis-db` | Geospatial PostgreSQL | Platform — added by `aoh-compose` |
 | `gis-service` | Geo-entity REST API; publishes entity changes to the `gis` RTUS map through its own transactional outbox | Platform — added by `aoh-compose` |
-| `otel` collector | OTLP gateway both apps already export to | Platform — added by `aoh-compose` |
+| `otel-collector` | OTLP gateway. Neither app exports to it today — `dispatch-svc` has no OTEL wiring at all and `dispatch-web`'s `instrumentation.server.ts` is a no-op until `OTEL_EXPORTER_OTLP_ENDPOINT` is set. It arrives with the stack; wiring it is not in this change | Platform — added by `aoh-compose` |
 | `postgres` (dispatch) | `dispatch-svc`'s own database — gains position columns and the projection outbox table | Existing — modified by this change |
 | `dispatch-svc` | Go field-unit service; runs natively (`go run`), not composed | Existing — modified by this change |
 | `dispatch-web` | SvelteKit console; runs natively (`pnpm dev`), not composed | Existing — modified by this change |
@@ -85,11 +86,18 @@ receives nothing.
 | POST | `/v1/units` | BearerAuth, role `dispatch-dispatcher` | Create, now accepting `position`; `tenant_id` / `created_by` from the token | n/a — see D5 |
 | PUT | `/v1/units/{unit_code}` | BearerAuth, role `dispatch-dispatcher` | Replace, now accepting and clearing `position`; `occ_lock` unchanged | n/a — see D5 |
 | DELETE | `/v1/units/{unit_code}` | BearerAuth, role `dispatch-dispatcher` | Delete, and enqueue the geo-entity delete | n/a — see D5 |
+| POST · DELETE | `/v1/units/{unit_code}/assignment` | BearerAuth, role `dispatch-dispatcher` | Workshop exercise 1 stub. Still answers 501 — but now only to an authorised caller | n/a — see D5 |
+| GET | `/v1/units/{unit_code}/events` | BearerAuth, role `dispatch-viewer` or `dispatch-dispatcher` | Workshop exercise 2 stub. Still 501 | n/a — see D5 |
+| PUT | `/v1/units/{unit_code}/crew` | BearerAuth, role `dispatch-dispatcher` | Workshop exercise 3 stub. Still 501 | n/a — see D5 |
 | GET | `/livez` | Unauthenticated | Liveness — unchanged | n/a |
 | GET | `/readyz` | Unauthenticated | Readiness — unchanged; still fails when the database is unreachable | n/a |
 
-Unchanged from `dispatch-units-crud`: `PATCH /v1/units/{unit_code}` and collection-level
-`PUT` / `DELETE` stay unmounted and answer 405. Every 2xx body remains the AOH success
+The four stub routes are listed because this change alters their posture even though it does
+not implement them: they are mounted today and answer 501 to anyone, and after this change an
+unauthenticated caller gets 401 before ever reaching the 501. That is what breaks
+`WORKSHOP.md`'s `curl` (R2). Unchanged from `dispatch-units-crud`:
+`PATCH /v1/units/{unit_code}` and collection-level `PUT` / `DELETE` stay unmounted and
+answer 405. Every 2xx body remains the AOH success
 envelope (`data`, `message`, `sent_at`); errors remain the AOH error contract.
 
 ### Exposed by `dispatch-web`
@@ -112,6 +120,7 @@ their paths are `gis-service`'s to define, not ours.
 | PUT | `/geoentity` | `dispatch-svc` outbox worker | Upsert the geo-entity mirroring a unit |
 | DELETE | `/geoentity/entity_id/{entity_id}` | `dispatch-svc` outbox worker | Remove a deleted unit's entity |
 | GET | `/geoentity/entity_id/{entity_id}` | Verification only | Assert the projection landed |
+| GET | `/geoentity` | Verification only | Assert a token is accepted by `gis-service` at all |
 
 The browser's only cross-origin call is the SSE subscription to `rtus-seh`, carrying the
 session cookie and no token.
@@ -122,12 +131,18 @@ Two surfaces change. Clickable mockups, each with a state switcher covering ever
 specs name:
 
 - `openspec/changes/dispatch-iams-and-unit-map/design/dispatch-map-mock.html` — the map:
-  loaded with a live feed, live feed unavailable, no positioned units, un-positioned count
-  shown, a unit selected, and the viewer (read-only) variant.
+  live feed; a positioned unit selected; an **un-positioned unit selected** (camera does not
+  move); live feed unavailable; no positioned units; a **fully positioned roster** (no
+  "not shown" count); and the viewer (read-only) variant.
 - `openspec/changes/dispatch-iams-and-unit-map/design/dispatch-console-auth-mock.html` —
   the console's new states: signed in as a dispatcher (write controls present), signed in as
-  a viewer (write controls absent), permission denied after a 403, the position section for
-  a positioned unit, and the position section for an un-positioned unit.
+  a viewer (write controls absent), permission denied after a 403, **service unreachable**,
+  the position section for a positioned unit, and for an un-positioned unit.
+
+Both mocks render the `Sidebar` + `Navbar` the restored layout brings back, with the console
+and map nav entries, and both use the real seeded roster (`0002_seed.up.sql`) rather than
+invented units — a mockup that mis-pairs a **call sign** with a **unit ID** is precisely the
+drift `UBIQUITOUS_LANGUAGE.md` exists to prevent.
 
 **Primitives.** Everything outside the map canvas composes from `@mssfoobar/ui` subpaths —
 `Button`, `Card`/`CardHeader`/`CardContent`/`CardTitle`, `Badge`, `Separator`, `ScrollArea`,
@@ -166,27 +181,45 @@ Splitting them means an auth change whose only consumer is the next PR, and a ma
 that cannot be demonstrated until both have landed. The cost is a large blast radius,
 carried as R1.
 
-**D2 — Reuse the bundled `web` client for the console; register exactly one confidential
-client for the outbox worker.** The console authenticates with the `aoh` realm's existing
-public `web` PKCE client, in the `development` tenant `iams-init` creates — no frontend
-client, no realm role, no claim mapper is added. `dispatch-svc` validates incoming bearer
-tokens offline against the realm JWKS, which needs no client either.
+**D2 — Reuse the bundled `web` client and add nothing to Keycloak but one seed user.** The
+console authenticates with the `aoh` realm's existing public `web` PKCE client, in the
+`development` tenant `iams-init` creates. No OIDC client, realm role or claim mapper is
+added. `dispatch-svc` validates incoming bearer tokens with the shipped
+`aohhttp.BearerAuth` middleware from `aoh-golib`, which calls Keycloak's userinfo endpoint
+(`aoh-conventions/go.md`) — so it needs no client either. *Alternative considered:*
+hand-rolling offline JWKS validation. Rejected: it re-implements what `aoh-golib` ships,
+and it would mask the `scope=openid` requirement locally (userinfo 403s on a token issued
+without it) while `gis-service` still rejected the same token.
 
-The one exception is **outbound**: the outbox worker calls `gis-service` asynchronously,
-after the originating request has returned, so it has no user token to carry and cannot be
-given one — a retried delivery may happen minutes later, long after the operator's
-five-minute access token has expired. *Alternatives considered:* (a) propagating the
-operator's access token into the outbox row — breaks on the first retry past expiry, and
-persists a bearer token in the database; (b) holding the operator's refresh token — worse,
-and it makes a background worker able to act as a user indefinitely. So a **confidential
-`dispatch-svc` client** with `serviceAccountsEnabled` is added to `realm-import.json` and the
-worker uses the client-credentials grant. This is precisely the case `aoh-knowledge` →
-`services/iams.md` names as warranting a new client ("Register a new client only for a
-*confidential* (client-credentials / introspection) backend"), and `aoh-compose` documents
-`realm-import.json` as the right home for it. Its service account is made a member of the
-`development` tenant through `roles.yaml` so `gis-service` accepts its writes. Consequence:
-editing `realm-import.json` means the Keycloak import must be re-run with
-`down -v iams-db` — carried as R9.
+The realm's `users` array does gain **one** entry. The shipped realm seeds exactly one
+interactive user — `${DEV_USER}`, plus the `sds` and `unh` service accounts — so the
+viewer/dispatcher split this change specifies has no second account to assign. `roles.yaml`
+cannot create one: `bootstrap.py` exits with *"user not found in Keycloak — add to
+realm-import.json"*. Adding a seed user is what `aoh-knowledge` →
+`keycloak-realm-guide.md` documents `realm-import.json` for, so the viewer account goes
+there. Consequence: the Keycloak import must be re-run from empty volumes — carried as R8.
+
+**D2a — The projection carries the operator's bearer, not a service-account token.** This
+reverses an earlier draft of this design, and the reason is worth recording because it is
+not obvious. A client-credentials token **carries no `active_tenant` claim** at all
+(`aoh-knowledge` → `integration-patterns.md`, posture B), and `gis-service` is
+tenant-aware (`GIS_ACTIVE_TENANT_CLAIM_KEY=active_tenant`). A service account therefore
+cannot write a tenant-scoped geo-entity — the writes would be rejected or land in the wrong
+tenant, and no amount of AAS membership fixes it, because the claim is absent rather than
+wrong. Posture A is mandatory for any target that validates `active_tenant`, and the
+platform's own GIS seeding script uses a password-grant **user** token for exactly this
+reason.
+
+So the outbox worker carries the operator's access token, captured **by value** before the
+post-commit goroutine detaches from the request context — the precise gotcha
+`integration-patterns.md` names. The token is never persisted: it lives in memory for the
+life of one delivery attempt. A row that outlives its token stays pending and is drained
+opportunistically by the next authenticated request from the same tenant, which supplies a
+live token. *Alternatives considered:* (a) storing the bearer in the outbox row — persists
+a credential in the database and still expires; (b) storing the refresh token — worse, it
+lets a background worker act as a user indefinitely. Both were rejected. The trade-off is
+that a tenant with no traffic can hold a pending projection indefinitely; R4 covers the
+resulting window.
 
 **D3 — Roles in AAS; permissions projected in-process.** `dispatch-viewer` and
 `dispatch-dispatcher` are AAS tenant roles declared in
@@ -227,13 +260,31 @@ replication / CDC — far more machinery than five units need. The outbox is als
 vocabulary. Delivery is at-least-once, so the projection must be idempotent — `PUT
 /geoentity` is an upsert keyed on `entity_id`, which makes replay a no-op.
 
+**D6a — Position presence, not the write verb, decides the projection intent.** A geo-entity
+is a Point; a unit with no coordinates has nothing to project. So the intent recorded in the
+outbox is derived from the unit's position *after* the write, not from whether the write was
+a create, a replace or a delete:
+
+| Unit state after the write | Outbox intent | Effect in GIS |
+|---|---|---|
+| Has a position | `upsert` | `PUT /geoentity` |
+| Has no position (never had one) | `delete` | `DELETE /geoentity/entity_id/{unit_code}` — a no-op when nothing is there |
+| Position cleared by a replace | `delete` | The entity is removed |
+| Unit deleted | `delete` | The entity is removed |
+
+Without this rule the design contradicts itself: "mirror every unit" and "an un-positioned
+unit has no entity" cannot both hold under an unconditional upsert, and a cleared position
+would silently leave a stale marker on the map at the unit's last known location — the worst
+possible failure for a dispatch surface, because it looks like data rather than an absence.
+Making `delete` a no-op when the entity is missing is what lets the rule stay this simple.
+
 **D7 — `dispatch-svc` owns the position; GIS is a projection, not the source of truth.** The
 `unit` row carries `position_lon` / `position_lat` / `position_at`; GIS holds a mirror.
 *Alternative considered:* storing positions only in GIS and reading them back for the
 console. Rejected — it would put a second service on the console's read path for a field the
 detail pane always shows, and it would make `dispatch-svc` unable to answer "where is this
 unit" without a network hop. The cost is that the two can diverge while the outbox is
-draining; R4 covers it.
+draining; R4 covers that window.
 
 **D8 — `entity_id` = `unit_code`, `entity_type` = `track`, `kind` = `field-unit`.**
 `unit_code` is already the stable per-tenant key and is what `UBIQUITOUS_LANGUAGE.md` maps
@@ -243,6 +294,14 @@ GIS filters and styles by, and `MapEntityProvider` keys on it. Note this correct
 language file, which currently guesses `entity_type=field_unit`; `field-unit` is a `kind`,
 not an `entity_type`.
 
+`unit_code` is unique per *tenant*, not globally, so two tenants may legitimately hold the
+same code. That is safe here only because GIS is itself tenant-partitioned — entities are
+written in the token's tenant and RTUS json-maps are keyed per tenant
+(`aoh-gis-integration/references/entities.md`), so `entity_id` need only be unique within a
+tenant. If GIS's partitioning ever turns out to be weaker than that, the fix is to key on
+`{tenant_id}:{unit_code}`; it is called out here so the assumption is visible rather than
+discovered by two tenants overwriting each other's markers.
+
 **D9 — The map has one source of entity state.** The page does not fetch an entity list of
 its own; the SDK's subscription (`init=true`) is the only source. *Alternative considered:*
 an initial server-side list plus live updates, the usual AOH pattern. Rejected here because
@@ -250,29 +309,56 @@ it requires a dedup step at the prepend site to survive the fetch/SSE race, and 
 nothing to gain — the SDK already replays current state on connect. The console keeps its
 own server-side roster read; that is unit data, not entity data.
 
-**D10 — Native dev runs on a `${DEV_DOMAIN}` hostname, not `localhost`.** The console is
-served at `http://dispatch.${DEV_DOMAIN}:5173` with `ORIGIN` matching and
-`PUBLIC_DOMAIN=${DEV_DOMAIN}`, so the session cookie is issued on the parent domain and
-travels to `rtus-seh.${DEV_DOMAIN}` on the SSE request. *Alternative considered:* staying on
-`localhost:5173`. Rejected — `localhost` and `*.aoh.localhost` do not share a cookie parent,
-so the subscription would 401 with nothing in either log to explain it. `*.localhost`
-resolves to the loopback without a hosts-file edit on macOS and Linux; Windows is R5.
+**D10 — Native dev runs on the platform's own dev origin, `http://${DEV_DOMAIN}:5173`.**
+`DEV_DOMAIN` keeps its shipped default `127.0.0.1.nip.io`, so the console is served at
+`http://127.0.0.1.nip.io:5173` with `ORIGIN` matching and `PUBLIC_DOMAIN=${DEV_DOMAIN}`.
+Three things fall out of that one choice, and each would otherwise be a separate bug:
+
+1. **The cookie reaches `rtus-seh`.** The session cookie is issued on `${DEV_DOMAIN}`, which
+   is the parent of `rtus-seh.${DEV_DOMAIN}`, so the SSE request carries it.
+2. **CORS already permits it.** `rtus-seh`'s Traefik middleware seeds
+   `accesscontrolalloworiginlist` with `http://${DEV_DOMAIN}:5173` among others. A
+   credentialed SSE request from any *other* origin — including a
+   `dispatch.${DEV_DOMAIN}:5173` of our own invention — is blocked, and would have required
+   editing `compose/rtus/compose.yml` in this change.
+3. **Windows works without a hosts-file edit.** `nip.io` wildcard-resolves to 127.0.0.1
+   everywhere, which `*.localhost` does not on Windows.
+
+*Alternatives considered:* (a) plain `localhost:5173` — no shared cookie parent with
+`rtus-seh.${DEV_DOMAIN}`, so the subscription 401s with nothing in either log to explain it;
+(b) a per-app `dispatch.${DEV_DOMAIN}:5173` hostname — solves the cookie, breaks CORS, and
+buys nothing. Note `apps/dispatch-web/vite.config.ts` currently ships **no** `allowedHosts`
+(the baseline removed it as moot on plain localhost); serving on a non-localhost host with
+`vite dev --host` means restoring the scaffold's
+`allowedHosts: ['127.0.0.1.nip.io', '.127.0.0.1.nip.io']`, or the dev server host-checks the
+request.
+
+**D11 — `last_contact` and `position_at` move independently, and the existing UPDATE
+changes.** `dispatch-units-crud` D4 made every write bump `last_contact`; this change adds
+`position_at`, the time the *fix* was taken. They are not the same event — an operator
+editing a unit's radio channel is a contact, not a position report — and the roster spec
+requires them to be independent. So the existing UPDATE keeps bumping `last_contact` and
+must **not** touch `position_at`, which changes only when a write supplies a position.
+*Alternative considered:* leaving `position_at` to follow `last_contact`. Rejected: it would
+make every edit look like a fresh GPS fix, and the map's "fix age" would become a lie. This
+closes what an earlier draft left as an open question — it is a change to shipped behaviour
+and so belongs in the task list, not in an apply-time decision.
 
 ## Risks / Trade-offs
 
 **R1 — The workshop's "one container, no auth" promise ends.** The stack goes from one
-container to roughly fourteen, several pulled from `ghcr.io/mssfoobar`, and every attendee
-now needs a working login before they see a unit. → The reproducibility gate in `tasks.md`
-proves a cold `down -v` / `up -d` converges, `SETUP.md` and `README.md` are rewritten in the
-same change rather than left stale, and the seeded dispatcher account is documented where
-the old curl example lived. This is the single largest cost of the change and it is worth
-re-confirming before apply.
+container to fifteen (fourteen platform services plus the dispatch PostgreSQL), several
+pulled from `ghcr.io/mssfoobar`, and every attendee now needs a working login before they
+see a unit. → The reproducibility gate in `tasks.md` proves a cold `down -v` / `up -d`
+converges, `SETUP.md` and `README.md` are rewritten in the same change rather than left
+stale, and the seeded accounts are documented where the old curl example lived. This is the
+single largest cost of the change and it is worth re-confirming before apply.
 
 **R2 — `WORKSHOP.md`'s bare `curl` stops working.** The 501 stubs are now behind a bearer,
 so the documented `curl -i -X POST http://localhost:8081/v1/units/FU-101/assignment` answers
-401. → `WORKSHOP.md` gains a one-line token fetch (password grant against the bundled `web`
-client) that the curl examples reuse. The three exercises' acceptance criteria are otherwise
-untouched.
+401 before it ever reaches the 501. → `WORKSHOP.md` gains a one-line token fetch (password
+grant against the bundled `web` client, **with `scope=openid`**) that its curl example
+reuses. The three exercises' acceptance criteria are otherwise untouched.
 
 **R3 — The role→permission matrix is duplicated in Go, TypeScript and `roles.yaml`.** Three
 copies drift. → Keep the matrix to two roles and one permission boundary (read vs write),
@@ -280,15 +366,26 @@ name the file each copy mirrors in a comment, and make the verification step dec
 token rather than asserting the map in isolation. If it grows past a handful of roles, that
 is the signal to move to AAS `/evaluate`.
 
-**R4 — The unit row and its geo-entity diverge while the outbox drains.** A dispatcher can
-see a unit in the console that is not yet on the map. → The window is a worker interval, the
-projection is idempotent and retried, and the map's un-positioned count is computed from
-unit data rather than entity data, so the page never silently under-reports the fleet.
+**R4 — A projection can stay pending longer than one request.** The worker carries the
+operator's token (D2a), so a delivery that outlives that token waits for the next
+authenticated request from the same tenant to supply a fresh one. A tenant with no traffic
+holds its backlog. → Acceptable here: the workshop has one tenant and an operator present by
+definition. The unit row remains the source of truth (D7), the map's not-shown count is
+computed from unit data rather than entity data so the page never under-reports the roster,
+and a pending row is visible in the outbox table. If this ever needs to hold without an
+operator, the answer is a scheduled job holding its own credential — a different design, not
+a patch to this one.
 
-**R5 — Windows attendees and `*.localhost`.** Windows does not resolve `*.localhost` to the
-loopback by default, so D10's hostname may not resolve. → Document the one-line hosts-file
-entry in `SETUP.md`; the devcontainer path is unaffected because the container joins the
-compose network. Confirm on a Windows laptop before the workshop.
+**R5 — Cesium is a heavy dependency on a workshop laptop, and the skills disagree about the
+alternative.** `@cesium/engine` plus `@cesium/widgets` add a large install and a WebGL
+requirement. The two platform sources conflict on whether there is a lighter option:
+`aoh-knowledge/services/gis.md` says "`MapLibreEngineProvider` ships as an empty stub —
+picking MapLibre is not currently an option", while `aoh-gis-integration/references/components.md`
+lists it as a usable "2D engine. Use instead of Cesium for a pure-2D map." → Proceed with
+Cesium, which both sources agree works, in a 2D scene with Ion disabled so no external asset
+quota is consumed. Resolve the conflict at apply time by trying `MapLibreEngineProvider`
+against the installed SDK; if it works it is strictly better here, and the finding is worth
+reporting upstream either way.
 
 **R6 — A black map canvas.** Cesium fetches its workers and textures at runtime; without the
 asset-copy step the canvas renders entirely black with only 404s in the console to explain
@@ -296,30 +393,38 @@ it. → The vite plugin runs on both `buildStart` and `configureServer` so dev a
 covered, and the specs assert "no 404 under the Cesium base URL" as an observable outcome
 rather than trusting the plugin.
 
-**R7 — Cesium is a heavy dependency on a workshop laptop.** `@cesium/engine` plus
-`@cesium/widgets` add a large install and a WebGL requirement. → Accepted: it is the only
-working engine in the SDK (`MapLibreEngineProvider` is an empty stub), and the map is a 2D
-scene with Ion disabled, so no external asset quota is consumed.
-
-**R8 — `@mssfoobar` image pulls.** The npm token checked into `.npmrc` covers packages, not
+**R7 — `@mssfoobar` image pulls.** The npm token checked into `.npmrc` covers packages, not
 `ghcr.io` container images. → Confirm image pull access (or a preloaded image tarball, as
 the repo already does for the devcontainer) before the workshop; this is a prerequisite of
 apply, not a discovery for the day.
 
-**R9 — The `realm-import.json` edit is skip-if-exists.** Keycloak's `start --import-realm`
-imports only into an empty database, so adding the confidential client to an already-running
-stack silently does nothing and the worker then fails to get a token, with no error at
-import time to explain it. → The compose task pairs the edit with
-`podman compose down -v iams-db` (or `docker compose down -v iams-db`) followed by
-`up -d`, and the seed verification obtains a client-credentials token rather than assuming
-the client exists. The reproducibility gate tears the whole stack with `-v` anyway, so a
-fresh run always re-imports.
+**R8 — The `realm-import.json` edit is skip-if-exists.** Keycloak's `start --import-realm`
+imports only into an empty database, so adding the viewer user to an already-running stack
+silently does nothing — sign-in then fails for an account the artifacts say exists, with no
+error at import time to explain it. → The compose task pairs the edit with a project-wide
+`down -v` and `up -d`, **not** `down -v iams-db`: Compose does not treat `-v` as a
+per-service volume wipe when a service name is given, and podman-compose's `down` does not
+accept service arguments at all, so the per-service form may silently do nothing — which is
+the exact failure this risk is about. The reproducibility gate tears the whole stack anyway.
+
+**R9 — The change is authored with tooling the workshop image does not carry.** Two tasks
+need binaries that are absent from `.devcontainer/Dockerfile` (`node:24-bookworm-slim` plus
+`ca-certificates curl git procps`): `aoh-compose`'s `bootstrap.py` needs **python3** — the
+same gap that `apps/dispatch-svc/AGENTS.md` records as why that service was hand-written —
+and there is no `golangci-lint` binary or `.golangci.yml` anywhere in this repo. →
+Neither blocks an attendee: `compose/` is generated **once by the change author** and
+committed, and attendees only consume it. The task list says so explicitly and uses the
+repo's actual configured Go lint (`go vet`, via `pnpm lint`) rather than a linter nobody
+here has. If the author also lacks python3, the fallback is to run `bootstrap.py` wherever
+python3 exists and commit the output — it writes files, it does not need the stack.
 
 ## Migration Plan
 
-1. Bring the platform stack up (`aoh-compose` output), let `iams-init` then
-   `project-aas-init` complete, and confirm a token for the seeded dispatcher carries
-   `dispatch-dispatcher` in `active_tenant.roles`.
+1. Edit `realm-import.json` (the viewer seed user) **before** the first `up -d`, or after it
+   with a project-wide `down -v` — the import is skip-if-exists (R8). Then bring the platform
+   stack up (`aoh-compose` output), let `iams-init` then `project-aas-init` complete, and
+   confirm that tokens for both seeded accounts carry the expected `active_tenant.roles`
+   (`dispatch-dispatcher` for one, `dispatch-viewer` only for the other).
 2. Apply the `dispatch-svc` migration: position columns, their constraints, the outbox
    table. Additive only — every column is nullable or defaulted, so the existing rows and the
    pre-change binary keep working.
@@ -342,16 +447,23 @@ irreversible step.
    bookmark or a slide deck pointing at the old path. Against: it keeps a route alive that
    the convention says should not exist, and the console's audience is one workshop cohort.
    Currently specified as *not* serving the console; flip it if the slides reference `/units`.
+   Note this is separate from `/` itself: the scaffold ships no root `+page.svelte`, so
+   dropping the baseline's `/` → `/units` redirect without adding a root route would leave
+   `/` a 404 rather than a sign-in redirect. The task list adds the root redirect explicitly.
 2. **Does the workshop need moving units?** With positions seeded and never updated, the map
    is live in mechanism but static in appearance, and the RTUS path is never visibly
    exercised. A tiny position-nudging loop (behind a flag, off by default) would make the
    live feed self-evident in a demo. Deliberately out of scope here — raise it as its own
    change if the deck needs movement.
-3. **Which seeded realm users get which role?** The realm ships its own seed users; this
-   change needs one that is dispatcher and one that is viewer-only. Whether to reuse two
-   existing accounts or add a viewer-only account to `roles.yaml`'s `assignments` is settled
-   at apply time against the realm as shipped.
-4. **Is `last_contact` still bumped on every write now that a fix time exists?**
-   `dispatch-units-crud` D4 made every write bump `last_contact`. With `position_at` alongside
-   it, that rule is worth re-confirming rather than inheriting silently — the spec keeps them
-   independent, but the existing UPDATE does not.
+3. **Is a second tenant worth standing up?** The tenant-scoping requirements are specified
+   against a stack that runs exactly one tenant (`development`). The task list makes them
+   provable by inserting a second tenant's row directly with `psql` and asserting the API
+   never returns it — which tests the predicate without a second identity. What that cannot
+   reach is the cross-tenant *GIS* read, so no such scenario is specified. Standing up a
+   second AAS tenant and operator would close that gap and roughly double the seed surface;
+   not worth it for a workshop, worth revisiting if this design is reused.
+
+Questions this design closed rather than deferred: which realm users get which role (D2 —
+the realm seeds only one interactive user, so the change adds a viewer to
+`realm-import.json`) and whether `last_contact` still bumps on every write (D11 — yes, and
+`position_at` moves independently, which means the existing UPDATE changes).

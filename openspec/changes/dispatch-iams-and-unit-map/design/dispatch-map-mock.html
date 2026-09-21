@@ -14,6 +14,10 @@
      these same tokens — no CSS from this file is copied into the app.
      The "map" below is an SVG stand-in for a Cesium 2D scene; it exists to
      show placement, panels and states, not to look like real tiles.
+
+     Units are the REAL seeded roster (0002_seed.up.sql): FU-101 Alpha-1,
+     FU-102 Alpha-2, FU-204 Bravo-1, FU-205 Bravo-2, FU-311 Charlie-1.
+     Bravo-1 is the un-positioned one.
      ------------------------------------------------------------------ */
   :root {
     --zinc-50:#FAFAFA; --zinc-100:#F4F4F5; --zinc-200:#E4E4E7; --zinc-300:#D4D4D8;
@@ -31,6 +35,7 @@
     --accent: var(--zinc-100);
     --border: var(--zinc-200);
     --ring: var(--sky-600);
+    --sidebar: #FFFFFF;
 
     --map-bg:#E8EDF2; --map-line:#CFD8E3; --map-land:#DDE5EC;
 
@@ -54,6 +59,7 @@
     --accent: var(--zinc-800);
     --border: #2A2A31;
     --ring: var(--sky-500);
+    --sidebar: var(--zinc-900);
 
     --map-bg:#0F141A; --map-line:#1E2731; --map-land:#161D25;
 
@@ -69,7 +75,7 @@
     font-family:var(--font-sans); font-size:var(--fs-base);
     -webkit-font-smoothing:antialiased;
   }
-  .page { max-width:1280px; margin:0 auto; padding:24px 24px 48px; }
+  .page { max-width:1320px; margin:0 auto; padding:24px 24px 48px; }
 
   /* --- mock chrome: state switcher (not part of the product) ---------- */
   .mockbar {
@@ -91,8 +97,24 @@
   .mockbar button[aria-pressed="true"] { background:var(--ring); border-color:var(--ring); color:#fff; }
   .mockbar .spacer { flex:1; }
 
-  /* --- product chrome ------------------------------------------------- */
-  .topline { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; }
+  /* --- app shell: Sidebar + Navbar from @mssfoobar/ui ----------------- */
+  .shell { display:grid; grid-template-columns:200px 1fr; gap:0;
+           border:1px solid var(--border); border-radius:var(--radius-lg);
+           overflow:hidden; background:var(--card); box-shadow:var(--shadow-md); }
+  .sidebar { background:var(--sidebar); border-right:1px solid var(--border); padding:14px 10px; }
+  .sidebar .brand { font-weight:600; font-size:var(--fs-sm); padding:4px 8px 12px; }
+  .navitem {
+    display:flex; align-items:center; gap:8px; width:100%; text-align:left;
+    font:inherit; font-size:var(--fs-sm); color:inherit; background:transparent;
+    border:0; border-radius:var(--radius-sm); padding:7px 8px; cursor:pointer;
+  }
+  .navitem:hover { background:var(--accent); }
+  .navitem[aria-current="page"] { background:var(--accent); font-weight:600; }
+  .navitem .glyph { width:14px; height:14px; border-radius:3px; background:var(--muted-foreground); flex:none; }
+  .navitem[aria-current="page"] .glyph { background:var(--ring); }
+
+  .main { padding:18px 20px 22px; min-width:0; }
+  .navbar { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; }
   h1 { font-size:var(--fs-xl); line-height:32px; margin:0 0 4px; font-weight:600; letter-spacing:-.01em; }
   .desc { color:var(--muted-foreground); font-size:var(--fs-sm); margin:0; }
   .who { font-size:var(--fs-sm); color:var(--muted-foreground); display:flex; align-items:center; gap:10px; }
@@ -106,16 +128,14 @@
   .badge.info    { background:var(--badge-info-bg);    color:var(--badge-info-fg); }
   .badge.warn    { background:var(--badge-warn-bg);    color:var(--badge-warn-fg); }
 
-  .layout { display:grid; grid-template-columns:1fr 288px; gap:16px; }
+  .layout { display:grid; grid-template-columns:1fr 272px; gap:16px; }
 
   .mapcard {
     position:relative; border:1px solid var(--border); border-radius:var(--radius-lg);
-    background:var(--card); box-shadow:var(--shadow-md); overflow:hidden;
-    min-height:460px;
+    background:var(--card); overflow:hidden; min-height:430px;
   }
-  .canvas { display:block; width:100%; height:460px; background:var(--map-bg); }
+  .canvas { display:block; width:100%; height:430px; background:var(--map-bg); }
 
-  /* floating panels over the canvas */
   .overlay { position:absolute; display:flex; flex-direction:column; gap:8px; }
   .overlay.tl { top:12px; left:12px; }
   .overlay.tr { top:12px; right:12px; align-items:flex-end; }
@@ -123,8 +143,7 @@
 
   .panel {
     background:var(--card); border:1px solid var(--border); border-radius:var(--radius-md);
-    box-shadow:var(--shadow-md); padding:10px 12px; font-size:var(--fs-sm);
-    max-width:280px;
+    box-shadow:var(--shadow-md); padding:10px 12px; font-size:var(--fs-sm); max-width:280px;
   }
   .panel h3 { margin:0 0 6px; font-size:var(--fs-xs); font-weight:600;
               text-transform:uppercase; letter-spacing:.05em; color:var(--muted-foreground); }
@@ -149,7 +168,7 @@
 
   .side .card {
     border:1px solid var(--border); border-radius:var(--radius-lg); background:var(--card);
-    box-shadow:var(--shadow-md); padding:14px; margin-bottom:12px;
+    padding:14px; margin-bottom:12px;
   }
   .side h2 { margin:0 0 2px; font-size:var(--fs-sm); font-weight:600; }
   .side .muted { color:var(--muted-foreground); font-size:var(--fs-xs); margin:0; }
@@ -171,7 +190,9 @@
 
   .hidden { display:none !important; }
 
-  @media (max-width: 900px) {
+  @media (max-width: 1000px) {
+    .shell { grid-template-columns:1fr; }
+    .sidebar { border-right:0; border-bottom:1px solid var(--border); }
     .layout { grid-template-columns:1fr; }
   }
 </style>
@@ -182,140 +203,165 @@
   <!-- ============ mock-only controls ============ -->
   <div class="mockbar">
     <span class="label">State</span>
-    <button type="button" data-state="live"        aria-pressed="true">Live feed</button>
-    <button type="button" data-state="selected"    aria-pressed="false">Unit selected</button>
-    <button type="button" data-state="degraded"    aria-pressed="false">Live feed unavailable</button>
+    <button type="button" data-state="live"         aria-pressed="true">Live feed</button>
+    <button type="button" data-state="selected"     aria-pressed="false">Positioned unit selected</button>
+    <button type="button" data-state="selectednopos" aria-pressed="false">Un-positioned unit selected</button>
+    <button type="button" data-state="degraded"     aria-pressed="false">Live feed unavailable</button>
     <button type="button" data-state="unpositioned" aria-pressed="false">No positioned units</button>
-    <button type="button" data-state="viewer"      aria-pressed="false">Viewer (read-only)</button>
+    <button type="button" data-state="allpositioned" aria-pressed="false">Fully positioned roster</button>
+    <button type="button" data-state="viewer"       aria-pressed="false">Viewer (read-only)</button>
     <span class="spacer"></span>
     <button type="button" id="theme">Light / dark</button>
   </div>
 
   <!-- ============ product ============ -->
-  <div class="topline">
-    <div>
-      <h1>Map</h1>
-      <p class="desc" id="pagedesc">Field units in the development tenant, updating live.</p>
-    </div>
-    <div class="who">
-      <span id="whoami">Signed in as <strong>rmorales</strong></span>
-      <span class="badge" id="rolebadge">Dispatcher</span>
-      <button class="btn" type="button">Sign out</button>
-    </div>
-  </div>
+  <div class="shell">
+    <nav class="sidebar">
+      <div class="brand">Dispatch</div>
+      <button class="navitem" type="button"><i class="glyph"></i> Units</button>
+      <button class="navitem" type="button" aria-current="page"><i class="glyph"></i> Map</button>
+    </nav>
 
-  <div class="layout">
-    <!-- ---------- map ---------- -->
-    <div class="mapcard">
-      <svg class="canvas" viewBox="0 0 900 460" preserveAspectRatio="xMidYMid slice" aria-label="Map canvas (mock)">
-        <rect x="0" y="0" width="900" height="460" fill="var(--map-bg)"/>
-        <!-- coarse landmass + grid, standing in for OSM raster tiles -->
-        <path d="M80 300 Q200 240 320 275 T600 250 Q720 235 830 285 L830 460 L80 460 Z" fill="var(--map-land)"/>
-        <path d="M120 120 Q260 90 400 130 T760 110" fill="none" stroke="var(--map-line)" stroke-width="2"/>
-        <g stroke="var(--map-line)" stroke-width="1" opacity=".7">
-          <line x1="0" y1="115" x2="900" y2="115"/><line x1="0" y1="230" x2="900" y2="230"/>
-          <line x1="0" y1="345" x2="900" y2="345"/>
-          <line x1="225" y1="0" x2="225" y2="460"/><line x1="450" y1="0" x2="450" y2="460"/>
-          <line x1="675" y1="0" x2="675" y2="460"/>
-        </g>
-
-        <g id="markers">
-          <g class="marker" data-unit="FU-101" transform="translate(300,250)">
-            <circle class="pin" r="13" fill="var(--green-600)"/><text text-anchor="middle" y="4">A1</text>
-          </g>
-          <g class="marker" data-unit="FU-102" transform="translate(468,196)">
-            <circle class="pin" r="13" fill="var(--sky-600)"/><text text-anchor="middle" y="4">B2</text>
-          </g>
-          <g class="marker" data-unit="FU-103" transform="translate(612,312)">
-            <circle class="pin" r="13" fill="var(--zinc-500)"/><text text-anchor="middle" y="4">C3</text>
-          </g>
-          <g class="marker" data-unit="FU-104" transform="translate(196,338)">
-            <circle class="pin" r="13" fill="var(--green-600)"/><text text-anchor="middle" y="4">D4</text>
-          </g>
-        </g>
-      </svg>
-
-      <!-- layer manager: MapLayerManager from @mssfoobar/gis-web-sdk -->
-      <div class="overlay tl">
-        <div class="panel">
-          <h3>Layers</h3>
-          <label class="row"><input type="checkbox" checked /> Field units</label>
-          <label class="row"><input type="checkbox" checked /> OpenStreetMap</label>
+    <div class="main">
+      <div class="navbar">
+        <div>
+          <h1>Map</h1>
+          <p class="desc" id="pagedesc">Field units in the development tenant, updating live.</p>
+        </div>
+        <div class="who">
+          <span id="whoami">Signed in as <strong>admin</strong></span>
+          <span class="badge" id="rolebadge">Dispatcher</span>
+          <button class="btn" type="button">Sign out</button>
         </div>
       </div>
 
-      <div class="overlay tr">
-        <span class="badge success" id="feedbadge">Live</span>
-      </div>
+      <div class="layout">
+        <!-- ---------- map ---------- -->
+        <div class="mapcard">
+          <svg class="canvas" viewBox="0 0 900 430" preserveAspectRatio="xMidYMid slice" aria-label="Map canvas (mock)">
+            <rect x="0" y="0" width="900" height="430" fill="var(--map-bg)"/>
+            <path d="M80 280 Q200 220 320 255 T600 230 Q720 215 830 265 L830 430 L80 430 Z" fill="var(--map-land)"/>
+            <path d="M120 110 Q260 80 400 120 T760 100" fill="none" stroke="var(--map-line)" stroke-width="2"/>
+            <g stroke="var(--map-line)" stroke-width="1" opacity=".7">
+              <line x1="0" y1="107" x2="900" y2="107"/><line x1="0" y1="215" x2="900" y2="215"/>
+              <line x1="0" y1="322" x2="900" y2="322"/>
+              <line x1="225" y1="0" x2="225" y2="430"/><line x1="450" y1="0" x2="450" y2="430"/>
+              <line x1="675" y1="0" x2="675" y2="430"/>
+            </g>
 
-      <div class="overlay bl">
-        <div class="notice hidden" id="degradednotice">
-          <span class="dot"></span>
-          <div>
-            <p>Live positions are unavailable.</p>
-            <p class="sub">Positions shown were last known when the page loaded.</p>
+            <!-- Real seeded units. Bravo-1 (FU-204) is un-positioned and so is absent. -->
+            <g id="markers">
+              <g class="marker" data-unit="FU-101" transform="translate(300,235)">
+                <circle class="pin" r="13" fill="var(--green-600)"/><text text-anchor="middle" y="4">A1</text>
+              </g>
+              <g class="marker" data-unit="FU-102" transform="translate(468,184)">
+                <circle class="pin" r="13" fill="var(--sky-600)"/><text text-anchor="middle" y="4">A2</text>
+              </g>
+              <g class="marker" data-unit="FU-205" transform="translate(612,292)">
+                <circle class="pin" r="13" fill="var(--green-600)"/><text text-anchor="middle" y="4">B2</text>
+              </g>
+              <g class="marker" data-unit="FU-311" transform="translate(196,316)">
+                <circle class="pin" r="13" fill="var(--sky-600)"/><text text-anchor="middle" y="4">C1</text>
+              </g>
+              <!-- Only drawn in the "fully positioned roster" state. -->
+              <g class="marker hidden" id="marker-b1" data-unit="FU-204" transform="translate(700,170)">
+                <circle class="pin" r="13" fill="var(--zinc-500)"/><text text-anchor="middle" y="4">B1</text>
+              </g>
+            </g>
+          </svg>
+
+          <!-- MapLayerManager from @mssfoobar/gis-web-sdk -->
+          <div class="overlay tl">
+            <div class="panel">
+              <h3>Layers</h3>
+              <label class="row"><input type="checkbox" checked /> Field units</label>
+              <label class="row"><input type="checkbox" checked /> OpenStreetMap</label>
+            </div>
+          </div>
+
+          <div class="overlay tr">
+            <span class="badge success" id="feedbadge">Live</span>
+          </div>
+
+          <div class="overlay bl">
+            <div class="notice hidden" id="degradednotice">
+              <span class="dot"></span>
+              <div>
+                <p>Live positions are unavailable.</p>
+                <p class="sub">Positions shown were last known when the page loaded.</p>
+              </div>
+            </div>
+            <div class="notice hidden" id="emptynotice">
+              <span class="dot"></span>
+              <div>
+                <p>No unit has reported a position.</p>
+                <p class="sub">Units appear here once they report one.</p>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="notice hidden" id="emptynotice">
-          <span class="dot"></span>
-          <div>
-            <p>No unit has reported a position.</p>
-            <p class="sub">Units appear here once they report one.</p>
+
+        <!-- ---------- side rail ---------- -->
+        <div class="side">
+          <div class="card">
+            <h2>Roster</h2>
+            <p class="muted" id="rostersub">4 of 5 units on the map.</p>
+            <div style="height:8px"></div>
+            <div class="kv"><span class="k">Available</span><span class="v">2</span></div>
+            <div class="kv"><span class="k">En route</span><span class="v">2</span></div>
+            <div class="kv"><span class="k">Idle</span><span class="v">1</span></div>
+            <div class="kv" id="noposrow"><span class="k">No position</span><span class="v" id="noposcount">1</span></div>
+          </div>
+
+          <div class="card">
+            <div class="empty" id="noselection">Select a unit on the map to see its details.</div>
+
+            <div id="selectiondetail" class="hidden">
+              <h2 id="selcall">Alpha-2 <span class="badge info" id="selstatus">En route</span></h2>
+              <p class="muted mono" id="selcode">FU-102</p>
+              <div style="height:10px"></div>
+              <div id="selhaspos">
+                <div class="kv"><span class="k">Position</span><span class="v mono">1.2847, 103.8511</span></div>
+                <div class="kv"><span class="k">Fix</span><span class="v">2 min ago</span></div>
+              </div>
+              <div id="selnopos" class="hidden">
+                <div class="kv"><span class="k">Position</span><span class="v">Not reported</span></div>
+                <p class="muted" style="margin-top:6px">This unit is not on the map, so the camera has not moved.</p>
+              </div>
+              <div class="kv"><span class="k">Station</span><span class="v" id="selstation">Marina Bay Station 4</span></div>
+              <div style="height:12px"></div>
+              <button class="btn primary" type="button" style="width:100%">Open in console</button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- ---------- side rail ---------- -->
-    <div class="side">
-      <div class="card" id="fleetcard">
-        <h2>Fleet</h2>
-        <p class="muted" id="fleetsub">4 of 5 units on the map.</p>
-        <div style="height:8px"></div>
-        <div class="kv"><span class="k">Available</span><span class="v">2</span></div>
-        <div class="kv"><span class="k">En route</span><span class="v">1</span></div>
-        <div class="kv"><span class="k">Idle</span><span class="v">1</span></div>
-        <div class="kv"><span class="k">No position</span><span class="v" id="noposcount">1</span></div>
-      </div>
-
-      <div class="card" id="selectioncard">
-        <div class="empty" id="noselection">Select a unit on the map to see its details.</div>
-
-        <div id="selectiondetail" class="hidden">
-          <h2>Bravo-2 <span class="badge info">En route</span></h2>
-          <p class="muted mono">FU-102</p>
-          <div style="height:10px"></div>
-          <div class="kv"><span class="k">Position</span><span class="v mono">1.3521, 103.8198</span></div>
-          <div class="kv"><span class="k">Fix</span><span class="v">2 min ago</span></div>
-          <div class="kv"><span class="k">Station</span><span class="v">Central</span></div>
-          <div class="kv"><span class="k">Assignment</span><span class="v">INC-2841</span></div>
-          <div style="height:12px"></div>
-          <button class="btn primary" type="button" style="width:100%">Open in console</button>
-        </div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--green-600)"></i> Available</span>
+        <span><i class="swatch" style="background:var(--sky-600)"></i> En route</span>
+        <span><i class="swatch" style="background:var(--zinc-500)"></i> Idle</span>
       </div>
     </div>
-  </div>
-
-  <div class="legend">
-    <span><i class="swatch" style="background:var(--green-600)"></i> Available</span>
-    <span><i class="swatch" style="background:var(--sky-600)"></i> En route</span>
-    <span><i class="swatch" style="background:var(--zinc-500)"></i> Idle</span>
   </div>
 </div>
 
 <script>
-  // Mock-only wiring. The product's state comes from the SDK's live entity store and
-  // the page's own load; nothing here is a design statement about implementation.
+  // Mock-only wiring. The product's entity state comes from the SDK's live
+  // subscription and its counts from the page's roster load; nothing here is a
+  // design statement about implementation.
   const $ = (s) => document.querySelector(s);
   const markers = document.getElementById('markers');
 
   function apply(state) {
-    const degraded     = state === 'degraded';
-    const unpositioned = state === 'unpositioned';
-    const selected     = state === 'selected';
-    const viewer       = state === 'viewer';
+    const degraded      = state === 'degraded';
+    const unpositioned  = state === 'unpositioned';
+    const allPositioned = state === 'allpositioned';
+    const selected      = state === 'selected';
+    const selectedNoPos = state === 'selectednopos';
+    const viewer        = state === 'viewer';
 
     markers.classList.toggle('hidden', unpositioned);
+    $('#marker-b1').classList.toggle('hidden', !allPositioned);
     $('#degradednotice').classList.toggle('hidden', !degraded);
     $('#emptynotice').classList.toggle('hidden', !unpositioned);
 
@@ -323,18 +369,42 @@
     feed.textContent = degraded ? 'Not live' : 'Live';
     feed.className = 'badge ' + (degraded ? 'warn' : 'success');
 
-    $('#fleetsub').textContent = unpositioned ? '0 of 5 units on the map.' : '4 of 5 units on the map.';
+    // Counts come from unit data, so they stay truthful in every map state.
+    $('#rostersub').textContent =
+      unpositioned ? '0 of 5 units on the map.'
+      : allPositioned ? '5 of 5 units on the map.'
+      : '4 of 5 units on the map.';
+    // "A fully positioned roster says so" — the row is absent, not zero.
+    $('#noposrow').classList.toggle('hidden', allPositioned);
     $('#noposcount').textContent = unpositioned ? '5' : '1';
 
-    $('#noselection').classList.toggle('hidden', selected);
-    $('#selectiondetail').classList.toggle('hidden', !selected);
+    const anySelection = selected || selectedNoPos;
+    $('#noselection').classList.toggle('hidden', anySelection);
+    $('#selectiondetail').classList.toggle('hidden', !anySelection);
+    $('#selhaspos').classList.toggle('hidden', selectedNoPos);
+    $('#selnopos').classList.toggle('hidden', !selectedNoPos);
+
+    if (selectedNoPos) {
+      $('#selcall').childNodes[0].nodeValue = 'Bravo-1 ';
+      $('#selstatus').textContent = 'Idle';
+      $('#selstatus').className = 'badge';
+      $('#selcode').textContent = 'FU-204';
+      $('#selstation').textContent = 'Tanjong Pagar Station 2';
+    } else {
+      $('#selcall').childNodes[0].nodeValue = 'Alpha-2 ';
+      $('#selstatus').textContent = 'En route';
+      $('#selstatus').className = 'badge info';
+      $('#selcode').textContent = 'FU-102';
+      $('#selstation').textContent = 'Marina Bay Station 4';
+    }
+
     document.querySelectorAll('.marker').forEach((m) =>
       m.classList.toggle('selected', selected && m.dataset.unit === 'FU-102')
     );
 
     $('#whoami').innerHTML = viewer
-      ? 'Signed in as <strong>tlim</strong>'
-      : 'Signed in as <strong>rmorales</strong>';
+      ? 'Signed in as <strong>viewer</strong>'
+      : 'Signed in as <strong>admin</strong>';
     $('#rolebadge').textContent = viewer ? 'Viewer' : 'Dispatcher';
     $('#pagedesc').textContent = viewer
       ? 'Field units in the development tenant. Read only.'

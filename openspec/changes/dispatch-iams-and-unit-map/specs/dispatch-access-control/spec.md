@@ -4,8 +4,9 @@
 
 The console SHALL authenticate operators through `iams-keycloak` using OpenID Connect
 Authorization Code flow with PKCE against the bundled `aoh` realm. It SHALL reuse the
-realm's existing public `web` client. This change SHALL NOT create a realm, SHALL NOT add a
-realm role, SHALL NOT add a claim mapper, and SHALL NOT register a second public client.
+realm's existing public `web` client. This change SHALL NOT create a realm, SHALL NOT
+register an OIDC client of any kind, SHALL NOT add a realm role, and SHALL NOT add a claim
+mapper. Its only addition to `realm-import.json` SHALL be one seed user (see below).
 
 #### Scenario: An unauthenticated visitor is sent to sign in
 - **WHEN** a visitor with no session opens any console route
@@ -19,41 +20,60 @@ realm role, SHALL NOT add a claim mapper, and SHALL NOT register a second public
 
 #### Scenario: Bare root leads to sign-in, not to the console
 - **WHEN** a visitor with no session opens `/`
-- **THEN** they end at the sign-in flow and not at an unauthenticated console page
+- **THEN** they end at the sign-in flow, not at an unauthenticated console page and not at a 404
 
-#### Scenario: The console adds no public client
+#### Scenario: The change adds no client, role or mapper
 - **WHEN** `compose/iams/keycloak/realm-import.json` is compared against the platform-shipped file
-- **THEN** it declares no added public client, no added realm role, and no added claim mapper
-- **AND** the only client this change adds is the confidential one specified below
+- **THEN** the only difference is one added entry in the `users` array
+- **AND** the `clients`, realm-roles and claim-mapper sections are byte-identical
 
-### Requirement: The projection worker authenticates as a service account
+### Requirement: The realm seeds one viewer account alongside the existing operator
 
-The outbox worker SHALL NOT reuse an operator's token, because it calls `gis-service` after
-the originating request has returned and a retry may happen long after that token expires.
-It SHALL obtain its own token through the
-client-credentials grant using a single confidential client, `dispatch-svc`, declared in
-`compose/iams/keycloak/realm-import.json` with `serviceAccountsEnabled` and the `openid`
-scope. That client's service-account user SHALL be a member of the `development` tenant so
-`gis-service` accepts its writes. No operator token, refresh token, or credential SHALL be
-persisted in the outbox.
+This change SHALL add one seed user to `realm-import.json`'s `users` array to serve as the
+viewer account, and SHALL assign the two application roles through `roles.yaml`. The shipped
+`aoh` realm contains exactly one interactive user, so the viewer/dispatcher split has no
+second account to assign otherwise. The role bootstrap SHALL NOT be expected to create
+the account: `project-aas-init` requires a user that already exists in Keycloak and exits
+with an error otherwise.
 
-#### Scenario: The worker obtains its own token
-- **WHEN** the worker needs to deliver a projection
-- **THEN** it requests a token with the client-credentials grant for the `dispatch-svc` client
-- **AND** `gis-service` accepts that token
+#### Scenario: Both accounts exist after a fresh import
+- **WHEN** the stack is brought up from empty volumes
+- **THEN** both the dispatcher account and the viewer account can complete the sign-in flow
+- **AND** neither required a manual step in the Keycloak admin UI
+
+#### Scenario: The role bootstrap finds both users
+- **WHEN** `project-aas-init` runs
+- **THEN** it exits 0
+- **AND** it does not report a user missing from Keycloak
+
+### Requirement: The projection carries the operator's bearer
+
+The outbox worker SHALL authenticate to `gis-service` with the access token of the operator
+whose write produced the outbox row, captured by value before the post-commit work detaches
+from the request context. It SHALL NOT use a client-credentials (service-account) token,
+because such a token carries no `active_tenant` claim and `gis-service` resolves the tenant
+from that claim. No access token, refresh token, or client secret SHALL be persisted in the
+outbox or anywhere else in the database.
+
+#### Scenario: The projection is made as the operator
+- **WHEN** the worker delivers a projection for a unit a dispatcher just wrote
+- **THEN** the request to `gis-service` carries that dispatcher's access token
+- **AND** `gis-service` accepts it
 
 #### Scenario: The outbox holds no credentials
 - **WHEN** an outbox row is inspected
 - **THEN** it carries the target unit, the intent and the payload
 - **AND** it carries no access token, refresh token, or client secret
 
-#### Scenario: The service account belongs to the development tenant
-- **WHEN** a client-credentials token for `dispatch-svc` is obtained and decoded
-- **THEN** its `active_tenant.tenant_id` is the `development` tenant's id
+#### Scenario: A delivery that outlives its token waits rather than failing
+- **WHEN** a projection cannot be delivered before the operator's token expires
+- **THEN** the outbox row remains pending and is not marked delivered
+- **AND** it is delivered on a later authenticated request from the same tenant
 
-#### Scenario: The client is present after a fresh import
-- **WHEN** the stack is brought up from empty volumes
-- **THEN** the `dispatch-svc` client exists in the `aoh` realm without any manual step
+#### Scenario: Tokens are requested with the openid scope
+- **WHEN** any component of this change obtains a token for calling an AOH service
+- **THEN** the request includes `scope=openid`
+- **AND** the resulting token is accepted rather than rejected as an invalid JWT
 
 ### Requirement: Session tokens are held server-side in SDS
 
@@ -74,6 +94,27 @@ SHALL be readable by the browser or serialised into any page payload.
 - **WHEN** a request carrying a valid session-id cookie reaches a server route
 - **THEN** the server obtains the access token from SDS for that session
 - **AND** the request to `dispatch-svc` carries it as an `Authorization: Bearer` header
+
+### Requirement: A session outlives the access token without the operator noticing
+
+Access tokens are short-lived. The session SHALL survive their expiry: the console SHALL
+renew through its refresh endpoint, backed by the refresh token held in SDS, without
+returning the operator to the sign-in screen and without the browser ever holding either
+token.
+
+#### Scenario: Working across an access-token expiry
+- **WHEN** an operator leaves the console idle for longer than the access token's lifetime and then performs a read or a write
+- **THEN** the action succeeds
+- **AND** they are not redirected to the sign-in flow
+
+#### Scenario: Renewal happens server-side
+- **WHEN** a renewal occurs
+- **THEN** the browser's cookies still carry only the session id
+- **AND** no access or refresh token appears in any response to the browser
+
+#### Scenario: An ended session cannot be renewed
+- **WHEN** renewal is attempted for a session that has been signed out
+- **THEN** it fails and the operator is sent to the sign-in flow
 
 ### Requirement: Signing out ends the session
 
@@ -131,8 +172,9 @@ read a resolved permission list from the token, because AAS does not put one the
 ### Requirement: The field-unit API requires a bearer token
 
 Every `/v1/units` endpoint SHALL require a valid bearer token issued by the `aoh` realm,
-validated offline against the realm's JWKS. `/livez` and `/readyz` SHALL remain
-unauthenticated.
+validated by `aoh-golib`'s shipped `aohhttp.BearerAuth` middleware rather than a hand-rolled
+equivalent. This includes the not-yet-implemented workshop stub routes. `/livez` and
+`/readyz` SHALL remain unauthenticated.
 
 #### Scenario: A request with no token is rejected
 - **WHEN** a client issues `GET /v1/units` with no `Authorization` header
@@ -144,8 +186,13 @@ unauthenticated.
 - **THEN** the response status is 401
 
 #### Scenario: A valid token is accepted
-- **WHEN** a client issues `GET /v1/units` with a token obtained via the password grant against the bundled `web` client
+- **WHEN** a client issues `GET /v1/units` with a token obtained via the password grant against the bundled `web` client, requested with `scope=openid`
 - **THEN** the response status is 200
+
+#### Scenario: The unimplemented stub routes are also protected
+- **WHEN** a client issues `POST /v1/units/{unit_code}/assignment`, `GET /v1/units/{unit_code}/events` or `PUT /v1/units/{unit_code}/crew` with no `Authorization` header
+- **THEN** the response status is 401
+- **AND** the 501 body those routes return to an authorised caller is not disclosed
 
 ### Requirement: Health probes stay outside the authenticated surface
 

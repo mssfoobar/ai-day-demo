@@ -2,16 +2,16 @@
 
 The workshop console is the only AOH app in the repo that nobody logs into and that shows
 no map. Both gaps were deliberate — `baseline-dispatch-console` (design.md D1) stripped the
-scaffold's auth layer, and every change since has recorded GIS as "the natural successor
-once units carry positions." Those two deferrals have now come due together: a dispatcher
+scaffold's auth layer, and the same change recorded GIS as "the natural successor once units
+carry positions". Those two deferrals have now come due together: a dispatcher
 who cannot see where a unit *is* cannot dispatch it well, and a console with no caller has
 nowhere to put `created_by`, no tenant, and no way to say who may write.
 
 They land as one change because they are not independent. GIS depends on IAMS **and** RTUS
 (`aoh-knowledge` → `service-catalogue.md` dependency graph); the map page cannot exist
-before the `(private)` route group, the SDS-backed session and the gateway that IAMS
-restores; and the browser's SSE subscription to rtus-seh is authorised by the very session
-cookie IAMS mints. Splitting them would mean shipping an auth change whose only consumer
+before the `(private)` route group and the SDS-backed session that IAMS restores; and the
+browser's SSE subscription to rtus-seh is authorised by the very session cookie IAMS
+mints. Splitting them would mean shipping an auth change whose only consumer
 arrives in the next PR.
 
 ## What Changes
@@ -20,17 +20,23 @@ arrives in the next PR.
 
 - `dispatch-web` regains the auth layer the baseline removed: OIDC Authorization Code + PKCE
   against the bundled `aoh` realm's `web` client, the `(public)/aoh/api/auth/*` routes, the
-  `(private)` route group and layout, `AuthProvider`, and the gateway proxy
-  (`gateway.config.ts`, module `dispatch`). Tokens live **server-side in SDS**; the browser
-  holds only a `web_auth_session_id` cookie.
+  `(private)` route group and layout, and `AuthProvider`. Tokens live **server-side in SDS**;
+  the browser holds only a `web_auth_session_id` cookie. The scaffold's gateway proxy is
+  deliberately **not** restored — nothing in this change calls `dispatch-svc` from the
+  browser (design.md D5).
 - **BREAKING**: the console is no longer reachable unauthenticated, and its route moves from
   `/units` to `/aoh/dispatch/units` under the `(private)` group, per `aoh-conventions`
   `[project]/[module]` routing. `/` redirects to the login flow, not to the console.
-- `dispatch-svc` gains bearer-token auth on `/v1/units` (offline JWT validation against the
-  realm's JWKS). `/livez` and `/readyz` stay unauthenticated. For its *outbound* calls to
-  `gis-service` it gains one confidential OIDC client (`dispatch-svc`, client-credentials) —
-  the only realm addition this change makes, and the case `aoh-knowledge` names as warranting
-  a client, because a retrying background worker has no operator token to carry.
+- `dispatch-svc` gains bearer-token auth on `/v1/units` via `aoh-golib`'s shipped
+  `aohhttp.BearerAuth` middleware. `/livez` and `/readyz` stay unauthenticated. Its
+  *outbound* calls to `gis-service` carry the **operator's** bearer, captured by value before
+  the post-commit goroutine detaches — a service-account token would not work, because
+  client-credentials tokens carry no `active_tenant` claim and `gis-service` is tenant-aware
+  (design.md D2a).
+- The `aoh` realm gains exactly one thing: a **second seed user** in `realm-import.json`, so
+  the viewer/dispatcher split has an account to test against. The shipped realm has only one
+  interactive user, and `roles.yaml` cannot create one — `project-aas-init` requires the user
+  to exist in Keycloak already. No OIDC client, realm role or claim mapper is added.
 - **BREAKING**: `tenant_id`, `created_by` and `updated_by` stop being the literals
   `'workshop'` / `'system'` and come from the token's `active_tenant.tenant_id` and `sub`.
   Reads are tenant-scoped, so a seeded row no longer appears for an arbitrary caller.
@@ -44,10 +50,12 @@ arrives in the next PR.
 - The `unit` table and the wire model gain a position: `position_lon`, `position_lat`,
   `position_at`, surfaced as an optional `position` object. A unit without a fix omits the
   key, exactly as `assignment` does.
-- `dispatch-svc` mirrors every field unit into `gis-service` as a **geo-entity**
-  (`entity_id` = `unit_code`, `entity_type` = `track`, `properties.kind` = `field-unit`),
-  written through a transactional outbox so the mirror can never disagree with the unit row.
-  GIS republishes each change to the RTUS map `gis`.
+- `dispatch-svc` mirrors every **positioned** field unit into `gis-service` as a
+  **geo-entity** (`entity_id` = `unit_code`, `entity_type` = `track`, `properties.kind` =
+  `field-unit`), written through a transactional outbox so the mirror can never disagree with
+  the unit row. A unit with no position — including one whose position is cleared — has its
+  entity removed instead, so the map never shows a stale marker (design.md D6a). GIS
+  republishes each change to the RTUS map `gis`.
 - `dispatch-web` gains a **Map** page at `/aoh/dispatch/map` mounting
   `@mssfoobar/gis-web-sdk` (Cesium engine, 2D, OSM tiles), subscribed to the `gis` RTUS map
   over SSE via the session cookie. Selecting a unit on the map opens it in the console;
@@ -57,9 +65,10 @@ arrives in the next PR.
 **Runtime.**
 
 - **BREAKING**: the compose stack grows from one container (Postgres) to the platform set —
-  Traefik, `iams-db`, `iams-keycloak`, `iams-aas`, `iams-init`, `project-aas-init`,
-  `sds-server`, `valkey`, `rtus-db`, `rtus-pms`, `rtus-seh`, `gis-db`, `gis-service`, plus
-  the `otel` gateway collector. `pnpm start`'s "only PostgreSQL runs in a container" promise
+  Traefik, `iams-db`, `iams-keycloak`, `iams-aas`, `iams-web`, `iams-init`,
+  `project-aas-init`, `sds-server`, `valkey`, `rtus-db`, `rtus-pms`, `rtus-seh`, `gis-db`,
+  `gis-service`, plus the `otel-collector` gateway — fourteen alongside the dispatch
+  PostgreSQL. `pnpm start`'s "only PostgreSQL runs in a container" promise
   ends with this change.
 
 Not in this pass: editing a unit's position from the console (positions are seeded and
@@ -84,9 +93,11 @@ MSR), and the three stubbed workshop exercises, which stay stubbed.
   requires a session, gates add / edit / delete on the `dispatch-dispatcher` role, shows the
   signed-in user, gains a nav entry and a link to the map, and renders position in the
   detail pane.
-- `dispatch-units-api`: every `/v1/units` endpoint requires a bearer token and answers 401 /
-  403; `tenant_id`, `created_by` and `updated_by` derive from the token; `position` joins the
-  resource.
+- `dispatch-units-api`: reads and writes are scoped to the caller's tenant; `tenant_id`,
+  `created_by` and `updated_by` derive from the token; `position` joins the resource; and the
+  persisted model gains the position columns and the projection outbox table. (The bearer
+  requirement itself and its 401 / 403 behaviour are specified once, under
+  `dispatch-access-control`.)
 - `field-unit-roster`: a field unit's shape widens — units carry a last-known **position**
   and its **fix time**, distinct from last contact. (Tenant scoping of what the roster
   returns is specified once, under `dispatch-units-api`, rather than restated here.)
@@ -97,8 +108,7 @@ MSR), and the three stubbed workshop exercises, which stay stubbed.
   `aoh-web-init` scaffold this app was built from already expects. Adopted whole —
   `iams-keycloak` for authentication, `iams-aas` for the tenant-scoped application roles.
   Nothing here is built bespoke; the change *configures* IAMS — one `roles.yaml` edit for the
-  application roles, and one confidential client in `realm-import.json` for the outbox
-  worker's service account — rather than extending it.
+  application roles, and one seed user in `realm-import.json` — rather than extending it.
 - `sds` (Session Data Store): **selected — not optional.** `aoh-knowledge` →
   `services/sds.md` makes SDS mandatory for every AOH web app, and rtus-seh reads the SDS
   session cookie to authorise the map's SSE stream. The cookie-only fallback in `auth.ts` is
@@ -129,7 +139,7 @@ MSR), and the three stubbed workshop exercises, which stay stubbed.
   worker publishing to `gis-service`, config for the Keycloak and GIS hosts. Existing
   handlers keep their shape; the `WHERE tenant_id = $n` predicate is new on every query.
 - **`apps/dispatch-web`**: the restored auth surface (hooks, auth routes, `(private)` group,
-  `AuthProvider`, `gateway.config.ts`, `nav.ts`, Sidebar/Headerbar), the map page and its
+  `AuthProvider`, `nav.ts`, Sidebar/Headerbar — but no gateway proxy), the map page and its
   `+page.ts` (`ssr = false`), the Cesium static-asset vite plugin, role-gated controls on the
   console, `App.Locals` regaining `authResult`. New deps: `@mssfoobar/gis-web-sdk`,
   `@mssfoobar/auth-sdk`, `@cesium/engine`, `@cesium/widgets`. `@mssfoobar/sse-client` is
@@ -142,11 +152,13 @@ MSR), and the three stubbed workshop exercises, which stay stubbed.
   effect on a stack brought up from empty volumes.
 - **Docs that assert the opposite of this change and must move with it**:
   `apps/dispatch-web/AGENTS.md`'s "🛑 This app has NO authentication" table,
-  `apps/dispatch-svc/AGENTS.md`'s "No authentication" bullet, `README.md`'s no-auth and
-  one-container claims, `SETUP.md`, and `UBIQUITOUS_LANGUAGE.md` (the *field unit* ↔
+  `apps/dispatch-svc/AGENTS.md`'s "No authentication" bullet, the root `README.md`'s no-auth
+  and one-container claims, `apps/dispatch-svc/README.md`'s "no authentication" summary line,
+  `apps/dispatch-web/README.md`'s "This app has no authentication" section, `SETUP.md`, and
+  `UBIQUITOUS_LANGUAGE.md` (the *field unit* ↔
   `geo-entity` mapping stops being conditional; *position* and *fix time* join the table).
 - **Workshop**: the three stubbed exercises keep their stubs, but their routes now sit behind
-  a token — `WORKSHOP.md`'s bare `curl http://localhost:8081/v1/units/FU-101/assignment`
+  a token — `WORKSHOP.md`'s bare `curl -i -X POST http://localhost:8081/v1/units/FU-101/assignment`
   stops working as written and needs a bearer. This is the change's biggest cost to the
   workshop and is carried as a risk in `design.md`.
 - **APIs**: no new `dispatch-svc` route. The surface changes are the auth posture on existing

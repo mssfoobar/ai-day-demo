@@ -1,15 +1,16 @@
 ## ADDED Requirements
 
-### Requirement: The console has a map surface
+### Requirement: The application has a map surface
 
-The console SHALL offer a map page at `/aoh/dispatch/map`, inside the `(private)` route
-group, rendering the tenant's field units on a geospatial canvas. It SHALL be built on
+The application SHALL offer a map page at `/aoh/dispatch/map`, inside the `(private)` route
+group, alongside the console rather than inside it, rendering the tenant's field units on a
+geospatial canvas. It SHALL be built on
 `@mssfoobar/gis-web-sdk` — the map, its engine provider, its entity providers and its
 panels — and SHALL NOT hand-roll a map renderer, a tile client, or an entity layer. Its
 chrome (page header, buttons, cards, badges) SHALL come from `@mssfoobar/ui`. Every state
 below is drawn in `openspec/changes/dispatch-iams-and-unit-map/design/dispatch-map-mock.html`.
 
-#### Scenario: The map renders the fleet
+#### Scenario: The map renders the roster
 - **WHEN** an operator with either application role opens `/aoh/dispatch/map`
 - **THEN** the map canvas renders base tiles and one marker per positioned field unit in their tenant
 - **AND** each marker is labelled with its unit's call sign
@@ -102,13 +103,15 @@ screen. At most one unit SHALL be selected at a time.
 ### Requirement: Un-positioned units are accounted for, not hidden
 
 Units without a position cannot be drawn. The map SHALL state how many of the tenant's
-units are not shown, so a dispatcher never mistakes an incomplete map for the whole fleet.
+units are not shown, so a dispatcher never mistakes an incomplete map for the whole roster.
+The count SHALL be derived from unit data rather than from the entities on the map, so a
+pending projection cannot make the roster look smaller than it is.
 
 #### Scenario: The count is visible
 - **WHEN** some of the tenant's units have no position
 - **THEN** the page shows how many units are not on the map
 
-#### Scenario: A fully positioned fleet says so
+#### Scenario: A fully positioned roster says so
 - **WHEN** every unit in the tenant has a position
 - **THEN** no un-positioned count is shown
 

@@ -31,9 +31,22 @@ each create, replace and delete SHALL write an outbox row inside the **same data
 transaction** as the unit change, so the unit row and the pending projection can never
 disagree. The service SHALL NOT call `gis-service` inline on the request path.
 
-#### Scenario: A create enqueues an upsert
-- **WHEN** a unit is created
+The intent recorded SHALL be derived from the unit's position **after** the write, not from
+the HTTP verb: a unit that has a position enqueues an `upsert`; a unit that has none —
+whether it never had one, had it cleared by a replace, or was deleted — enqueues a `delete`.
+
+#### Scenario: A create of a positioned unit enqueues an upsert
+- **WHEN** a unit with a position is created
 - **THEN** exactly one outbox row for that `unit_code` with an upsert intent exists after the transaction commits
+
+#### Scenario: A create of an un-positioned unit enqueues a delete
+- **WHEN** a unit with no position is created
+- **THEN** the outbox row for that `unit_code` carries a delete intent, not an upsert
+
+#### Scenario: Clearing a position enqueues a delete
+- **WHEN** a replace removes a unit's position
+- **THEN** the outbox row for that `unit_code` carries a delete intent
+- **AND** after the worker drains, no geo-entity exists for that `unit_code`
 
 #### Scenario: A failed unit write enqueues nothing
 - **WHEN** a unit write is rolled back
@@ -46,8 +59,8 @@ disagree. The service SHALL NOT call `gis-service` inline on the request path.
 
 ### Requirement: The projection worker upserts a geo-entity per field unit
 
-A background worker SHALL drain the outbox and write each unit into `gis-service` as a
-geo-entity with `entity_id` equal to the unit's `unit_code`, `entity_type` `track`,
+A background worker SHALL drain the outbox. For a unit that **has** a position it SHALL
+write a geo-entity with `entity_id` equal to the unit's `unit_code`, `entity_type` `track`,
 `geojson.geometry` a Point of `[lon, lat]`, and `geojson.properties` carrying `kind`
 `field-unit` plus the unit's call sign and status. Delivery SHALL be retried until it
 succeeds and SHALL be idempotent — replaying an outbox row SHALL NOT create a second
@@ -71,8 +84,9 @@ entity.
 - **THEN** the entity reflects the write without any operator action
 
 #### Scenario: An un-positioned unit has no entity
-- **WHEN** a unit has no position
+- **WHEN** a unit has no position and the outbox has drained
 - **THEN** no geo-entity exists for its `unit_code`
+- **AND** no stale marker remains at a position it previously held
 
 ### Requirement: Deleting a unit removes its geo-entity
 
@@ -100,15 +114,17 @@ The projection SHALL rely on `gis-service`'s own publication to the RTUS map nam
 - **WHEN** `dispatch-svc`'s configuration is reviewed
 - **THEN** it names `gis-service` as its only downstream and carries no RTUS endpoint
 
-### Requirement: The projection is scoped to the caller's tenant
+### Requirement: The projection is written in the tenant of the operator who caused it
 
-Every projected geo-entity SHALL be written under the tenant of the unit it mirrors, so a
-map renders only entities the operator's tenant owns.
+Because the worker carries the operator's own token, every projected geo-entity SHALL land
+in that operator's tenant — which is, by construction, the tenant of the unit they wrote.
+The worker SHALL NOT hold a tenant-independent credential, and SHALL NOT project a unit it
+has no operator token for.
 
-#### Scenario: An entity is visible to its own tenant
-- **WHEN** a unit belonging to a tenant is projected and an operator of that tenant reads `GET /geoentity/entity_id/{unit_code}`
-- **THEN** the entity is returned
+#### Scenario: The entity lands in the writing operator's tenant
+- **WHEN** an operator writes a unit and the outbox drains
+- **THEN** reading `GET /geoentity/entity_id/{unit_code}` with that same operator's token returns the entity
 
-#### Scenario: An entity is not visible to another tenant
-- **WHEN** an operator of a different tenant reads the same entity id
-- **THEN** the entity is not returned to them
+#### Scenario: No tenant-independent credential exists
+- **WHEN** `dispatch-svc`'s configuration and code are reviewed
+- **THEN** they contain no client secret, service-account credential, or client-credentials grant

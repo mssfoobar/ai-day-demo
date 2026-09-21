@@ -109,6 +109,22 @@
   .btn.primary { background:var(--ring); border-color:var(--ring); color:#fff; }
   .btn.destructive { color:var(--destructive); }
 
+  .shell { display:grid; grid-template-columns:200px 1fr;
+           border:1px solid var(--border); border-radius:var(--radius-lg);
+           overflow:hidden; background:var(--card); box-shadow:var(--shadow-md); }
+  .sidebar { background:var(--card); border-right:1px solid var(--border); padding:14px 10px; }
+  .sidebar .brand { font-weight:600; font-size:var(--fs-sm); padding:4px 8px 12px; }
+  .navitem {
+    display:flex; align-items:center; gap:8px; width:100%; text-align:left;
+    font:inherit; font-size:var(--fs-sm); color:inherit; background:transparent;
+    border:0; border-radius:var(--radius-sm); padding:7px 8px; cursor:pointer;
+  }
+  .navitem:hover { background:var(--accent); }
+  .navitem[aria-current="page"] { background:var(--accent); font-weight:600; }
+  .navitem .glyph { width:14px; height:14px; border-radius:3px; background:var(--muted-foreground); flex:none; }
+  .navitem[aria-current="page"] .glyph { background:var(--ring); }
+  .main { padding:18px 20px 22px; min-width:0; }
+
   .layout { display:grid; grid-template-columns:360px 1fr; gap:16px; }
   .card {
     border:1px solid var(--border); border-radius:var(--radius-lg); background:var(--card);
@@ -150,7 +166,11 @@
   .denied p { margin:0 auto; max-width:420px; color:var(--muted-foreground); font-size:var(--fs-sm); }
 
   .hidden { display:none !important; }
-  @media (max-width: 900px) { .layout { grid-template-columns:1fr; } }
+  @media (max-width: 1000px) {
+    .shell { grid-template-columns:1fr; }
+    .sidebar { border-right:0; border-bottom:1px solid var(--border); }
+    .layout { grid-template-columns:1fr; }
+  }
 </style>
 </head>
 <body>
@@ -161,19 +181,27 @@
     <button type="button" data-state="dispatcher"  aria-pressed="true">Dispatcher</button>
     <button type="button" data-state="viewer"      aria-pressed="false">Viewer (no write controls)</button>
     <button type="button" data-state="denied"      aria-pressed="false">Permission denied (403)</button>
+    <button type="button" data-state="unreachable" aria-pressed="false">Service unreachable</button>
     <button type="button" data-state="positioned"  aria-pressed="false">Unit with position</button>
     <button type="button" data-state="nopos"       aria-pressed="false">Unit without position</button>
     <span class="spacer"></span>
     <button type="button" id="theme">Light / dark</button>
   </div>
 
+  <div class="shell">
+  <nav class="sidebar">
+    <div class="brand">Dispatch</div>
+    <button class="navitem" type="button" aria-current="page"><i class="glyph"></i> Units</button>
+    <button class="navitem" type="button"><i class="glyph"></i> Map</button>
+  </nav>
+  <div class="main">
   <div class="topline">
     <div>
       <h1>Units</h1>
       <p class="desc">Field units in the development tenant.</p>
     </div>
     <div class="who">
-      <span id="whoami">Signed in as <strong>rmorales</strong></span>
+      <span id="whoami">Signed in as <strong>admin</strong></span>
       <span class="badge" id="rolebadge">Dispatcher</span>
       <button class="btn" type="button">Sign out</button>
     </div>
@@ -187,15 +215,15 @@
         <button class="btn primary writeonly" type="button">Add unit</button>
       </div>
       <button class="unit" type="button" data-unit="FU-101">
-        <span><span class="cs">Alpha-1</span><br /><span class="sub">Central · FU-101</span></span>
+        <span><span class="cs">Alpha-1</span><br /><span class="sub">Marina Bay Station 4 · FU-101</span></span>
         <span class="badge success">Available</span>
       </button>
       <button class="unit" type="button" data-unit="FU-102" aria-current="true">
-        <span><span class="cs">Bravo-2</span><br /><span class="sub">INC-2841 · FU-102</span></span>
+        <span><span class="cs">Alpha-2</span><br /><span class="sub">INC-2841 · FU-102</span></span>
         <span class="badge info">En route</span>
       </button>
-      <button class="unit" type="button" data-unit="FU-105">
-        <span><span class="cs">Echo-5</span><br /><span class="sub">North · FU-105</span></span>
+      <button class="unit" type="button" data-unit="FU-204">
+        <span><span class="cs">Bravo-1</span><br /><span class="sub">Tanjong Pagar Station 2 · FU-204</span></span>
         <span class="badge">Idle</span>
       </button>
     </div>
@@ -206,7 +234,7 @@
       <div id="detailbody">
         <div class="cardhead">
           <div>
-            <h2 id="dcallsign" style="font-size:var(--fs-base)">Bravo-2</h2>
+            <h2 id="dcallsign" style="font-size:var(--fs-base)">Alpha-2</h2>
             <span class="mono" id="dcode">FU-102</span>
           </div>
           <div style="display:flex; gap:8px">
@@ -218,7 +246,7 @@
         <div class="section">
           <h3>Overview</h3>
           <div class="kv"><span class="k">Status</span><span class="v"><span class="badge info" id="dstatus">En route</span></span></div>
-          <div class="kv"><span class="k">Station</span><span class="v">Central</span></div>
+          <div class="kv"><span class="k">Station</span><span class="v" id="dstation">Marina Bay Station 4</span></div>
           <div class="kv"><span class="k">Last contact</span><span class="v">4 min ago</span></div>
         </div>
 
@@ -226,7 +254,7 @@
         <div class="section">
           <h3>Position</h3>
           <div id="haspos">
-            <div class="kv"><span class="k">Coordinates</span><span class="v mono">1.3521, 103.8198</span></div>
+            <div class="kv"><span class="k">Coordinates</span><span class="v mono">1.2847, 103.8511</span></div>
             <div class="kv"><span class="k">Fix</span><span class="v">2 min ago</span></div>
             <div style="height:8px"></div>
             <button class="btn" type="button">Show on map</button>
@@ -253,7 +281,18 @@
         <h2>Access to this action is restricted</h2>
         <p>For assistance with access, please contact your administrator.</p>
       </div>
+
+      <!-- dispatch-svc unreachable: distinct from a refusal, and retryable -->
+      <div id="unreachablebody" class="denied hidden">
+        <div class="icon">!</div>
+        <h2>Units could not be loaded</h2>
+        <p>The dispatch service is not responding. The roster shown may be out of date.</p>
+        <div style="height:12px"></div>
+        <button class="btn" type="button">Retry</button>
+      </div>
     </div>
+  </div>
+  </div>
   </div>
 </div>
 
@@ -262,25 +301,28 @@
   const $$ = (s) => document.querySelectorAll(s);
 
   function apply(state) {
-    const viewer     = state === 'viewer';
-    const denied     = state === 'denied';
-    const noPosition = state === 'nopos';
+    const viewer      = state === 'viewer';
+    const denied      = state === 'denied';
+    const unreachable = state === 'unreachable';
+    const noPosition  = state === 'nopos';
 
     // Role gating: a viewer never renders a write control (the service refuses
     // it independently — see specs/dispatch-access-control).
-    $$('.writeonly').forEach((el) => el.classList.toggle('hidden', viewer || denied));
+    $$('.writeonly').forEach((el) => el.classList.toggle('hidden', viewer || denied || unreachable));
 
-    $('#detailbody').classList.toggle('hidden', denied);
+    $('#detailbody').classList.toggle('hidden', denied || unreachable);
     $('#deniedbody').classList.toggle('hidden', !denied);
+    $('#unreachablebody').classList.toggle('hidden', !unreachable);
 
     $('#haspos').classList.toggle('hidden', noPosition);
     $('#nopos').classList.toggle('hidden', !noPosition);
-    $('#dcallsign').textContent = noPosition ? 'Echo-5' : 'Bravo-2';
-    $('#dcode').textContent     = noPosition ? 'FU-105' : 'FU-102';
+    $('#dcallsign').textContent = noPosition ? 'Bravo-1' : 'Alpha-2';
+    $('#dcode').textContent     = noPosition ? 'FU-204' : 'FU-102';
     $('#dstatus').textContent   = noPosition ? 'Idle' : 'En route';
     $('#dstatus').className     = 'badge ' + (noPosition ? '' : 'info');
+    $('#dstation').textContent  = noPosition ? 'Tanjong Pagar Station 2' : 'Marina Bay Station 4';
 
-    $('#whoami').innerHTML  = viewer ? 'Signed in as <strong>tlim</strong>' : 'Signed in as <strong>rmorales</strong>';
+    $('#whoami').innerHTML  = viewer ? 'Signed in as <strong>viewer</strong>' : 'Signed in as <strong>admin</strong>';
     $('#rolebadge').textContent = viewer ? 'Viewer' : 'Dispatcher';
   }
 
@@ -294,7 +336,7 @@
   $$('.unit').forEach((u) => {
     u.addEventListener('click', () => {
       $$('.unit').forEach((o) => o.setAttribute('aria-current', String(o === u)));
-      $('.mockbar button[data-state="' + (u.dataset.unit === 'FU-105' ? 'nopos' : 'positioned') + '"]').click();
+      $('.mockbar button[data-state="' + (u.dataset.unit === 'FU-204' ? 'nopos' : 'positioned') + '"]').click();
     });
   });
 
