@@ -15,10 +15,11 @@
      The "map" below is an SVG stand-in for a Cesium 2D scene; it exists to
      show placement, panels and states, not to look like real tiles.
 
-     Units are the REAL seeded roster — the rows dispatch-svc seeds on a tenant's
-     first dispatcher request (tasks.md 3.4, design.md D12; pairings unchanged from
-     the baseline seed): FU-101 Alpha-1, FU-102 Alpha-2, FU-204 Bravo-1,
-     FU-205 Bravo-2, FU-311 Charlie-1. Bravo-1 is un-positioned.
+     NO FIELD UNITS APPEAR HERE, and that is the design: this change integrates
+     the map module and puts no dispatch data on it (design.md D7 non-goals).
+     Drawing units is the workshop exercise. The states below are therefore about
+     the integration itself — is the feed connected, is it reachable, what does an
+     operator see when nothing is published yet.
      ------------------------------------------------------------------ */
   :root {
     --zinc-50:#FAFAFA; --zinc-100:#F4F4F5; --zinc-200:#E4E4E7; --zinc-300:#D4D4D8;
@@ -185,10 +186,6 @@
   .legend span { display:inline-flex; align-items:center; gap:6px; }
   .swatch { width:10px; height:10px; border-radius:999px; display:inline-block; }
 
-  .marker { cursor:pointer; }
-  .marker text { font-family:var(--font-sans); font-size:11px; font-weight:600; fill:#fff; }
-  .marker.selected .pin { stroke:var(--ring); stroke-width:3; }
-
   .hidden { display:none !important; }
 
   @media (max-width: 1000px) {
@@ -204,14 +201,9 @@
   <!-- ============ mock-only controls ============ -->
   <div class="mockbar">
     <span class="label">State</span>
-    <button type="button" data-state="live"         aria-pressed="true">Live feed</button>
-    <button type="button" data-state="selected"     aria-pressed="false">Positioned unit selected</button>
-    <button type="button" data-state="selectednopos" aria-pressed="false">Un-positioned unit selected</button>
-    <button type="button" data-state="degraded"     aria-pressed="false">Live feed unavailable</button>
-    <button type="button" data-state="unpositioned" aria-pressed="false">No positioned units</button>
-    <button type="button" data-state="unseeded"     aria-pressed="false">Unseeded tenant (viewer)</button>
-    <button type="button" data-state="allpositioned" aria-pressed="false">Fully positioned roster</button>
-    <button type="button" data-state="viewer"       aria-pressed="false">Viewer (read-only)</button>
+    <button type="button" data-state="connected" aria-pressed="true">Connected, nothing published</button>
+    <button type="button" data-state="degraded"  aria-pressed="false">Live feed unavailable</button>
+    <button type="button" data-state="viewer"    aria-pressed="false">Viewer</button>
     <span class="spacer"></span>
     <button type="button" id="theme">Light / dark</button>
   </div>
@@ -228,7 +220,7 @@
       <div class="navbar">
         <div>
           <h1>Map</h1>
-          <p class="desc" id="pagedesc">Field units in the development tenant, updating live.</p>
+          <p class="desc" id="pagedesc">Geospatial surface. No dispatch data is published to it yet.</p>
         </div>
         <div class="who">
           <span id="whoami">Signed in as <strong>admin</strong></span>
@@ -251,25 +243,6 @@
               <line x1="675" y1="0" x2="675" y2="430"/>
             </g>
 
-            <!-- Real seeded units. Bravo-1 (FU-204) is un-positioned and so is absent. -->
-            <g id="markers">
-              <g class="marker" data-unit="FU-101" transform="translate(300,235)">
-                <circle class="pin" r="13" fill="var(--green-600)"/><text text-anchor="middle" y="4">A1</text>
-              </g>
-              <g class="marker" data-unit="FU-102" transform="translate(468,184)">
-                <circle class="pin" r="13" fill="var(--sky-600)"/><text text-anchor="middle" y="4">A2</text>
-              </g>
-              <g class="marker" data-unit="FU-205" transform="translate(612,292)">
-                <circle class="pin" r="13" fill="var(--green-600)"/><text text-anchor="middle" y="4">B2</text>
-              </g>
-              <g class="marker" data-unit="FU-311" transform="translate(196,316)">
-                <circle class="pin" r="13" fill="var(--sky-600)"/><text text-anchor="middle" y="4">C1</text>
-              </g>
-              <!-- Only drawn in the "fully positioned roster" state. -->
-              <g class="marker hidden" id="marker-b1" data-unit="FU-204" transform="translate(700,170)">
-                <circle class="pin" r="13" fill="var(--zinc-500)"/><text text-anchor="middle" y="4">B1</text>
-              </g>
-            </g>
           </svg>
 
           <!-- MapLayerManager from @mssfoobar/gis-web-sdk -->
@@ -293,19 +266,13 @@
                 <p class="sub">Positions shown were last known when the page loaded.</p>
               </div>
             </div>
-            <div class="notice hidden" id="emptynotice">
+            <!-- The state every attendee sees first. It has to read as "working and
+                 empty", not as "broken" — that distinction is the whole point. -->
+            <div class="notice" id="emptynotice">
               <span class="dot"></span>
               <div>
-                <p>No unit has reported a position.</p>
-                <p class="sub">Units appear here once they report one.</p>
-              </div>
-            </div>
-            <!-- Distinct from the above: there are no units at all, not units without a fix. -->
-            <div class="notice hidden" id="unseedednotice">
-              <span class="dot"></span>
-              <div>
-                <p>No units in this tenant.</p>
-                <p class="sub">Nothing to show on the map yet.</p>
+                <p>No entities are published to this map yet.</p>
+                <p class="sub">Wiring field units onto it is a workshop exercise.</p>
               </div>
             </div>
           </div>
@@ -314,114 +281,59 @@
         <!-- ---------- side rail ---------- -->
         <div class="side">
           <div class="card">
-            <h2>Roster</h2>
-            <p class="muted" id="rostersub">4 of 5 units on the map.</p>
+            <h2>Integration</h2>
+            <p class="muted">What this page proves is wired.</p>
             <div style="height:8px"></div>
-            <div class="kv"><span class="k">Available</span><span class="v">2</span></div>
-            <div class="kv"><span class="k">En route</span><span class="v">2</span></div>
-            <div class="kv"><span class="k">Idle</span><span class="v">1</span></div>
-            <div class="kv" id="noposrow"><span class="k">No position</span><span class="v" id="noposcount">1</span></div>
+            <div class="kv"><span class="k">Map engine</span><span class="v"><span class="badge success">Cesium</span></span></div>
+            <div class="kv"><span class="k">Base layer</span><span class="v"><span class="badge success">OSM</span></span></div>
+            <div class="kv"><span class="k">Cesium assets</span><span class="v"><span class="badge success">Served</span></span></div>
+            <div class="kv"><span class="k">Live feed</span><span class="v"><span class="badge success" id="feedrow">Connected</span></span></div>
+            <div class="kv"><span class="k">Entities</span><span class="v"><span class="badge">None yet</span></span></div>
           </div>
 
           <div class="card">
-            <div class="empty" id="noselection">Select a unit on the map to see its details.</div>
-
-            <div id="selectiondetail" class="hidden">
-              <h2 id="selcall">Alpha-2 <span class="badge info" id="selstatus">En route</span></h2>
-              <p class="muted mono" id="selcode">FU-102</p>
-              <div style="height:10px"></div>
-              <div id="selhaspos">
-                <div class="kv"><span class="k">Position</span><span class="v mono">1.2847, 103.8511</span></div>
-                <div class="kv"><span class="k">Fix</span><span class="v">2 min ago</span></div>
-              </div>
-              <div id="selnopos" class="hidden">
-                <div class="kv"><span class="k">Position</span><span class="v">Not reported</span></div>
-                <p class="muted" style="margin-top:6px">This unit is not on the map, so the camera has not moved.</p>
-              </div>
-              <div class="kv"><span class="k">Station</span><span class="v" id="selstation">Marina Bay Station 4</span></div>
-              <div style="height:12px"></div>
-              <button class="btn primary" type="button" style="width:100%">Open in console</button>
-            </div>
+            <h2>Next</h2>
+            <p class="muted">
+              Field units do not appear here yet. Projecting them into GIS and
+              drawing them on this map is the workshop exercise.
+            </p>
           </div>
         </div>
       </div>
 
-      <div class="legend">
-        <span><i class="swatch" style="background:var(--green-600)"></i> Available</span>
-        <span><i class="swatch" style="background:var(--sky-600)"></i> En route</span>
-        <span><i class="swatch" style="background:var(--zinc-500)"></i> Idle</span>
-      </div>
     </div>
   </div>
 </div>
 
 <script>
-  // Mock-only wiring. The product's entity state comes from the SDK's live
-  // subscription and its counts from the page's roster load; nothing here is a
-  // design statement about implementation.
+  // Mock-only wiring. The product renders the SDK's map; these states are about the
+  // integration around it, since this change puts no entities on the map at all.
   const $ = (s) => document.querySelector(s);
-  const markers = document.getElementById('markers');
 
   function apply(state) {
-    const degraded      = state === 'degraded';
-    const unpositioned  = state === 'unpositioned';
-    const allPositioned = state === 'allpositioned';
-    const selected      = state === 'selected';
-    const selectedNoPos = state === 'selectednopos';
-    const viewer        = state === 'viewer' || state === 'unseeded';
-    const unseeded      = state === 'unseeded';
+    const degraded = state === 'degraded';
+    const viewer   = state === 'viewer';
 
-    markers.classList.toggle('hidden', unpositioned || unseeded);
-    $('#unseedednotice').classList.toggle('hidden', !unseeded);
-    $('#marker-b1').classList.toggle('hidden', !allPositioned);
     $('#degradednotice').classList.toggle('hidden', !degraded);
-    $('#emptynotice').classList.toggle('hidden', !unpositioned);
+    // "Nothing published yet" is true in every state; when the feed is also down we
+    // lead with that instead, because it is the actionable one.
+    $('#emptynotice').classList.toggle('hidden', degraded);
 
     const feed = $('#feedbadge');
     feed.textContent = degraded ? 'Not live' : 'Live';
     feed.className = 'badge ' + (degraded ? 'warn' : 'success');
 
-    // Counts come from unit data, so they stay truthful in every map state.
-    $('#rostersub').textContent =
-      unseeded ? 'No units in this tenant.'
-      : unpositioned ? '0 of 5 units on the map.'
-      : allPositioned ? '5 of 5 units on the map.'
-      : '4 of 5 units on the map.';
-    // "A fully positioned roster says so" — the row is absent, not zero.
-    $('#noposrow').classList.toggle('hidden', allPositioned);
-    $('#noposcount').textContent = unpositioned ? '5' : '1';
-
-    const anySelection = selected || selectedNoPos;
-    $('#noselection').classList.toggle('hidden', anySelection);
-    $('#selectiondetail').classList.toggle('hidden', !anySelection);
-    $('#selhaspos').classList.toggle('hidden', selectedNoPos);
-    $('#selnopos').classList.toggle('hidden', !selectedNoPos);
-
-    if (selectedNoPos) {
-      $('#selcall').childNodes[0].nodeValue = 'Bravo-1 ';
-      $('#selstatus').textContent = 'Idle';
-      $('#selstatus').className = 'badge';
-      $('#selcode').textContent = 'FU-204';
-      $('#selstation').textContent = 'Tanjong Pagar Station 2';
-    } else {
-      $('#selcall').childNodes[0].nodeValue = 'Alpha-2 ';
-      $('#selstatus').textContent = 'En route';
-      $('#selstatus').className = 'badge info';
-      $('#selcode').textContent = 'FU-102';
-      $('#selstation').textContent = 'Marina Bay Station 4';
-    }
-
-    document.querySelectorAll('.marker').forEach((m) =>
-      m.classList.toggle('selected', selected && m.dataset.unit === 'FU-102')
-    );
+    const row = $('#feedrow');
+    row.textContent = degraded ? 'Unreachable' : 'Connected';
+    row.className = 'badge ' + (degraded ? 'warn' : 'success');
 
     $('#whoami').innerHTML = viewer
       ? 'Signed in as <strong>viewer</strong>'
       : 'Signed in as <strong>admin</strong>';
     $('#rolebadge').textContent = viewer ? 'Viewer' : 'Dispatcher';
     $('#pagedesc').textContent = viewer
-      ? 'Field units in the development tenant. Read only.'
-      : 'Field units in the development tenant, updating live.';
+      ? 'Geospatial surface. Read only.'
+      : 'Geospatial surface. No dispatch data is published to it yet.';
   }
 
   document.querySelectorAll('.mockbar button[data-state]').forEach((b) => {
@@ -432,19 +344,12 @@
     });
   });
 
-  // Clicking a marker demonstrates the map → console cross-link.
-  document.querySelectorAll('.marker').forEach((m) => {
-    m.addEventListener('click', () => {
-      document.querySelector('.mockbar button[data-state="selected"]').click();
-    });
-  });
-
   document.getElementById('theme').addEventListener('click', () => {
     const root = document.documentElement;
     root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
   });
 
-  apply('live');
+  apply('connected');
 </script>
 </body>
 </html>

@@ -27,6 +27,11 @@ mapper. Its only addition to `realm-import.json` SHALL be one seed user (see bel
 - **THEN** it contains all six route handlers the scaffold ships — `login`, `callback`, `refresh`, `logout`, `context` and `context/[value]`
 - **AND** requesting the tenant-switching routes as a signed-in operator returns without a server error, even though this change adds no second tenant to switch to
 
+#### Scenario: Tokens are requested with the openid scope
+- **WHEN** any component of this change obtains a token for calling an AOH service
+- **THEN** the request includes `scope=openid`
+- **AND** the resulting token is accepted rather than rejected as an invalid JWT
+
 #### Scenario: The change adds no client, role or mapper
 - **WHEN** `compose/iams/keycloak/realm-import.json` is compared against the platform-shipped file
 - **THEN** the only difference is one added entry in the `users` array
@@ -50,39 +55,6 @@ with an error otherwise.
 - **WHEN** `project-aas-init` runs
 - **THEN** it exits 0
 - **AND** it does not report a user missing from Keycloak
-
-### Requirement: The projection carries the operator's bearer
-
-The outbox worker SHALL authenticate to `gis-service` with the access token of the operator
-whose write produced the outbox row, captured by value before the post-commit work detaches
-from the request context. It SHALL NOT use a client-credentials (service-account) token,
-because such a token carries no `active_tenant` claim and `gis-service` resolves the tenant
-from that claim. No access token, refresh token, or client secret SHALL be persisted in the
-outbox or anywhere else in the database.
-
-#### Scenario: The projection is made as the operator
-- **WHEN** the worker delivers a projection for a unit a dispatcher just wrote
-- **THEN** the request to `gis-service` carries that dispatcher's access token
-- **AND** `gis-service` accepts it
-
-#### Scenario: The outbox holds no credentials
-- **WHEN** an outbox row is inspected
-- **THEN** it carries the target unit, the intent and the payload
-- **AND** it carries no access token, refresh token, or client secret
-
-#### Scenario: A delivery that outlives its token is left pending, not reassigned
-- **WHEN** a projection cannot be delivered before the writing operator's token expires
-- **THEN** the outbox row remains pending and is not marked delivered
-- **AND** no later request by a different operator is used to deliver it
-
-#### Scenario: A reader is never made to perform a write
-- **WHEN** an operator holding only `dispatch-viewer` reads the roster while a projection is pending
-- **THEN** no write to `gis-service` is made with that operator's token
-
-#### Scenario: Tokens are requested with the openid scope
-- **WHEN** any component of this change obtains a token for calling an AOH service
-- **THEN** the request includes `scope=openid`
-- **AND** the resulting token is accepted rather than rejected as an invalid JWT
 
 ### Requirement: Session tokens are held server-side in SDS
 

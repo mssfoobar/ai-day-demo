@@ -5,7 +5,8 @@ The console is an `aoh-web-init` scaffold with its auth layer amputated
 (`dispatch-units-service` D1). Reads happen in a SvelteKit server `load`, writes in form
 actions; the browser only ever talks to its own origin. `UBIQUITOUS_LANGUAGE.md` has mapped
 our *field unit* onto a GIS `geo-entity` since the baseline and recorded that the mapping
-becomes real *"once units carry positions. They do not today."*
+becomes real *"once units carry positions. They do not today."* They still do not: this
+change brings the map module in and leaves that mapping for the exercise to realise.
 
 Three platform constraints shape everything below.
 
@@ -19,7 +20,8 @@ Three platform constraints shape everything below.
    reads a permissions claim rejects every legitimate user.
 3. **GIS does not stand alone.** `gis` depends on `iams` and `rtus`; `sds` ships with
    `iams` and is mandatory for any AOH web app, not least because `rtus-seh` authorises the
-   browser's SSE stream by resolving the SDS session cookie.
+   browser's SSE stream by resolving the SDS session cookie. That dependency chain is why
+   the map cannot be added before IAMS even though this change puts no data on it.
 
 The consumers are workshop attendees on laptops, running the two apps natively against
 composed-up infrastructure. Nothing here targets production.
@@ -32,18 +34,21 @@ composed-up infrastructure. Nothing here targets production.
   SDS-held tokens, AAS-owned roles.
 - Give `dispatch-svc` a real caller — tenant scoping and audit identity from the token
   instead of the `'workshop'` / `'system'` placeholders.
-- Put field units on a map that moves without a reload, by mirroring them into GIS and
-  letting GIS's existing RTUS publication do the fan-out.
+- Bring the GIS map **module** into the app — mounted, themed, auth-gated, Cesium assets
+  served, live feed connected — and stop there. Putting dispatch data on it is deliberately
+  left as a workshop exercise, which is the point: integrating a platform module against a
+  running stack is the skill the workshop teaches, and it is a far better exercise when the
+  surrounding infrastructure is already proven to work.
 - Keep the change reversible in review: every new behaviour is additive to existing code
   paths, and the console's data-flow architecture (server-side reads, form-action writes)
   is untouched.
 
-**Non-Goals:**
+**Non-Goals — the first of these is the workshop exercise this change exists to set up:**
 
-- Authoring positions from the console. Positions are seeded and settable through the API;
-  no drag-to-move, no simulator.
-- GIS bookmarks, drawing, measurement, geofences, or a layer-management UI beyond what is
-  needed to see the roster on a map.
+- **Field units on the map.** No position on the unit model, no `geo-entity` projection, no
+  entity layer, no map↔console selection. `gis-service` and RTUS run, and the map is
+  connected to them, but nothing writes and nothing is drawn.
+- GIS bookmarks, drawing, measurement, geofences, or layer management beyond what ships.
 - Replay of historical movement (that is MSR) and any second map surface.
 - Production authorization. `roles.yaml` is development-only, as `aoh-knowledge` states.
 - Building the three stubbed workshop exercises. They stay stubbed.
@@ -62,12 +67,12 @@ composed-up infrastructure. Nothing here targets production.
 | `sds-server` | Server-side session store; holds the access + refresh tokens and mints an access token for `rtus-seh` | Platform — added by `aoh-compose` |
 | `valkey` | SDS's backing store | Platform — added by `aoh-compose` |
 | `rtus-db` | RTUS metadata PostgreSQL | Platform — added by `aoh-compose` |
-| `rtus-pms` | Pub/sub control plane; holds the `gis` JSON map that `gis-service` publishes to | Platform — added by `aoh-compose` |
+| `rtus-pms` | Pub/sub control plane; holds the `gis` JSON map. Nothing publishes to it in this change | Platform — added by `aoh-compose` |
 | `rtus-seh` | SSE delivery to the browser; authorises the subscription from the `web_auth_session_id` cookie via SDS | Platform — added by `aoh-compose` |
 | `gis-db` | Geospatial PostgreSQL | Platform — added by `aoh-compose` |
-| `gis-service` | Geo-entity REST API; publishes entity changes to the `gis` RTUS map through its own transactional outbox | Platform — added by `aoh-compose` |
+| `gis-service` | Geo-entity REST API. **Runs but is not called by this change** — it is here so the workshop exercise that wires field units into it has a working backend to integrate against | Platform — added by `aoh-compose` |
 | `otel-collector` | OTLP gateway. Neither app exports to it today — `dispatch-svc` has no OTEL wiring at all and `dispatch-web`'s `instrumentation.server.ts` is a no-op until `OTEL_EXPORTER_OTLP_ENDPOINT` is set. It arrives with the stack; wiring it is not in this change | Platform — added by `aoh-compose` |
-| `postgres` (dispatch) | `dispatch-svc`'s own database — gains position columns and the projection outbox table | Existing — modified by this change |
+| `postgres` (dispatch) | `dispatch-svc`'s own database — gains the seed-marker table | Existing — modified by this change |
 | `dispatch-svc` | Go field-unit service; runs natively (`go run`), not composed | Existing — modified by this change |
 | `dispatch-web` | SvelteKit console; runs natively (`pnpm dev`), not composed | Existing — modified by this change |
 
@@ -81,11 +86,11 @@ receives nothing.
 
 | Method | Path | Auth posture | Description | Fronting gateway route |
 |---|---|---|---|---|
-| GET | `/v1/units` | BearerAuth, role `dispatch-viewer` or `dispatch-dispatcher` | List the caller's tenant's units, each with `position` when it has one. **Not side-effect-free**: a dispatcher's first request against an unseeded tenant seeds it before answering (D12) | n/a — see D5 |
+| GET | `/v1/units` | BearerAuth, role `dispatch-viewer` or `dispatch-dispatcher` | List the caller's tenant's units. **Not side-effect-free**: a dispatcher's first request against an unseeded tenant seeds it before answering (D7) | n/a — see D5 |
 | GET | `/v1/units/{unit_code}` | BearerAuth, role `dispatch-viewer` or `dispatch-dispatcher` | One unit in the caller's tenant; 404 for another tenant's | n/a — see D5 |
-| POST | `/v1/units` | BearerAuth, role `dispatch-dispatcher` | Create, now accepting `position`; `tenant_id` / `created_by` from the token | n/a — see D5 |
-| PUT | `/v1/units/{unit_code}` | BearerAuth, role `dispatch-dispatcher` | Replace, now accepting and clearing `position`; `occ_lock` unchanged | n/a — see D5 |
-| DELETE | `/v1/units/{unit_code}` | BearerAuth, role `dispatch-dispatcher` | Delete, and enqueue the geo-entity delete | n/a — see D5 |
+| POST | `/v1/units` | BearerAuth, role `dispatch-dispatcher` | Create; `tenant_id` / `created_by` now from the token | n/a — see D5 |
+| PUT | `/v1/units/{unit_code}` | BearerAuth, role `dispatch-dispatcher` | Replace; `occ_lock` semantics unchanged | n/a — see D5 |
+| DELETE | `/v1/units/{unit_code}` | BearerAuth, role `dispatch-dispatcher` | Delete | n/a — see D5 |
 | POST · DELETE | `/v1/units/{unit_code}/assignment` | BearerAuth, role `dispatch-dispatcher` | Workshop exercise 1 stub. Still answers 501 — but now only to an authorised caller | n/a — see D5 |
 | GET | `/v1/units/{unit_code}/events` | BearerAuth, role `dispatch-viewer` or `dispatch-dispatcher` | Workshop exercise 2 stub. Still 501 | n/a — see D5 |
 | PUT | `/v1/units/{unit_code}/crew` | BearerAuth, role `dispatch-dispatcher` | Workshop exercise 3 stub. Still 501 | n/a — see D5 |
@@ -111,19 +116,20 @@ envelope (`data`, `message`, `sent_at`); errors remain the AOH error contract.
 
 ### Consumed, not exposed
 
-These are `gis-service`'s own endpoints, called server-to-server by `dispatch-svc`'s outbox
-worker. They are listed for completeness and are **not** part of this change's API surface —
-their paths are `gis-service`'s to define, not ours.
+These are `gis-service`'s own endpoints. **This change calls none of them** — they are
+recorded so the workshop exercise that projects field units into GIS starts from a named
+surface rather than a search. Their paths are `gis-service`'s to define, not ours.
 
 | Method | Path (on `gis-service`) | Called by | Purpose |
 |---|---|---|---|
-| PUT | `/geoentity` | `dispatch-svc` outbox worker | Upsert the geo-entity mirroring a unit |
-| DELETE | `/geoentity/entity_id/{entity_id}` | `dispatch-svc` outbox worker | Remove a deleted unit's entity |
+| PUT | `/geoentity` | *(the exercise)* | Upsert a geo-entity mirroring a unit |
+| DELETE | `/geoentity/entity_id/{entity_id}` | *(the exercise)* | Remove a deleted unit's entity |
 | GET | `/geoentity/entity_id/{entity_id}` | Verification only | Assert the projection landed |
 | GET | `/geoentity` | Verification only | Assert a token is accepted by `gis-service` at all |
 
 The browser's only cross-origin call is the SSE subscription to `rtus-seh`, carrying the
-session cookie and no token.
+session cookie and no token. Nothing in this change calls `gis-service`; the "consumed"
+table below is what the workshop exercise will fill in.
 
 ## UI / Design System
 
@@ -131,15 +137,14 @@ Two surfaces change. Clickable mockups, each with a state switcher covering ever
 specs name:
 
 - `openspec/changes/dispatch-iams-and-unit-map/design/dispatch-map-mock.html` — the map:
-  live feed; a positioned unit selected; an **un-positioned unit selected** (camera does not
-  move); live feed unavailable; no positioned units; a **fully positioned roster** (no
-  "not shown" count); and the viewer (read-only) variant.
+  connected (base tiles, layer panel, live feed established and empty); live feed
+  unavailable; and the viewer variant. It draws no field units, because this change puts
+  none there.
 - `openspec/changes/dispatch-iams-and-unit-map/design/dispatch-console-auth-mock.html` —
   the console's new states: signed in as a dispatcher (write controls present), signed in as
   a viewer (write controls absent), permission denied after a 403, **service unreachable**,
-  **unseeded** (a viewer on a fresh stack, before any dispatcher has triggered the seed), the
-  position section for a positioned unit, for an un-positioned unit, and a unit that is
-  unassigned and carries no capabilities.
+  **empty roster** seen by a viewer and by a dispatcher, and a unit that is unassigned and
+  carries no capabilities.
 
 Both mocks render the `Sidebar` + `Navbar` the restored layout brings back, with the console
 and map nav entries, and both use the real seeded roster (`0002_seed.up.sql`) rather than
@@ -157,14 +162,13 @@ bypasses the theme tokens and dark mode.
 **The map itself is SDK-owned.** GIS is a platform module with its own SDK, so the map is
 composed from `@mssfoobar/gis-web-sdk` — `GisProvider` (at the layout root, fed the app's
 existing `ThemeProvider` dark-mode store), `CesiumMapEngineProvider`, `Map`,
-`MapBaseLayerProvider` + `MapXyzSourceProvider` (OpenStreetMap tiles), `MapEntityLayerProvider`
-+ `MapEntityProvider kind="field-unit"` with a typed snippet rendering the call-sign marker,
-and `MapLayerManager`. No tile client, entity layer, or marker renderer is written by hand.
-`MapControlPanel` and `MapBookmarkManager` are deliberately left out — drawing and bookmarks
-are non-goals.
+`MapBaseLayerProvider` + `MapXyzSourceProvider` (OpenStreetMap tiles), and `MapLayerManager`. No tile client or marker renderer is written by hand.
+`MapEntityLayerProvider` / `MapEntityProvider` are deliberately **absent** — they are what
+the workshop exercise adds, along with the data behind them. `MapControlPanel` and
+`MapBookmarkManager` are left out too; drawing and bookmarks are non-goals.
 
 **Copy and tone.** Sentence case, operational register, no emoji, per `aoh-design`. "Live
-positions are unavailable." — not "Oops! We couldn't connect." The permission-denied copy
+updates are unavailable." — not "Oops! We couldn't connect." The permission-denied copy
 follows the platform line: "Access to this action is restricted. For assistance with access,
 please contact your administrator."
 
@@ -199,40 +203,7 @@ viewer/dispatcher split this change specifies has no second account to assign. `
 cannot create one: `bootstrap.py` exits with *"user not found in Keycloak — add to
 realm-import.json"*. Adding a seed user is what `aoh-knowledge` →
 `keycloak-realm-guide.md` documents `realm-import.json` for, so the viewer account goes
-there. Consequence: the Keycloak import must be re-run from empty volumes — carried as R8.
-
-**D2a — The projection carries the operator's bearer, not a service-account token.** This
-reverses an earlier draft of this design, and the reason is worth recording because it is
-not obvious. A client-credentials token **carries no `active_tenant` claim** at all
-(`aoh-knowledge` → `integration-patterns.md`, posture B), and `gis-service` is
-tenant-aware (`GIS_ACTIVE_TENANT_CLAIM_KEY=active_tenant`). A service account therefore
-cannot write a tenant-scoped geo-entity — the writes would be rejected or land in the wrong
-tenant, and no amount of AAS membership fixes it, because the claim is absent rather than
-wrong. Posture A is mandatory for any target that validates `active_tenant`, and the
-platform's own GIS seeding script uses a password-grant **user** token for exactly this
-reason.
-
-So the projection carries the access token of the operator **whose write produced it**,
-captured **by value** before the post-commit goroutine detaches from the request context —
-the precise gotcha `integration-patterns.md` names. The token is never persisted; it lives
-in memory for the life of that write's delivery attempts, and retry is bounded by its
-remaining lifetime (the shipped realm's `accessTokenLifespan` is 300s).
-
-A row that cannot be delivered inside that window stays **pending and visible** in the
-outbox table. Recovery is an ordinary write: re-saving that unit through the API enqueues a
-fresh row and delivers it with the new caller's token. That applies to seeded and
-operator-created units alike — the seed runs once per tenant (D12) and is not a repair tool.
-There is no background sweeper, and this design deliberately does not add one. *Alternatives considered:* (a) storing the bearer in the outbox row — persists
-a credential in the database and still expires; (b) storing the refresh token — worse, it
-lets a background worker act as a user indefinitely; (c) draining the backlog
-opportunistically on the *next* authenticated request from the same tenant. (c) is the
-tempting one and is wrong twice over: the draining request is usually a different operator,
-so GIS would attribute the entity to whoever happened to make the next call rather than to
-its author; and nothing constrains that request to a dispatcher, so a `dispatch-viewer`
-merely *reading* the roster would be made to perform a GIS write — which the change's own
-role model forbids, and which `gis-service` may reject outright, stranding the row forever.
-A pending row is a visible, recoverable condition; a silently mis-attributed write is not.
-R4 covers the window.
+there. Consequence: the Keycloak import must be re-run from empty volumes — carried as R7.
 
 **D3 — Roles in AAS; permissions projected in-process.** `dispatch-viewer` and
 `dispatch-dispatcher` are AAS tenant roles declared in
@@ -264,65 +235,7 @@ does not carry, so it 401s before forwarding). The map's cross-link to the conso
 SvelteKit navigation, not a fetch. When a browser-side call first appears, the gateway
 arrives with it.
 
-**D6 — Mirror units into GIS through a transactional outbox; never call GIS inline.** Each
-unit write records an outbox row in the same transaction; a worker drains it into
-`gis-service` with retry. *Alternatives considered:* (a) calling `gis-service` inline in the
-handler — couples a unit write to GIS's availability and can half-succeed; (b) logical
-replication / CDC — far more machinery than five units need. The outbox is also the pattern
-`gis-service` itself uses to reach RTUS, so the shape is already in the platform's
-vocabulary. Delivery is at-least-once, so the projection must be idempotent — `PUT
-/geoentity` is an upsert keyed on `entity_id`, which makes replay a no-op.
-
-**D6a — Position presence, not the write verb, decides the projection intent.** A geo-entity
-is a Point; a unit with no coordinates has nothing to project. So the intent recorded in the
-outbox is derived from the unit's position *after* the write, not from whether the write was
-a create, a replace or a delete:
-
-| Unit state after the write | Outbox intent | Effect in GIS |
-|---|---|---|
-| Has a position | `upsert` | `PUT /geoentity` |
-| Has no position (never had one) | `delete` | `DELETE /geoentity/entity_id/{unit_code}` — a no-op when nothing is there |
-| Position cleared by a replace | `delete` | The entity is removed |
-| Unit deleted | `delete` | The entity is removed |
-
-Without this rule the design contradicts itself: "mirror every unit" and "an un-positioned
-unit has no entity" cannot both hold under an unconditional upsert, and a cleared position
-would silently leave a stale marker on the map at the unit's last known location — the worst
-possible failure for a dispatch surface, because it looks like data rather than an absence.
-Making `delete` a no-op when the entity is missing is what lets the rule stay this simple.
-
-**D7 — `dispatch-svc` owns the position; GIS is a projection, not the source of truth.** The
-`unit` row carries `position_lon` / `position_lat` / `position_at`; GIS holds a mirror.
-*Alternative considered:* storing positions only in GIS and reading them back for the
-console. Rejected — it would put a second service on the console's read path for a field the
-detail pane always shows, and it would make `dispatch-svc` unable to answer "where is this
-unit" without a network hop. The cost is that the two can diverge while the outbox is
-draining; R4 covers that window.
-
-**D8 — `entity_id` = `unit_code`, `entity_type` = `track`, `kind` = `field-unit`.**
-`unit_code` is already the stable per-tenant key and is what `UBIQUITOUS_LANGUAGE.md` maps
-onto `entity_id`. `track` is GIS's reserved type for entities with real-time position
-updates — `static` would be wrong the moment a unit moves. `kind` is the app-level grouping
-GIS filters and styles by, and `MapEntityProvider` keys on it. Note this corrects the
-language file, which currently guesses `entity_type=field_unit`; `field-unit` is a `kind`,
-not an `entity_type`.
-
-`unit_code` is unique per *tenant*, not globally, so two tenants may legitimately hold the
-same code. That is safe here only because GIS is itself tenant-partitioned — entities are
-written in the token's tenant and RTUS json-maps are keyed per tenant
-(`aoh-gis-integration/references/entities.md`), so `entity_id` need only be unique within a
-tenant. If GIS's partitioning ever turns out to be weaker than that, the fix is to key on
-`{tenant_id}:{unit_code}`; it is called out here so the assumption is visible rather than
-discovered by two tenants overwriting each other's markers.
-
-**D9 — The map has one source of entity state.** The page does not fetch an entity list of
-its own; the SDK's subscription (`init=true`) is the only source. *Alternative considered:*
-an initial server-side list plus live updates, the usual AOH pattern. Rejected here because
-it requires a dedup step at the prepend site to survive the fetch/SSE race, and there is
-nothing to gain — the SDK already replays current state on connect. The console keeps its
-own server-side roster read; that is unit data, not entity data.
-
-**D10 — Native dev runs on the platform's own dev origin, `http://${DEV_DOMAIN}:5173`.**
+**D6 — Native dev runs on the platform's own dev origin, `http://${DEV_DOMAIN}:5173`.**
 `DEV_DOMAIN` keeps its shipped default `127.0.0.1.nip.io`, so the console is served at
 `http://127.0.0.1.nip.io:5173` with `ORIGIN` matching and `PUBLIC_DOMAIN=${DEV_DOMAIN}`.
 Three things fall out of that one choice, and each would otherwise be a separate bug:
@@ -346,29 +259,16 @@ buys nothing. Note `apps/dispatch-web/vite.config.ts` currently ships **no** `al
 `allowedHosts: ['127.0.0.1.nip.io', '.127.0.0.1.nip.io']`, or the dev server host-checks the
 request.
 
-**D11 — `last_contact` and `position_at` move independently, and the existing UPDATE
-changes.** `dispatch-units-crud` D4 made every write bump `last_contact`; this change adds
-`position_at`, the time the *fix* was taken. They are not the same event — an operator
-editing a unit's radio channel is a contact, not a position report — and the roster spec
-requires them to be independent. So the existing UPDATE keeps bumping `last_contact` and
-must **not** touch `position_at`, which changes only when a write supplies a position.
-*Alternative considered:* leaving `position_at` to follow `last_contact`. Rejected: it would
-make every edit look like a fresh GPS fix, and the map's "fix age" would become a lie. This
-closes what an earlier draft left as an open question — it is a change to shipped behaviour
-and so belongs in the task list, not in an apply-time decision.
-
-**D12 — The service seeds a tenant the first time a dispatcher asks it for anything.** The
+**D7 — The service seeds a tenant the first time a dispatcher asks it for anything.** The
 baseline seeds the roster from `0002_seed.up.sql` on service start. That stops working here:
 `iams-init` creates the tenant by `POST /admin/tenants` with only `{"name": "development"}`,
 so **AAS assigns the id** — which is why `bootstrap.py` has to look it up by name — and a
 hardcoded UUID in a checked-in migration is stale after the first `down -v`. Rows inserted by
-SQL also never pass through the outbox, so seeded units would exist in the console and be
-permanently absent from the map, with the reproducibility gate certifying that broken state.
+SQL cannot carry the caller's identity into `created_by` either.
 
-Everything the seed needs — the tenant id, the caller's identity, the crew and assignment
-shapes the write API withholds, the outbox, the constraints, the token that delivers the
-projection — is present on an authenticated request and nowhere else. So that is where the
-seed happens: **after `BearerAuth`, on the first request from a caller holding
+Everything the seed needs — the tenant id, the caller's identity, and the crew and assignment
+shapes the write API withholds — is present on an authenticated request and nowhere else. So
+that is where the seed happens: **after `BearerAuth`, on the first request from a caller holding
 `dispatch-dispatcher`, the service seeds that caller's tenant**, in the same transaction that
 records it has done so, and before the triggering request is served. No seed endpoint, no
 second binary, no script, and nothing for an attendee to run.
@@ -388,24 +288,19 @@ Two constraints make it safe rather than clever:
   rule *seed once per tenant, ever*. `INSERT … ON CONFLICT DO NOTHING` on that row is also
   what makes two simultaneous sign-ins safe: the loser sees the conflict and skips.
 - **A dispatcher gate.** Seeding is a write, so it rides only a request from a caller who may
-  write. This is the same rule D2a applies to the projection, and the consistency is
-  deliberate — a `dispatch-viewer`'s read must not perform writes in one part of this service
-  and be forbidden from it in another.
+  write — a `dispatch-viewer`'s read must never perform one.
 
-*Why this is not the thing D2a rejects.* D2a refuses to drain a pending projection on a later
-request, and this rides a later request, so the distinction has to be stated. Draining
-attributes **one operator's write to another**, silently and repeatedly, and can conscript a
-reader into a write they are not permitted to make. Seeding is a **one-time bootstrap of an
-empty tenant**, gated on the same role the write would need anyway, marked so it never
-repeats, and attributed to the dispatcher who triggered it — which is true rather than
-convenient. One is a recurring misattribution; the other is a single, recorded, correctly
-attributed act.
+*Doing work on someone's request deserves scrutiny.* Seeding rides a request that did not ask
+for it, which is the shape of a lot of bad behaviour. What makes it acceptable here is that it
+is a **one-time bootstrap of an empty tenant**, gated on the same role the write would need
+anyway, marked so it never repeats, and attributed to the dispatcher who triggered it — which
+is true rather than convenient. A mechanism that ran repeatedly, or attributed one operator's
+write to another, would not clear that bar.
 
 *Alternatives considered:* (a) an external script writing the API plus raw SQL — needs a
 Postgres driver the repo does not have or a `psql` the workshop image does not ship, and must
 hand-roll `ON CONFLICT` against `unit_crew`'s unique constraint, the five-column all-or-
-nothing assignment CHECK, the audit columns, and a `unit_id` resolved by join because the
-wire model exposes no id; five ways to get the seed quietly wrong. (b) `POST /v1/units/seed`
+nothing assignment CHECK, and the audit columns; four ways to get the seed quietly wrong. (b) `POST /v1/units/seed`
 — correct, but it puts a fixture-data route in a production API forever. (c) a `cmd/seed` CLI
 — also correct, and the conservative choice, but it is one more entrypoint and one more thing
 for an attendee to run. (d) accepting a roster with no crew and no assignment — breaks the
@@ -448,20 +343,7 @@ name the file each copy mirrors in a comment, and make the verification step dec
 token rather than asserting the map in isolation. If it grows past a handful of roles, that
 is the signal to move to AAS `/evaluate`.
 
-**R4 — A projection can outlive the token that must deliver it.** The projection carries the
-writing operator's token (D2a), whose lifetime is 300s in the shipped realm. A `gis-service`
-outage longer than that strands the row: it stays pending rather than being delivered with
-no operator action, which is what the brief-outage scenario promises and the long-outage one
-deliberately does not. → The unit row remains the source of truth (D7),
-the map's not-shown count is computed from unit data rather than entity data so the page
-never under-reports the roster, a pending row is visible in `gis_outbox`, and re-saving the
-affected unit through the API enqueues and delivers it with a fresh token. What this design deliberately does
-**not** do is make some later, unrelated operator's request perform the write — see D2a for
-why that is worse than a visible backlog. If the projection ever has to survive without any
-operator, the answer is a scheduled job holding its own credential against a tenant-aware
-target, which is a different design, not a patch to this one.
-
-**R5 — Cesium is a heavy dependency on a workshop laptop, and the skills disagree about the
+**R4 — Cesium is a heavy dependency on a workshop laptop, and the skills disagree about the
 alternative.** `@cesium/engine` plus `@cesium/widgets` add a large install and a WebGL
 requirement. The two platform sources conflict on whether there is a lighter option:
 `aoh-knowledge/services/gis.md` says "`MapLibreEngineProvider` ships as an empty stub —
@@ -472,13 +354,13 @@ quota is consumed. Resolve the conflict at apply time by trying `MapLibreEngineP
 against the installed SDK; if it works it is strictly better here, and the finding is worth
 reporting upstream either way.
 
-**R6 — A black map canvas.** Cesium fetches its workers and textures at runtime; without the
+**R5 — A black map canvas.** Cesium fetches its workers and textures at runtime; without the
 asset-copy step the canvas renders entirely black with only 404s in the console to explain
 it. → The vite plugin runs on both `buildStart` and `configureServer` so dev and build are
 covered, and the specs assert "no 404 under the Cesium base URL" as an observable outcome
 rather than trusting the plugin.
 
-**R7 — `@mssfoobar` image pulls, and the offline bundle.** The npm token checked into
+**R6 — `@mssfoobar` image pulls, and the offline bundle.** The npm token checked into
 `.npmrc` covers npm packages, not `ghcr.io` container images, so whoever applies this change
 needs pull access for `iams-*`, `rtus-*` and `gis-service`. → Confirm that access before
 starting, not at task 1.8.
@@ -491,7 +373,7 @@ grows accordingly. That is workshop-day logistics, owned by whoever runs the ses
 this change — recorded here once so the decision is visible rather than discovered, and
 deliberately left without a task.
 
-**R8 — The `realm-import.json` edit is skip-if-exists.** Keycloak's `start --import-realm`
+**R7 — The `realm-import.json` edit is skip-if-exists.** Keycloak's `start --import-realm`
 imports only into an empty database, so adding the viewer user to an already-running stack
 silently does nothing — sign-in then fails for an account the artifacts say exists, with no
 error at import time to explain it. → The compose task pairs the edit with a project-wide
@@ -500,7 +382,7 @@ per-service volume wipe when a service name is given, and podman-compose's `down
 accept service arguments at all, so the per-service form may silently do nothing — which is
 the exact failure this risk is about. The reproducibility gate tears the whole stack anyway.
 
-**R9 — One authoring step needs tooling the workshop image does not carry.**
+**R8 — One authoring step needs tooling the workshop image does not carry.**
 `aoh-compose`'s `bootstrap.py` needs **python3**, which is absent from
 `.devcontainer/Dockerfile` (`node:24-bookworm-slim` plus `ca-certificates curl git procps`)
 — the same gap `apps/dispatch-svc/AGENTS.md` records as why that service was hand-written.
@@ -516,30 +398,28 @@ runs.
 ## Migration Plan
 
 1. Edit `realm-import.json` (the viewer seed user) **before** the first `up -d`, or after it
-   with a project-wide `down -v` — the import is skip-if-exists (R8). Then bring the platform
+   with a project-wide `down -v` — the import is skip-if-exists (R7). Then bring the platform
    stack up (`aoh-compose` output), let `iams-init` then `project-aas-init` complete, and
    confirm that tokens for both seeded accounts carry the expected `active_tenant.roles`
    (`dispatch-dispatcher` for one, `dispatch-viewer` only for the other).
-2. Apply the `dispatch-svc` migrations: position columns, their constraints and the outbox
-   table (additive — every column is nullable or defaulted), then the removal of the pre-auth
-   seeded rows. That removal is the one destructive step, and it is deliberate: those rows
+2. Apply the `dispatch-svc` migrations: the seed-marker table (additive), then the removal of
+   the pre-auth seeded rows. That removal is the one destructive step, and it is deliberate: those rows
    carry the placeholder tenant, so after this change no token can see them and they would
    linger invisibly.
 3. Deploy `dispatch-svc` with bearer auth on. Anything still calling it unauthenticated —
    including a stale `pnpm dev` console — starts receiving 401, which is the intended signal.
 4. Sign in as a dispatcher, or make any authenticated dispatcher request. That is what seeds
-   the tenant (D12) and, through the ordinary outbox path, populates GIS. There is no seed
-   command to run.
+   the tenant (D7). There is no seed command to run.
 5. Deploy `dispatch-web` with the restored auth layer and the map.
 
-**Rollback:** revert both apps. The position, outbox and marker migrations are additive, so a
-rolled-back binary ignores them without error. The pre-auth row deletion is not reversible in
+**Rollback:** revert both apps. The marker migration is additive, so a rolled-back binary
+ignores it without error. The pre-auth row deletion is not reversible in
 place — recover by tearing the stack (`compose down -v`), which discards the `tenant_seed`
 marker along with the volume, so the roster reseeds itself on the next dispatcher request.
 There is no seed command to run, here or anywhere. Note `pnpm reset-db` is **not** that command any
 more: once the dispatch database joins the generated compose project it tears the whole
-sixteen-service stack, so the root scripts have to be rewritten with this change. Orphaned geo-entities in `gis-service` are harmless and
-are cleared by tearing the GIS volume.
+sixteen-service stack, so the root scripts have to be rewritten with this change. `gis-service` holds no data this change wrote, so
+there is nothing to clean up there.
 
 ## Open Questions
 
@@ -550,20 +430,21 @@ are cleared by tearing the GIS volume.
    Note this is separate from `/` itself: the scaffold ships no root `+page.svelte`, so
    dropping the baseline's `/` → `/units` redirect without adding a root route would leave
    `/` a 404 rather than a sign-in redirect. The task list adds the root redirect explicitly.
-2. **Does the workshop need moving units?** With positions seeded and never updated, the map
-   is live in mechanism but static in appearance, and the RTUS path is never visibly
-   exercised. A tiny position-nudging loop (behind a flag, off by default) would make the
-   live feed self-evident in a demo. Deliberately out of scope here — raise it as its own
-   change if the deck needs movement.
+2. **How much should the exercise brief spell out?** Putting field units on the map is now
+   a workshop exercise, and this change has already worked out most of its hard parts —
+   `entity_id` = `unit_code`, `entity_type` `track`, `kind` as the grouping, the outbox
+   pattern, and the fact that a client-credentials token carries no `active_tenant` claim so
+   the projection must ride an operator's bearer. How much of that belongs in the brief and
+   how much an attendee should rediscover is a teaching decision, not a technical one. The
+   existing three exercises give the shape: a user story, acceptance criteria, pointers to
+   the code to copy, and an explicit out-of-scope list.
 3. **Is a second tenant worth standing up?** The tenant-scoping requirements are specified
    against a stack that runs exactly one tenant (`development`). The task list makes them
    provable by inserting a second tenant's row directly with `psql` and asserting the API
-   never returns it — which tests the predicate without a second identity. What that cannot
-   reach is the cross-tenant *GIS* read, so no such scenario is specified. Standing up a
-   second AAS tenant and operator would close that gap and roughly double the seed surface;
+   never returns it — which tests the predicate without a second identity. Standing up a
+   second AAS tenant and operator would be more faithful and roughly double the seed surface;
    not worth it for a workshop, worth revisiting if this design is reused.
 
-Questions this design closed rather than deferred: which realm users get which role (D2 —
+A question this design closed rather than deferred: which realm users get which role (D2 —
 the realm seeds only one interactive user, so the change adds a viewer to
-`realm-import.json`) and whether `last_contact` still bumps on every write (D11 — yes, and
-`position_at` moves independently, which means the existing UPDATE changes).
+`realm-import.json`).

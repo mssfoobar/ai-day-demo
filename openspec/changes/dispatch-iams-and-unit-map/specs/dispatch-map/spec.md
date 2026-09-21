@@ -3,26 +3,47 @@
 ### Requirement: The application has a map surface
 
 The application SHALL offer a map page at `/aoh/dispatch/map`, inside the `(private)` route
-group, alongside the console rather than inside it, rendering the tenant's field units on a
-geospatial canvas. It SHALL be built on
-`@mssfoobar/gis-web-sdk` — the map, its engine provider, its entity providers and its
-panels — and SHALL NOT hand-roll a map renderer, a tile client, or an entity layer. Its
-chrome (page header, buttons, cards, badges) SHALL come from `@mssfoobar/ui`. Every state
-below is drawn in `openspec/changes/dispatch-iams-and-unit-map/design/dispatch-map-mock.html`.
+group, alongside the console rather than inside it. It SHALL be built on
+`@mssfoobar/gis-web-sdk` — the map, its engine provider and its panels — and SHALL NOT
+hand-roll a map renderer or a tile client. Its chrome (page header, buttons, cards, badges)
+SHALL come from `@mssfoobar/ui`. Every state below is drawn in
+`openspec/changes/dispatch-iams-and-unit-map/design/dispatch-map-mock.html`.
 
-#### Scenario: The map renders the roster
+#### Scenario: The map renders
 - **WHEN** an operator with either application role opens `/aoh/dispatch/map`
-- **THEN** the map canvas renders base tiles and one marker per positioned field unit in their tenant
-- **AND** each marker is labelled with its unit's call sign
+- **THEN** the map canvas renders base tiles and its layer panel
+- **AND** the operator can pan and zoom
 
 #### Scenario: The surface is SDK-composed
 - **WHEN** the map page source is reviewed
-- **THEN** the map, its engine, its entity layers and its panels are components imported from `@mssfoobar/gis-web-sdk`
+- **THEN** the map, its engine and its panels are components imported from `@mssfoobar/gis-web-sdk`
 - **AND** the surrounding chrome is imported from `@mssfoobar/ui` subpaths, with no hand-rolled equivalents
 
 #### Scenario: Reaching the map from the console
 - **WHEN** a signed-in operator is on the console
 - **THEN** a **Map** entry is present in the sidebar navigation and reaches this page
+
+### Requirement: The map carries no dispatch data
+
+This change integrates the map module and stops there. The map SHALL NOT render field units,
+SHALL NOT read the dispatch service, and the console SHALL NOT drive the map's camera or
+selection. Wiring the two together is deliberately left as a workshop exercise, and the page
+SHALL say so rather than presenting an empty map as a fault.
+
+#### Scenario: No field units are drawn
+- **WHEN** the map is open and the tenant has units
+- **THEN** no unit appears on the map
+- **AND** the page issues no request to the dispatch service
+
+#### Scenario: The empty map explains itself
+- **WHEN** an operator opens the map
+- **THEN** the page states that no entities are being published yet and names wiring field units to the map as the next step
+- **AND** no error state is shown, because nothing has failed
+
+#### Scenario: The console and the map do not interact
+- **WHEN** an operator selects a unit in the console and opens the map
+- **THEN** the map's camera is unchanged
+- **AND** the console offers no control that claims to show a unit on the map
 
 ### Requirement: The map page does not server-render
 
@@ -52,88 +73,39 @@ them lazily at runtime and renders an entirely black canvas without them.
 - **WHEN** the repository and the frontend lint configuration are inspected
 - **THEN** the copied Cesium asset directory is ignored by both
 
-### Requirement: Field units update live on the map
+### Requirement: The live feed is connected even though nothing publishes to it
 
-The map SHALL reflect a unit's movement without a page reload, by subscribing to the RTUS
-map named `gis` through the SDK's live feed, authorised by the operator's session cookie.
-Feature code SHALL NOT hand-roll an `EventSource`; the SDK's `@mssfoobar/sse-client`-based
-subscription is the only live-update path. The page SHALL NOT also fetch an initial entity
-list of its own, so there is no second source of entity state to reconcile.
+The map SHALL subscribe to the RTUS map named `gis` through the SDK's live feed, authorised
+by the operator's session cookie, even though no entity is published to it yet. Connecting it
+now is what proves the hardest part of the integration — the session cookie reaching
+`rtus-seh` across origins — rather than deferring that discovery to the exercise that adds
+entities. Feature code SHALL NOT hand-roll an `EventSource`; the SDK's
+`@mssfoobar/sse-client`-based subscription is the only live-update path.
 
-#### Scenario: A position change appears without reload
-- **WHEN** a unit's position changes while an operator has the map open
-- **THEN** that unit's marker moves to the new position within a few seconds
-- **AND** the operator performs no reload or refresh
-
-#### Scenario: A new unit appears without reload
-- **WHEN** a dispatcher creates a positioned unit while another operator has the map open
-- **THEN** a marker for it appears on that operator's map
-
-#### Scenario: A deleted unit disappears without reload
-- **WHEN** a dispatcher deletes a unit while another operator has the map open
-- **THEN** its marker is removed from that operator's map
-
-#### Scenario: Entity state has a single source
-- **WHEN** the map page's load function and component tree are reviewed
-- **THEN** entity state comes only from the SDK's subscription, and the page issues no separate entity list request
+#### Scenario: The subscription is established
+- **WHEN** an operator opens the map
+- **THEN** the browser opens the live feed to `rtus-seh` and the connection is accepted
+- **AND** it is not rejected as unauthorised
 
 #### Scenario: The subscription is authorised by the session cookie
 - **WHEN** the browser opens the live feed
 - **THEN** the request carries the `web_auth_session_id` cookie and no bearer token
 
-### Requirement: Selection is shared between the map and the console
-
-Selecting a unit on the map SHALL open that unit in the console's detail pane, and
-selecting a unit in the console SHALL move the map's camera to it when the map is on
-screen. At most one unit SHALL be selected at a time.
-
-#### Scenario: Map to console
-- **WHEN** an operator clicks a unit's marker
-- **THEN** the console's detail view for that unit is shown
-- **AND** the unit's identity in the detail view matches the marker clicked
-
-#### Scenario: Console to map
-- **WHEN** an operator selects a unit in the console and opens the map
-- **THEN** the map's camera is centred on that unit's position
-
-#### Scenario: Selecting a unit with no position
-- **WHEN** an operator selects an un-positioned unit
-- **THEN** the map camera does not move and the page states that the unit has no position
-
-### Requirement: Un-positioned units are accounted for, not hidden
-
-Units without a position cannot be drawn. The map SHALL state how many of the tenant's
-units are not shown, so a dispatcher never mistakes an incomplete map for the whole roster.
-The count SHALL be derived from unit data rather than from the entities on the map, so a
-pending projection cannot make the roster look smaller than it is.
-
-#### Scenario: The count is visible
-- **WHEN** some of the tenant's units have no position
-- **THEN** the page shows how many units are not on the map
-
-#### Scenario: A fully positioned roster says so
-- **WHEN** every unit in the tenant has a position
-- **THEN** no un-positioned count is shown
-
-#### Scenario: No positioned units at all
-- **WHEN** the tenant has units but none of them has a position
-- **THEN** the map renders its base layer with an explicit empty state rather than an apparently broken canvas
-
-#### Scenario: No units at all
-- **WHEN** the tenant has no units — never seeded, or emptied by deletion
-- **THEN** the map says so, rather than reporting that no unit has reported a position
-- **AND** the two states are distinguishable to the operator
+#### Scenario: The feed delivers nothing yet
+- **WHEN** the subscription is open
+- **THEN** no entity is received, because nothing publishes to the `gis` map in this change
+- **AND** the map continues to render its base layers
 
 ### Requirement: The map degrades when the live feed is unavailable
 
 If the live feed cannot be reached or is not configured, the map SHALL still render its
-base layers and SHALL tell the operator that positions are not live, rather than failing
-to render or silently showing stale data as current.
+base layers and SHALL tell the operator that live updates are unavailable, rather than
+failing to render.
 
 #### Scenario: Live feed unreachable
 - **WHEN** `rtus-seh` is unreachable and the map page is opened
 - **THEN** the page renders the base map
-- **AND** it shows a notice that live positions are unavailable
+- **AND** it shows a notice that live updates are unavailable
 
 #### Scenario: The notice is operational in tone
 - **WHEN** that notice is shown
@@ -146,8 +118,8 @@ rest of the console.
 
 #### Scenario: Unauthenticated access
 - **WHEN** a visitor with no session opens `/aoh/dispatch/map`
-- **THEN** they are redirected to the sign-in flow and no map or entity data is served
+- **THEN** they are redirected to the sign-in flow and no map data is served
 
 #### Scenario: A viewer may view the map
 - **WHEN** an operator holding only `dispatch-viewer` opens the map
-- **THEN** the map renders, and it offers no control that would change a unit
+- **THEN** the map renders, on the same terms as for a dispatcher

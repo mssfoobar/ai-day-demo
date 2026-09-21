@@ -32,24 +32,6 @@ The console SHALL show who is signed in and offer a sign-out control, composed f
 - **WHEN** the operator activates the sign-out control
 - **THEN** their session ends and they are returned to the sign-in flow
 
-### Requirement: The detail pane shows the unit's last known position
-
-The detail pane SHALL show a selected unit's last known position and the time of its fix,
-in the same sectioned layout as its other information. A unit with no position SHALL say
-so explicitly rather than rendering an empty section.
-
-#### Scenario: A positioned unit shows its fix
-- **WHEN** an operator selects a unit that has a position
-- **THEN** the pane shows its coordinates and the time of the fix, rendered with the console's existing recency wording
-
-#### Scenario: An un-positioned unit states so
-- **WHEN** an operator selects a unit with no position
-- **THEN** the position section states that no position has been reported
-
-#### Scenario: Position is visible on the map from the detail pane
-- **WHEN** a positioned unit is selected
-- **THEN** the pane offers a control that opens that unit on the map
-
 ### Requirement: An unseeded roster explains itself
 
 The console SHALL render an empty roster as an explicit state, not as a bare empty list — the
@@ -79,12 +61,12 @@ that is available to them.
 ### Requirement: Detail pane is sectioned
 
 The detail pane SHALL present a selected unit's information grouped into labelled
-sections — overview, position, assignment, crew, and capabilities — rather than one flat
-list of fields.
+sections — overview, assignment, crew, and capabilities — rather than one flat list of
+fields.
 
 #### Scenario: Sections are present for an assigned unit
 - **WHEN** a unit with an assignment and crew is selected
-- **THEN** the pane shows its overview fields, its position, its assignment, and its crew members with their roles
+- **THEN** the pane shows its overview fields, its assignment, and its crew members with their roles
 
 #### Scenario: An unassigned unit states so explicitly
 - **WHEN** a unit with no assignment is selected
@@ -93,10 +75,6 @@ list of fields.
 #### Scenario: A unit with no capabilities omits nothing silently
 - **WHEN** a unit has no capability tags
 - **THEN** the capabilities section is either absent or states that none are recorded
-
-#### Scenario: A unit with no position omits nothing silently
-- **WHEN** a unit has no position
-- **THEN** the position section states that none has been reported
 
 ### Requirement: The console degrades when the service is unavailable
 
