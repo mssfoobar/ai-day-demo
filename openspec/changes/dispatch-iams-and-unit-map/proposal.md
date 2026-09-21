@@ -40,10 +40,15 @@ arrives in the next PR.
 - **BREAKING**: `tenant_id`, `created_by` and `updated_by` stop being the literals
   `'workshop'` / `'system'` and come from the token's `active_tenant.tenant_id` and `sub`.
   Reads are tenant-scoped, so a seeded row no longer appears for an arbitrary caller.
-- **BREAKING**: the roster seed moves out of the SQL migration and into an authenticated
-  script (`scripts/seed-roster.mjs`). A committed migration cannot know the tenant id — AAS
-  assigns it at stack-up — and rows written in SQL bypass the GIS projection, so they would
-  never appear on the map. A migration deletes the pre-auth rows instead (design.md D12).
+- **BREAKING**: the roster seed moves out of the SQL migration and becomes service
+  behaviour — `dispatch-svc` seeds a tenant once, on its first request from a dispatcher,
+  before answering it. A committed migration cannot know the tenant id (AAS assigns it at
+  stack-up) and rows written in SQL bypass the GIS projection, so they would never appear on
+  the map; an authenticated request is the only place the tenant, the identity, the crew and
+  assignment shapes the write API withholds, and the token that delivers the projection are
+  all available at once. A marker row makes it once-per-tenant, so deleting units does not
+  resurrect them. A migration deletes the pre-auth rows (design.md D12). There is no seed
+  endpoint, binary or script — nothing for an attendee to run.
 - Two application roles — `dispatch-viewer` (read) and `dispatch-dispatcher` (write) — are
   declared as **AAS tenant roles** in `compose/iams/init/project-aas/roles.yaml`, not as
   Keycloak realm roles. The JWT carries `active_tenant.roles`; both console and service
@@ -155,10 +160,10 @@ MSR), and the three stubbed workshop exercises, which stay stubbed.
   `compose/iams/keycloak/realm-import.json` gains one seed user and nothing else. Because
   Keycloak's realm import is skip-if-exists, that edit only takes effect on a stack brought
   up from empty volumes.
-- **`scripts/` and the root `package.json`**: two new scripts (`seed-roster.mjs`, which
-  replaces the SQL seed, and `e2e-smoke.mjs`), and one broken one — `dev.mjs` starts only
-  PostgreSQL, waits on `/units`, and serves on `localhost`, all three of which stop working
-  here. `stop` and `reset-db` now act on the whole stack rather than one container.
+- **`scripts/` and the root `package.json`**: one new script (`e2e-smoke.mjs`) and one
+  broken one — `dev.mjs` starts only PostgreSQL, waits on `/units`, and serves on
+  `localhost`, all three of which stop working here. `stop` and `reset-db` now act on the
+  whole stack rather than one container. No seed script: the service seeds itself.
 - **Docs that assert the opposite of this change and must move with it**:
   `apps/dispatch-web/AGENTS.md`'s "🛑 This app has NO authentication" table,
   `apps/dispatch-svc/AGENTS.md`'s "No authentication" bullet, the root `README.md`'s no-auth

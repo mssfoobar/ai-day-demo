@@ -86,7 +86,6 @@ receives nothing.
 | POST | `/v1/units` | BearerAuth, role `dispatch-dispatcher` | Create, now accepting `position`; `tenant_id` / `created_by` from the token | n/a — see D5 |
 | PUT | `/v1/units/{unit_code}` | BearerAuth, role `dispatch-dispatcher` | Replace, now accepting and clearing `position`; `occ_lock` unchanged | n/a — see D5 |
 | DELETE | `/v1/units/{unit_code}` | BearerAuth, role `dispatch-dispatcher` | Delete, and enqueue the geo-entity delete | n/a — see D5 |
-| POST | `/v1/units/seed` | BearerAuth, role `dispatch-dispatcher` | Write the baseline roster — units, positions, crew, assignments — into the caller's tenant, idempotently, enqueueing the ordinary projections. Replaces the SQL seed (D12) | n/a — see D5 |
 | POST · DELETE | `/v1/units/{unit_code}/assignment` | BearerAuth, role `dispatch-dispatcher` | Workshop exercise 1 stub. Still answers 501 — but now only to an authorised caller | n/a — see D5 |
 | GET | `/v1/units/{unit_code}/events` | BearerAuth, role `dispatch-viewer` or `dispatch-dispatcher` | Workshop exercise 2 stub. Still 501 | n/a — see D5 |
 | PUT | `/v1/units/{unit_code}/crew` | BearerAuth, role `dispatch-dispatcher` | Workshop exercise 3 stub. Still 501 | n/a — see D5 |
@@ -218,10 +217,10 @@ in memory for the life of that write's delivery attempts, and retry is bounded b
 remaining lifetime (the shipped realm's `accessTokenLifespan` is 300s).
 
 A row that cannot be delivered inside that window stays **pending and visible** in the
-outbox table. Recovery is an ordinary write: re-writing that unit through the API enqueues a
-fresh row and delivers it with the new caller's token. For the seeded roster, calling the
-seed endpoint again does exactly that; for a unit an operator created, the operator re-saves
-it. There is no background sweeper, and this design deliberately does not add one. *Alternatives considered:* (a) storing the bearer in the outbox row — persists
+outbox table. Recovery is an ordinary write: re-saving that unit through the API enqueues a
+fresh row and delivers it with the new caller's token. That applies to seeded and
+operator-created units alike — the seed runs once per tenant (D12) and is not a repair tool.
+There is no background sweeper, and this design deliberately does not add one. *Alternatives considered:* (a) storing the bearer in the outbox row — persists
 a credential in the database and still expires; (b) storing the refresh token — worse, it
 lets a background worker act as a user indefinitely; (c) draining the backlog
 opportunistically on the *next* authenticated request from the same tenant. (c) is the
@@ -356,44 +355,62 @@ make every edit look like a fresh GPS fix, and the map's "fix age" would become 
 closes what an earlier draft left as an open question — it is a change to shipped behaviour
 and so belongs in the task list, not in an apply-time decision.
 
-**D12 — The service seeds itself, through an authenticated endpoint it owns.** The baseline
-seeds the roster from `0002_seed.up.sql` on service start. That stops working here, and the
-first two replacements considered were both worse:
+**D12 — The service seeds a tenant the first time a dispatcher asks it for anything.** The
+baseline seeds the roster from `0002_seed.up.sql` on service start. That stops working here:
+`iams-init` creates the tenant by `POST /admin/tenants` with only `{"name": "development"}`,
+so **AAS assigns the id** — which is why `bootstrap.py` has to look it up by name — and a
+hardcoded UUID in a checked-in migration is stale after the first `down -v`. Rows inserted by
+SQL also never pass through the outbox, so seeded units would exist in the console and be
+permanently absent from the map, with the reproducibility gate certifying that broken state.
 
-1. **A committed migration cannot know the tenant id.** `iams-init` creates the tenant by
-   `POST /admin/tenants` with only `{"name": "development"}`, so **AAS assigns the id** —
-   which is why `bootstrap.py` has to look it up by name. A hardcoded UUID in a checked-in
-   migration is stale after the first `down -v`. And rows inserted by SQL never pass through
-   the outbox, so seeded units would exist in the console and be permanently absent from the
-   map, with the reproducibility gate certifying that broken state.
-2. **An external script writing the API plus raw SQL** — the obvious next answer, and the one
-   an earlier draft of this design took — is worse than it looks. `UnitInput` carries neither
-   crew nor assignment (`dispatch-units-crud` left both for their own form design and this
-   change keeps them unwritable), so such a script must reach around the API for exactly the
-   two shapes the API withholds. That means: a Postgres driver or `psql` in a repo-root Node
-   script, which the workshop container has neither of; hand-written `ON CONFLICT` against
-   `unit_crew`'s `UNIQUE (unit_id, name)` or the second run fails; hand-written `tenant_id`,
-   `created_by` and `updated_by` or the crew rows land under the very `'workshop'` /
-   `'system'` literals this change removes; the five-column all-or-nothing assignment CHECK
-   satisfied by hand; and a `unit_id` resolved by join because the wire model exposes no id.
-   Every one of those is a way to get the seed subtly wrong.
+Everything the seed needs — the tenant id, the caller's identity, the crew and assignment
+shapes the write API withholds, the outbox, the constraints, the token that delivers the
+projection — is present on an authenticated request and nowhere else. So that is where the
+seed happens: **after `BearerAuth`, on the first request from a caller holding
+`dispatch-dispatcher`, the service seeds that caller's tenant**, in the same transaction that
+records it has done so, and before the triggering request is served. No seed endpoint, no
+second binary, no script, and nothing for an attendee to run.
 
-So `dispatch-svc` exposes **`POST /v1/units/seed`**, requiring `dispatch-dispatcher`. It
-writes the baseline roster — units, positions, crew and assignments — in one transaction, in
-the caller's tenant, stamping `created_by` / `updated_by` from the caller's `sub`, and
-enqueues the ordinary outbox rows so the projection travels the same path as any other write
-and carries the same caller's token. It is idempotent by the same `ON CONFLICT … DO UPDATE`
-the SQL seed used, which is now internal to the service rather than duplicated in a script.
-`scripts/seed-roster.mjs` shrinks to: get a token, call the endpoint, check the status.
+Two constraints make it safe rather than clever:
 
-The endpoint is the reason this works: everything the seed needs — the tenant, the identity,
-the crew and assignment shapes, the outbox, the constraints — is already inside the service.
-*Alternatives considered:* the two above, plus accepting a roster with no crew and no
-assignment, which would break the console's assigned-unit scenario, make both mockups depict
-impossible data, and remove the assigned unit workshop Exercise 1 starts from. A seed
-endpoint is unusual in a production API; this is a workshop baseline whose seed must survive
-`down -v`, and hiding the mechanism in a script did not make it less unusual, only less
-correct.
+- **A marker, not an emptiness check.** The tempting trigger is "this tenant has no units."
+  That is a trap: the console ships a working delete action, so a dispatcher who deletes the
+  last unit would have the whole roster silently resurrected on their next click, mid-task,
+  with nothing to explain it. A `tenant_seed` row written in the same transaction makes the
+  rule *seed once per tenant, ever*. `INSERT … ON CONFLICT DO NOTHING` on that row is also
+  what makes two simultaneous sign-ins safe: the loser sees the conflict and skips.
+- **A dispatcher gate.** Seeding is a write, so it rides only a request from a caller who may
+  write. This is the same rule D2a applies to the projection, and the consistency is
+  deliberate — a `dispatch-viewer`'s read must not perform writes in one part of this service
+  and be forbidden from it in another.
+
+*Why this is not the thing D2a rejects.* D2a refuses to drain a pending projection on a later
+request, and this rides a later request, so the distinction has to be stated. Draining
+attributes **one operator's write to another**, silently and repeatedly, and can conscript a
+reader into a write they are not permitted to make. Seeding is a **one-time bootstrap of an
+empty tenant**, gated on the same role the write would need anyway, marked so it never
+repeats, and attributed to the dispatcher who triggered it — which is true rather than
+convenient. One is a recurring misattribution; the other is a single, recorded, correctly
+attributed act.
+
+*Alternatives considered:* (a) an external script writing the API plus raw SQL — needs a
+Postgres driver the repo does not have or a `psql` the workshop image does not ship, and must
+hand-roll `ON CONFLICT` against `unit_crew`'s unique constraint, the five-column all-or-
+nothing assignment CHECK, the audit columns, and a `unit_id` resolved by join because the
+wire model exposes no id; five ways to get the seed quietly wrong. (b) `POST /v1/units/seed`
+— correct, but it puts a fixture-data route in a production API forever. (c) a `cmd/seed` CLI
+— also correct, and the conservative choice, but it is one more entrypoint and one more thing
+for an attendee to run. (d) accepting a roster with no crew and no assignment — breaks the
+console's assigned-unit scenario, makes both mockups depict impossible data, and removes the
+assigned unit workshop Exercise 1 starts from.
+
+**The cost, stated plainly:** on a fresh stack a `dispatch-viewer` who signs in before any
+dispatcher sees an **empty roster**, and the workshop's viewer account exists precisely to
+demo the read-only role. Two things contain it: the trigger is any dispatcher request, not
+specifically a login, so the roster exists from the moment a dispatcher touches the service;
+and the console's empty state says so — "No units yet. A dispatcher signing in will populate
+the roster." — rather than rendering a bare empty list. There is deliberately **no** fallback
+emptiness check layered on top: one trigger, one marker.
 
 Consequence: the repo's "migrations and seed data apply themselves when the service starts"
 story changes; a migration must delete the pre-auth `'workshop'`-tenant rows that
@@ -429,9 +446,8 @@ outage longer than that strands the row: it stays pending rather than being deli
 no operator action, which is what the brief-outage scenario promises and the long-outage one
 deliberately does not. → The unit row remains the source of truth (D7),
 the map's not-shown count is computed from unit data rather than entity data so the page
-never under-reports the roster, a pending row is visible in `gis_outbox`, and re-writing the
-affected unit through the API — which for the seeded roster means calling the seed endpoint
-again — enqueues and delivers it with a fresh token. What this design deliberately does
+never under-reports the roster, a pending row is visible in `gis_outbox`, and re-saving the
+affected unit through the API enqueues and delivers it with a fresh token. What this design deliberately does
 **not** do is make some later, unrelated operator's request perform the write — see D2a for
 why that is worse than a visible backlog. If the projection ever has to survive without any
 operator, the answer is a scheduled job holding its own credential against a tenant-aware
@@ -503,9 +519,9 @@ runs.
    linger invisibly.
 3. Deploy `dispatch-svc` with bearer auth on. Anything still calling it unauthenticated —
    including a stale `pnpm dev` console — starts receiving 401, which is the intended signal.
-4. Seed the roster through the API (`scripts/seed-roster.mjs`, D12). This is the step that
-   also populates GIS, because seeded units reach the map only by travelling the ordinary
-   write path.
+4. Sign in as a dispatcher, or make any authenticated dispatcher request. That is what seeds
+   the tenant (D12) and, through the ordinary outbox path, populates GIS. There is no seed
+   command to run.
 5. Deploy `dispatch-web` with the restored auth layer and the map.
 
 **Rollback:** revert both apps and re-run the seed. The position and outbox migrations are

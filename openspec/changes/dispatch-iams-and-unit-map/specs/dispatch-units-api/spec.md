@@ -106,32 +106,40 @@ describes.
 - **WHEN** the schema is inspected
 - **THEN** an outbox table is present carrying, per row, the target `unit_code`, the projection intent, the payload, and its delivery state
 
-### Requirement: Seed data is idempotent
+### Requirement: A tenant is seeded once, on its first dispatcher request
 
-`POST /v1/units/seed` SHALL write the baseline roster into the caller's tenant and SHALL
-converge on the same rows when applied repeatedly rather than duplicating them. It SHALL
-require the `dispatch-dispatcher` role. The seed SHALL be owned by the service rather than by
-a SQL migration or an external script, because the tenant the rows belong to is assigned by
-AAS at stack-up time and is not knowable to a committed migration, because rows inserted
-directly bypass the GIS projection, and because crew and assignment are not expressible
-through the write API — so anything outside the service would have to reach around it for
-exactly the two shapes it withholds. Seeded units SHALL carry positions, crew and
-assignments, and SHALL enqueue the same projections any other write enqueues. A migration
-SHALL remove the pre-auth seeded rows that predate this change.
+The service SHALL seed a tenant's baseline roster the first time it serves an authenticated
+request from a caller holding `dispatch-dispatcher`, before that request is answered, and
+SHALL record in the same transaction that it has done so. It SHALL NOT seed again for that
+tenant, and SHALL NOT decide whether to seed by checking whether the tenant currently has
+units — deleting units is a legitimate operator action and must not resurrect the roster.
+Seeding SHALL NOT be triggered by a caller who lacks the dispatcher role, because it is a
+write. Seeded rows SHALL carry the triggering caller's `sub` and tenant, SHALL include
+positions, crew and assignments, and SHALL enqueue the same projections any other write
+enqueues. A migration SHALL remove the pre-auth seeded rows that predate this change.
 
-#### Scenario: Re-running the seed
-- **WHEN** the seed endpoint is called twice against the same stack
-- **THEN** the second call succeeds
-- **AND** the unit count, crew count and assignment count are the same after it as after the first
-
-#### Scenario: Seeding requires the dispatcher role
-- **WHEN** a caller holding only `dispatch-viewer` calls the seed endpoint
-- **THEN** the response status is 403 and no row is written
-
-#### Scenario: Seeded rows belong to the caller's tenant
-- **WHEN** a dispatcher seeds and then lists units
-- **THEN** the seeded roster is returned
+#### Scenario: The first dispatcher request seeds the tenant
+- **WHEN** a dispatcher makes their first authenticated request against a tenant that has never been seeded
+- **THEN** that request is answered with the baseline roster already present
 - **AND** the stored rows carry that caller's `sub` in `created_by` and their tenant in `tenant_id`, not the pre-auth placeholders
+
+#### Scenario: Seeding happens once, not once per request
+- **WHEN** the same dispatcher makes further requests
+- **THEN** no further seeding occurs and the unit, crew and assignment counts are unchanged
+
+#### Scenario: Deleting units does not resurrect them
+- **WHEN** a dispatcher deletes every unit in a seeded tenant and then makes another request
+- **THEN** the roster stays empty
+- **AND** no seeded unit reappears
+
+#### Scenario: A viewer does not trigger seeding
+- **WHEN** a caller holding only `dispatch-viewer` makes the first request against an unseeded tenant
+- **THEN** no rows are written
+- **AND** they are served an empty roster
+
+#### Scenario: Two simultaneous dispatchers seed once between them
+- **WHEN** two dispatcher requests against an unseeded tenant are served concurrently
+- **THEN** the tenant is seeded exactly once, with no duplicate units or crew members
 
 #### Scenario: Seeded roster covers the status vocabulary
 - **WHEN** the seeded units are listed
@@ -151,5 +159,5 @@ SHALL remove the pre-auth seeded rows that predate this change.
 - **THEN** no unit row remains under the pre-auth placeholder tenant
 
 #### Scenario: Seeded units reach the map
-- **WHEN** the stack is brought up fresh, the seed endpoint is called, and the outbox drains
+- **WHEN** a dispatcher triggers seeding on a fresh stack and the outbox drains
 - **THEN** each seeded, positioned unit has a corresponding geo-entity in `gis-service`

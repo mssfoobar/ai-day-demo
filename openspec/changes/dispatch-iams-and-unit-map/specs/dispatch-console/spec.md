@@ -50,6 +50,22 @@ so explicitly rather than rendering an empty section.
 - **WHEN** a positioned unit is selected
 - **THEN** the pane offers a control that opens that unit on the map
 
+### Requirement: An unseeded roster explains itself
+
+The console SHALL render an empty roster as an explicit state that says why, not as a bare
+empty list — the two are indistinguishable to an operator. This state is reachable because a
+tenant is seeded by its first dispatcher request, so anyone signing in before a dispatcher
+has — a viewer on a fresh stack, most likely — sees no units.
+
+#### Scenario: A viewer on a fresh stack
+- **WHEN** a viewer opens the console against a tenant that has never been seeded
+- **THEN** the roster area states that there are no units yet and that a dispatcher signing in will populate it
+- **AND** no error state is shown, because nothing has failed
+
+#### Scenario: The state clears once seeding has happened
+- **WHEN** a dispatcher has since made a request and the viewer reloads
+- **THEN** the roster renders normally
+
 ## MODIFIED Requirements
 
 ### Requirement: Detail pane is sectioned

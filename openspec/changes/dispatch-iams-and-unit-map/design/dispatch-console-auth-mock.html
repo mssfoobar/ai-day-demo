@@ -182,6 +182,7 @@
     <button type="button" data-state="viewer"      aria-pressed="false">Viewer (no write controls)</button>
     <button type="button" data-state="denied"      aria-pressed="false">Permission denied (403)</button>
     <button type="button" data-state="unreachable" aria-pressed="false">Service unreachable</button>
+    <button type="button" data-state="unseeded"    aria-pressed="false">Unseeded (viewer, fresh stack)</button>
     <button type="button" data-state="positioned"  aria-pressed="false">Unit with position</button>
     <button type="button" data-state="nopos"       aria-pressed="false">Unit without position</button>
     <span class="spacer"></span>
@@ -213,6 +214,10 @@
       <div class="cardhead">
         <h2>Roster</h2>
         <button class="btn primary writeonly" type="button">Add unit</button>
+      </div>
+      <div id="unseededroster" class="denied hidden" style="padding:22px 12px">
+        <h2>No units yet</h2>
+        <p>A dispatcher signing in will populate the roster.</p>
       </div>
       <button class="unit" type="button" data-unit="FU-101">
         <span><span class="cs">Alpha-1</span><br /><span class="sub">Marina Bay Station 4 · FU-101</span></span>
@@ -282,6 +287,11 @@
         <p>For assistance with access, please contact your administrator.</p>
       </div>
 
+      <!-- nothing selected because there is nothing to select yet -->
+      <div id="unseededdetail" class="denied hidden" style="padding:22px 12px">
+        <p>Select a unit to see its details.</p>
+      </div>
+
       <!-- dispatch-svc unreachable: distinct from a refusal, and retryable -->
       <div id="unreachablebody" class="denied hidden">
         <div class="icon">!</div>
@@ -301,7 +311,8 @@
   const $$ = (s) => document.querySelectorAll(s);
 
   function apply(state) {
-    const viewer      = state === 'viewer';
+    const viewer      = state === 'viewer' || state === 'unseeded';
+    const unseeded    = state === 'unseeded';
     const denied      = state === 'denied';
     const unreachable = state === 'unreachable';
     const noPosition  = state === 'nopos';
@@ -310,9 +321,13 @@
     // it independently — see specs/dispatch-access-control).
     $$('.writeonly').forEach((el) => el.classList.toggle('hidden', viewer || denied || unreachable));
 
-    $('#detailbody').classList.toggle('hidden', denied || unreachable);
+    // An unseeded tenant is not an error: no rows, no failure, and it says why.
+    $$('.unit').forEach((el) => el.classList.toggle('hidden', unseeded));
+    $('#unseededroster').classList.toggle('hidden', !unseeded);
+    $('#detailbody').classList.toggle('hidden', denied || unreachable || unseeded);
     $('#deniedbody').classList.toggle('hidden', !denied);
     $('#unreachablebody').classList.toggle('hidden', !unreachable);
+    $('#unseededdetail').classList.toggle('hidden', !unseeded);
 
     $('#haspos').classList.toggle('hidden', noPosition);
     $('#nopos').classList.toggle('hidden', !noPosition);
