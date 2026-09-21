@@ -137,7 +137,9 @@ specs name:
 - `openspec/changes/dispatch-iams-and-unit-map/design/dispatch-console-auth-mock.html` —
   the console's new states: signed in as a dispatcher (write controls present), signed in as
   a viewer (write controls absent), permission denied after a 403, **service unreachable**,
-  the position section for a positioned unit, and for an un-positioned unit.
+  **unseeded** (a viewer on a fresh stack, before any dispatcher has triggered the seed), the
+  position section for a positioned unit, for an un-positioned unit, and a unit that is
+  unassigned and carries no capabilities.
 
 Both mocks render the `Sidebar` + `Navbar` the restored layout brings back, with the console
 and map nav entries, and both use the real seeded roster (`0002_seed.up.sql`) rather than

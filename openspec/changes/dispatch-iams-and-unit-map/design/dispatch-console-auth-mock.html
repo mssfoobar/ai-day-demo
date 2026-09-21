@@ -185,6 +185,7 @@
     <button type="button" data-state="unseeded"    aria-pressed="false">Unseeded (viewer, fresh stack)</button>
     <button type="button" data-state="positioned"  aria-pressed="false">Unit with position</button>
     <button type="button" data-state="nopos"       aria-pressed="false">Unit without position</button>
+    <button type="button" data-state="unassigned"  aria-pressed="false">Unit unassigned, no capabilities</button>
     <span class="spacer"></span>
     <button type="button" id="theme">Light / dark</button>
   </div>
@@ -269,8 +270,17 @@
 
         <div class="section">
           <h3>Assignment</h3>
-          <div class="kv"><span class="k">Incident</span><span class="v mono">INC-2841</span></div>
-          <div class="kv"><span class="k">Priority</span><span class="v">P2</span></div>
+          <div id="hasassign">
+            <div class="kv"><span class="k">Incident</span><span class="v mono">INC-2841</span></div>
+            <div class="kv"><span class="k">Priority</span><span class="v">P2</span></div>
+          </div>
+          <p class="none hidden" id="noassign">Unassigned.</p>
+        </div>
+
+        <div class="section">
+          <h3>Capabilities</h3>
+          <div id="hascaps"><span class="badge">ALS</span> <span class="badge">Water rescue</span></div>
+          <p class="none hidden" id="nocaps">None recorded.</p>
         </div>
 
         <div class="section">
@@ -296,7 +306,7 @@
       <div id="unreachablebody" class="denied hidden">
         <div class="icon">!</div>
         <h2>Units could not be loaded</h2>
-        <p>The dispatch service is not responding. The roster shown may be out of date.</p>
+        <p>The dispatch service is not responding. Try again in a moment.</p>
         <div style="height:12px"></div>
         <button class="btn" type="button">Retry</button>
       </div>
@@ -316,19 +326,25 @@
     const denied      = state === 'denied';
     const unreachable = state === 'unreachable';
     const noPosition  = state === 'nopos';
+    // FU-311 Charlie-1 is the seeded unit with an empty capability list; FU-205 is unassigned.
+    const unassigned  = state === 'unassigned';
 
     // Role gating: a viewer never renders a write control (the service refuses
     // it independently — see specs/dispatch-access-control).
     $$('.writeonly').forEach((el) => el.classList.toggle('hidden', viewer || denied || unreachable));
 
     // An unseeded tenant is not an error: no rows, no failure, and it says why.
-    $$('.unit').forEach((el) => el.classList.toggle('hidden', unseeded));
+    $$('.unit').forEach((el) => el.classList.toggle('hidden', unseeded || unreachable));
     $('#unseededroster').classList.toggle('hidden', !unseeded);
     $('#detailbody').classList.toggle('hidden', denied || unreachable || unseeded);
     $('#deniedbody').classList.toggle('hidden', !denied);
     $('#unreachablebody').classList.toggle('hidden', !unreachable);
     $('#unseededdetail').classList.toggle('hidden', !unseeded);
 
+    $('#hasassign').classList.toggle('hidden', unassigned);
+    $('#noassign').classList.toggle('hidden', !unassigned);
+    $('#hascaps').classList.toggle('hidden', unassigned);
+    $('#nocaps').classList.toggle('hidden', !unassigned);
     $('#haspos').classList.toggle('hidden', noPosition);
     $('#nopos').classList.toggle('hidden', !noPosition);
     $('#dcallsign').textContent = noPosition ? 'Bravo-1' : 'Alpha-2';

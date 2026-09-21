@@ -107,8 +107,11 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
       name. `design/dispatch-map-mock.html` — 7 states: live feed · positioned unit selected ·
       un-positioned unit selected · live feed unavailable · no positioned units · fully
       positioned roster · viewer read-only. `design/dispatch-console-auth-mock.html` —
-      7 states: dispatcher · viewer · permission denied · service unreachable · **unseeded
-      (viewer on a fresh stack)** · unit with position · unit without position. Both carry a light/dark toggle. The un-positioned
+      8 states: dispatcher · viewer · permission denied · service unreachable · **unseeded
+      (viewer on a fresh stack)** · unit with position · unit without position · **unit
+      unassigned with no capabilities**. The last covers the two scenarios the MODIFIED
+      "Detail pane is sectioned" requirement inherits — an unassigned unit and a unit with no
+      capability tags — which the mock had no way to show. Both carry a light/dark toggle. The un-positioned
       selection, fully-positioned-roster and service-unreachable states were added when the
       specs named states the mocks lacked; the unseeded state arrived with D12's lazy seed,
       which is what makes an empty roster reachable at all.
@@ -257,15 +260,14 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
       so it could have silently left the old realm in place — the exact failure that step
       exists to prevent (R8).
 - [x] **PASS** — It **kills** and restarts both native processes, referring to the env blocks
-      from 3.14 and 4.18. The Go server is killed by its listening port
-      by `pkill` on **both** the `go run` parent and its compiled `exe/server` child: `go run`
+      from 3.14 and 4.18. The Go server is killed by `pkill -f` on **both** the `go run`
+      parent and its compiled `exe/server` child: `go run`
       spawns the child under `$TMPDIR`, so killing only the parent leaves 8081 held. `pkill`
       is in `procps`, which the devcontainer installs and macOS has; an earlier draft used
       `lsof -ti … | xargs -r`, neither of which is available in the documented environment.
 - [x] **PASS** — It re-runs `node scripts/e2e-smoke.mjs`, byte-identical to task 5.5's
-      command, annotated "SAME command as 5.5". It also re-runs `scripts/seed-roster.mjs`
-      first, because the roster is now part of what must reconverge (D12) rather than
-      something a migration recreates.
+      command, annotated "SAME command as 5.5". The gate needs **no** seed step: the roster
+      reconverges because the script's first dispatcher call triggers the seed (D12).
 
 ## Resolution
 

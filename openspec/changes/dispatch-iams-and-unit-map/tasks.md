@@ -196,8 +196,9 @@
       post-commit work detaches from the request context — a client-credentials token carries
       no `active_tenant` claim and `gis-service` resolves the tenant from it. Never persist a
       token, and bound retry by that token's **remaining lifetime**. A row still undelivered
-      when the token expires stays pending, with its attempt count and last error recorded,
-      and is left for the reconcile step (3.4) to flush. Do **not** drain it on a later
+      when the token expires stays pending, with its attempt count and last error recorded;
+      recovery is an operator re-saving that unit, which enqueues a fresh row on a fresh
+      token. There is no reconcile step and no sweeper. Do **not** drain it on a later
       request from another operator: that would attribute the entity to whoever happened to
       call next, and would make a `dispatch-viewer`'s read perform a GIS write (design.md
       D2a rejects this explicitly).
@@ -214,7 +215,10 @@
       note these are the first tests in the repo, so establish the pattern rather than
       matching an existing file. Cover: the role projection, tenant scoping, position
       validation and clearing, the position-derived outbox intent, outbox-row-in-same-
-      transaction, and worker idempotence against a stub `gis-service`. Do **not** add a
+      transaction, worker idempotence against a stub `gis-service`, and — against a real
+      database, since the guard is `ON CONFLICT DO NOTHING` on the marker — that two
+      concurrent dispatcher requests against an unseeded tenant seed it exactly once, with no
+      duplicate units or crew. Do **not** add a
       frontend test framework — `apps/dispatch-web/AGENTS.md` records its absence as a
       decision to be raised, not reversed in passing.
 - [ ] 3.13 Update `apps/dispatch-svc/AGENTS.md` (the "**No authentication**" bullet is now
@@ -361,13 +365,13 @@
       and the roster is empty until the seed runs. In `WORKSHOP.md`, beyond the `curl`: its
       Exercise 2 hint tells attendees to add `0003_unit_event.up.sql`, a prefix task 3.2 now
       takes, and its "Done looks like" section ends with `pnpm reset-db && pnpm start`, which
-      task 4.16 redefines. Four more files assert the old flow and are in no other task:
+      task 4.17 redefines. Four more files assert the old flow and are in no other task:
       `.devcontainer/post-create.sh` ("Postgres already runs as a sibling container" and the
       `localhost:5173` console URL), `apps/dispatch-web/README.md` (the `localhost:5173` open
       instruction, the `/` → `/units` redirect, and "**One container is required** … There is
       still no Keycloak, no Traefik, no IAMS and no SDS"), `apps/dispatch-svc/README.md` (the
       "only container in the workshop stack" line, the env table — which is no longer "all
-      optional" and omits every variable task 3.12 adds — and the writable-field list task 3.9
+      optional" and omits every variable task 3.11 adds — and the writable-field list task 3.8
       widens with `position`), and `USER_STORIES.md` + `WORKSHOP.md`'s "who did it (there is
       no login)", which is now false. The slides deck (`slides/slides.md`) also shows
       `pnpm start` and `http://localhost:5173`; update it or note explicitly that it is out of
@@ -447,17 +451,28 @@
 - [ ] 4.19 Verify: `cd apps/dispatch-web && pnpm build && pnpm check-types && pnpm lint` all
       exit 0, and
       `grep -rniE "no authentication|NO AUTH" apps README.md SETUP.md WORKSHOP.md compose/compose.yml`
-      returns nothing.
+      returns nothing; `git diff` on `compose/iams/keycloak/realm-import.json` shows exactly
+      one added entry in `users` and no change to `clients`, realm roles or claim mappers; and
+      `grep -E 'dispatch-viewer|dispatch-dispatcher' compose/iams/keycloak/realm-import.json`
+      returns nothing, since application roles live only in `roles.yaml`.
 
 ## 5. End-to-end verification + reproducibility gate
 
-- [ ] 5.1 Confirm the seed triggers itself: against a freshly torn-down stack, the **first**
-      `GET /v1/units` with a dispatcher token returns the five baseline units — at least one
-      with crew, one with an assignment, one without a position — with no seed step having
-      been run. Repeat the call and confirm the counts are unchanged; then delete a unit,
-      call again, and confirm it stays deleted. Finally, confirm a viewer's first request
-      against an unseeded tenant writes nothing and returns an empty roster. This is the
-      whole seeding surface (design.md D12) and a prerequisite of everything below.
+- [ ] 5.1 Confirm the seed triggers itself. **Order matters**: the stack runs one tenant, so
+      once a dispatcher has touched it there is no unseeded tenant left to test against. So,
+      against a freshly torn-down stack:
+      1. **Viewer first.** `GET /v1/units` with the viewer token returns an empty roster and
+         writes nothing — no unit rows, no `tenant_seed` row. Open the console as the viewer
+         and confirm it shows the "No units yet" state rather than a bare empty list.
+      2. **Then the dispatcher.** Their first `GET /v1/units` returns the five baseline units
+         — at least one with crew, one with an assignment, one without a position — with no
+         seed step having been run.
+      3. Repeat the dispatcher call; the counts are unchanged.
+      4. Delete `FU-205` (chosen because nothing below depends on it), call again, confirm it
+         stays deleted, then re-create it through the API so the rest of the section runs
+         against the full roster.
+      5. Reload the console as the viewer; the roster now renders normally.
+      This is the whole seeding surface (design.md D12) and a prerequisite of everything below.
 - [ ] 5.2 Write `scripts/e2e-smoke.mjs` — Node, matching the repo's existing `scripts/*.mjs`
       convention and its Node 24 prerequisite. It SHALL, with no manual step: fetch a
       dispatcher token and a viewer token by password grant against the bundled `web` client
@@ -465,7 +480,9 @@
       dispatcher token, and that the seeded roster comes back with positions; assert
       `POST /v1/units` is 403 with the viewer token and 201 with the dispatcher token; poll
       `gis-service` `GET /geoentity/entity_id/{unit_code}` until the new unit's entity appears
-      and assert its `entity_type` is `track` and its `geojson.properties.kind` is `field-unit`; move
+      and assert its `entity_type` is `track` and its `geojson.properties.kind` is `field-unit`;
+      assert every **seeded** positioned unit likewise has a geo-entity, which is what proves
+      the lazy seed's projections were delivered and not just enqueued; move
       the unit with a `PUT` and assert the entity's coordinates follow; **clear** the position
       with a `PUT` and assert the entity is removed; delete the unit; assert that a replayed
       session-id cookie captured before sign-out is refused, and that a malformed token and an
@@ -474,9 +491,14 @@
 - [ ] 5.3 Add the tenant-isolation checks to the same script. It SHALL first insert a unit row
       under a **different** `tenant_id`, directly — **two** of them, per the note below:
       ```sh
-      podman compose -f compose/compose.yml exec -T postgres psql -U dispatch -d dispatch -c "INSERT INTO dispatch.unit (unit_code, call_sign, status, unit_type, station, sector, radio_channel, shift, tenant_id) VALUES ('FU-101','Other-1','Idle','Ambulance','Elsewhere','Sector 9','TAC-9','Day','other-tenant')"
-      docker compose -f compose/compose.yml exec -T postgres psql -U dispatch -d dispatch -c "INSERT INTO dispatch.unit (unit_code, call_sign, status, unit_type, station, sector, radio_channel, shift, tenant_id) VALUES ('FU-101','Other-1','Idle','Ambulance','Elsewhere','Sector 9','TAC-9','Day','other-tenant')"
+      # or: docker compose -f compose/compose.yml exec -T postgres psql …  (identical args)
+      podman compose -f compose/compose.yml exec -T postgres psql -U dispatch -d dispatch -c "
+        INSERT INTO dispatch.unit (unit_code, call_sign, status, unit_type, station, sector, radio_channel, shift, tenant_id) VALUES
+          ('FU-101','Other-1','Idle','Ambulance','Elsewhere','Sector 9','TAC-9','Day','other-tenant'),
+          ('FU-999','Other-2','Idle','Ambulance','Elsewhere','Sector 9','TAC-9','Day','other-tenant')"
       ```
+      Run **one** of the two forms, not both — the second would hit the per-tenant `unit_code`
+      unique constraint.
       Insert **two** rows under `'other-tenant'`: one reusing a `unit_code` that already
       exists in the caller's tenant (for the list and read assertions) and one with a code the
       caller's tenant does not have (so "exists only under the other tenant" and "the same
@@ -503,7 +525,9 @@
       (`podman compose -f compose/compose.yml stop rtus-seh`, or `docker compose -f compose/compose.yml stop rtus-seh`)
       and confirm the map still renders its base layer with the "live positions are
       unavailable" notice; stop `gis-service` the same way, write a unit, and confirm the
-      write succeeds and its outbox row is left pending with an attempt count; restart both;
+      write succeeds and its outbox row is left pending with an attempt count; restart
+      `gis-service` **within the token's lifetime** and confirm the row is delivered with no
+      operator action, which is the brief-outage scenario; restart `rtus-seh`;
       sign out, sign in as the viewer, and confirm the add / edit / delete controls are absent
       and the map still renders.
 - [ ] 5.5 Native dev E2E: `node scripts/e2e-smoke.mjs` exits 0.
