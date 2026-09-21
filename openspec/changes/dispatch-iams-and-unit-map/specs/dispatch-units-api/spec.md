@@ -1,0 +1,127 @@
+## ADDED Requirements
+
+### Requirement: Reads and writes are scoped to the caller's tenant
+
+Every `/v1/units` operation SHALL be confined to the tenant named by the caller's
+`active_tenant.tenant_id` claim. A unit belonging to another tenant SHALL be invisible and
+unwritable — indistinguishable from one that does not exist.
+
+#### Scenario: A list returns only the caller's tenant
+- **WHEN** two tenants each hold units and a caller lists units
+- **THEN** only the units of the caller's tenant are returned
+
+#### Scenario: Another tenant's unit is not found
+- **WHEN** a caller issues `GET /v1/units/{unit_code}` for a unit that exists only in another tenant
+- **THEN** the response status is 404
+
+#### Scenario: Another tenant's unit cannot be written
+- **WHEN** a caller with the dispatcher role issues `PUT` or `DELETE` against a unit that exists only in another tenant
+- **THEN** the response status is 404
+- **AND** the other tenant's unit is unchanged
+
+#### Scenario: The same unit code may exist in two tenants
+- **WHEN** two tenants each create a unit with the same `unit_code`
+- **THEN** both creates succeed
+
+### Requirement: Audit columns carry the caller's identity
+
+`created_by` and `updated_by` SHALL be set from the caller's `sub` claim, and `tenant_id`
+from `active_tenant.tenant_id`. The literals `'system'` and `'workshop'` SHALL no longer be
+written by the service on a caller-initiated write.
+
+#### Scenario: A create records its author
+- **WHEN** a dispatcher creates a unit
+- **THEN** the stored row's `created_by` and `updated_by` equal that caller's `sub`
+- **AND** its `tenant_id` equals that caller's `active_tenant.tenant_id`
+
+#### Scenario: An edit records the editor
+- **WHEN** a different dispatcher then replaces the same unit
+- **THEN** the row's `updated_by` is the second caller's `sub` and its `created_by` is unchanged
+
+#### Scenario: Identity is not taken from the request body
+- **WHEN** a write body includes `created_by`, `updated_by` or `tenant_id`
+- **THEN** those values are ignored and the token's values are stored
+
+### Requirement: The unit resource carries `position`
+
+A unit returned by the API SHALL include a `position` object — `lon`, `lat` and `at` —
+when it has one, and SHALL omit the key entirely when it does not. `position` SHALL be
+settable on create and replace by a caller with the dispatcher role.
+
+#### Scenario: Position on read
+- **WHEN** a client lists or fetches a unit that has a position
+- **THEN** that unit carries a `position` with numeric `lon` and `lat` and an ISO 8601 `at`
+
+#### Scenario: Position omitted on read
+- **WHEN** a client fetches a unit with no position
+- **THEN** the `position` key is absent
+
+#### Scenario: Setting a position
+- **WHEN** a dispatcher creates or replaces a unit with a valid `position`
+- **THEN** the response's `data` carries that position
+- **AND** a subsequent read returns it
+
+#### Scenario: Clearing a position
+- **WHEN** a dispatcher replaces a unit with no `position` in the body
+- **THEN** the stored unit has no position and subsequent reads omit the key
+
+#### Scenario: Position changes bump the version
+- **WHEN** a position is set or cleared through a replace
+- **THEN** the unit's `occ_lock` increments by one, exactly as any other replace
+
+## MODIFIED Requirements
+
+### Requirement: Persisted unit model
+
+A field unit SHALL be persisted in a `dispatch` schema carrying the AOH mandatory
+columns (`id`, `created_at`, `updated_at`, `created_by`, `updated_by`, `tenant_id`,
+`occ_lock`), plus a human-readable `unit_code` unique per tenant, plus an optional
+position held as `position_lon`, `position_lat` and `position_at` constrained all-or-
+nothing and to valid coordinate ranges. Crew members SHALL be stored as rows related to
+their unit, not as an opaque blob. The schema SHALL additionally carry an outbox table
+holding pending GIS projections, written in the same transaction as the unit change it
+describes.
+
+#### Scenario: Human-readable code is unique per tenant
+- **WHEN** two units in the same tenant are given the same `unit_code`
+- **THEN** the database rejects the second one
+
+#### Scenario: Mandatory columns are present
+- **WHEN** the `unit` table is inspected
+- **THEN** it has `id`, `created_at`, `updated_at`, `created_by`, `updated_by`, `tenant_id` and `occ_lock`, all NOT NULL
+
+#### Scenario: Position columns are all-or-nothing
+- **WHEN** the `unit` table is inspected
+- **THEN** a constraint requires `position_lon`, `position_lat` and `position_at` to be all null or all non-null
+- **AND** a constraint restricts `position_lon` to `[-180, 180]` and `position_lat` to `[-90, 90]`
+
+#### Scenario: The outbox table exists alongside the unit table
+- **WHEN** the schema is inspected
+- **THEN** an outbox table is present carrying, per row, the target `unit_code`, the projection intent, the payload, and its delivery state
+
+### Requirement: Seed data is idempotent
+
+The service SHALL ship checked-in seed data covering the baseline roster, and applying it
+repeatedly SHALL converge on the same rows rather than duplicating them. Seeded units
+SHALL belong to the `development` tenant that `iams-init` creates, and SHALL carry
+positions so that the map is populated on first boot.
+
+#### Scenario: Re-running the seed
+- **WHEN** the seed is applied twice against the same database
+- **THEN** the unit count is the same after the second run as after the first
+
+#### Scenario: Seeded roster covers the status vocabulary
+- **WHEN** the seeded units are listed
+- **THEN** at least one unit has each of `Available`, `En route` and `Idle`
+
+#### Scenario: Seeded units belong to the development tenant
+- **WHEN** a seeded operator of the `development` tenant lists units
+- **THEN** the seeded roster is returned
+
+#### Scenario: Seeded units carry positions
+- **WHEN** the seeded units are listed
+- **THEN** at least one carries a `position`, and every seeded position is within valid coordinate ranges
+
+#### Scenario: Seeded units reach the map
+- **WHEN** the stack is brought up fresh and the outbox drains
+- **THEN** each seeded, positioned unit has a corresponding geo-entity in `gis-service`

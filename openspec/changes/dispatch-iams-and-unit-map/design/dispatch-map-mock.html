@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dispatch map — mock</title>
+<style>
+  /* ------------------------------------------------------------------
+     AOH tokens, lifted from aoh-design/assets/colors_and_type.css.
+     This mock is a STATIC APPROXIMATION for design review only.
+
+     The real page composes @mssfoobar/gis-web-sdk (map, engine, entity
+     layers) inside chrome built from @mssfoobar/ui primitives, which ship
+     these same tokens — no CSS from this file is copied into the app.
+     The "map" below is an SVG stand-in for a Cesium 2D scene; it exists to
+     show placement, panels and states, not to look like real tiles.
+     ------------------------------------------------------------------ */
+  :root {
+    --zinc-50:#FAFAFA; --zinc-100:#F4F4F5; --zinc-200:#E4E4E7; --zinc-300:#D4D4D8;
+    --zinc-400:#A1A1AA; --zinc-500:#71717A; --zinc-600:#52525B; --zinc-800:#27272A;
+    --zinc-900:#18181B; --zinc-950:#09090B;
+    --slate-50:#F8FAFC;
+    --sky-500:#0EA5E9; --sky-600:#0284C7;
+    --green-600:#059669; --green-700:#047857;
+    --amber-600:#D97706;
+
+    --color-bg: var(--slate-50);
+    --card: #FFFFFF;
+    --foreground: var(--zinc-950);
+    --muted-foreground: var(--zinc-500);
+    --accent: var(--zinc-100);
+    --border: var(--zinc-200);
+    --ring: var(--sky-600);
+
+    --map-bg:#E8EDF2; --map-line:#CFD8E3; --map-land:#DDE5EC;
+
+    --badge-success-bg:#ECFDF5; --badge-success-fg:var(--green-700);
+    --badge-info-bg:#ECFEFF;    --badge-info-fg:#0E7490;
+    --badge-warn-bg:#FFFBEB;    --badge-warn-fg:#B45309;
+    --badge-default-bg:var(--zinc-100); --badge-default-fg:var(--zinc-600);
+
+    --radius-sm:6px; --radius-md:8px; --radius-lg:12px;
+    --shadow-md:0 1px 3px 0 rgba(0,0,0,.1), 0 1px 2px -1px rgba(0,0,0,.1);
+
+    --font-sans:"Geist","Inter",ui-sans-serif,system-ui,-apple-system,sans-serif;
+    --font-mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,monospace;
+    --fs-xs:12px; --fs-sm:14px; --fs-base:16px; --fs-xl:20px;
+  }
+  [data-theme="dark"] {
+    --color-bg: var(--zinc-950);
+    --card: var(--zinc-900);
+    --foreground: var(--zinc-50);
+    --muted-foreground: var(--zinc-400);
+    --accent: var(--zinc-800);
+    --border: #2A2A31;
+    --ring: var(--sky-500);
+
+    --map-bg:#0F141A; --map-line:#1E2731; --map-land:#161D25;
+
+    --badge-success-bg:rgba(5,150,105,.16);  --badge-success-fg:#6EE7B7;
+    --badge-info-bg:rgba(6,182,212,.16);     --badge-info-fg:#67E8F9;
+    --badge-warn-bg:rgba(217,119,6,.18);     --badge-warn-fg:#FCD34D;
+    --badge-default-bg:var(--zinc-800);      --badge-default-fg:var(--zinc-300);
+  }
+
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--color-bg); color:var(--foreground);
+    font-family:var(--font-sans); font-size:var(--fs-base);
+    -webkit-font-smoothing:antialiased;
+  }
+  .page { max-width:1280px; margin:0 auto; padding:24px 24px 48px; }
+
+  /* --- mock chrome: state switcher (not part of the product) ---------- */
+  .mockbar {
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+    padding:12px 16px; margin-bottom:20px;
+    border:1px dashed var(--border); border-radius:var(--radius-md);
+    background:var(--card);
+  }
+  .mockbar .label {
+    font-size:var(--fs-xs); text-transform:uppercase; letter-spacing:.05em;
+    color:var(--muted-foreground); margin-right:4px;
+  }
+  .mockbar button {
+    font:inherit; font-size:var(--fs-sm); color:var(--foreground);
+    background:transparent; border:1px solid var(--border);
+    border-radius:var(--radius-sm); padding:5px 10px; cursor:pointer;
+  }
+  .mockbar button:hover { background:var(--accent); }
+  .mockbar button[aria-pressed="true"] { background:var(--ring); border-color:var(--ring); color:#fff; }
+  .mockbar .spacer { flex:1; }
+
+  /* --- product chrome ------------------------------------------------- */
+  .topline { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; }
+  h1 { font-size:var(--fs-xl); line-height:32px; margin:0 0 4px; font-weight:600; letter-spacing:-.01em; }
+  .desc { color:var(--muted-foreground); font-size:var(--fs-sm); margin:0; }
+  .who { font-size:var(--fs-sm); color:var(--muted-foreground); display:flex; align-items:center; gap:10px; }
+
+  .badge {
+    display:inline-flex; align-items:center; gap:6px; font-size:var(--fs-xs);
+    padding:2px 8px; border-radius:999px; font-weight:500;
+    background:var(--badge-default-bg); color:var(--badge-default-fg);
+  }
+  .badge.success { background:var(--badge-success-bg); color:var(--badge-success-fg); }
+  .badge.info    { background:var(--badge-info-bg);    color:var(--badge-info-fg); }
+  .badge.warn    { background:var(--badge-warn-bg);    color:var(--badge-warn-fg); }
+
+  .layout { display:grid; grid-template-columns:1fr 288px; gap:16px; }
+
+  .mapcard {
+    position:relative; border:1px solid var(--border); border-radius:var(--radius-lg);
+    background:var(--card); box-shadow:var(--shadow-md); overflow:hidden;
+    min-height:460px;
+  }
+  .canvas { display:block; width:100%; height:460px; background:var(--map-bg); }
+
+  /* floating panels over the canvas */
+  .overlay { position:absolute; display:flex; flex-direction:column; gap:8px; }
+  .overlay.tl { top:12px; left:12px; }
+  .overlay.tr { top:12px; right:12px; align-items:flex-end; }
+  .overlay.bl { bottom:12px; left:12px; }
+
+  .panel {
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius-md);
+    box-shadow:var(--shadow-md); padding:10px 12px; font-size:var(--fs-sm);
+    max-width:280px;
+  }
+  .panel h3 { margin:0 0 6px; font-size:var(--fs-xs); font-weight:600;
+              text-transform:uppercase; letter-spacing:.05em; color:var(--muted-foreground); }
+  .panel .row { display:flex; align-items:center; gap:8px; padding:3px 0; }
+  .panel .row input { accent-color:var(--ring); }
+
+  .btn {
+    font:inherit; font-size:var(--fs-sm); color:var(--foreground); background:var(--card);
+    border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 12px; cursor:pointer;
+  }
+  .btn:hover { background:var(--accent); }
+  .btn.primary { background:var(--ring); border-color:var(--ring); color:#fff; }
+
+  .notice {
+    display:flex; gap:10px; align-items:flex-start;
+    border:1px solid var(--border); border-radius:var(--radius-md);
+    background:var(--card); padding:10px 12px; font-size:var(--fs-sm); max-width:340px;
+  }
+  .notice .dot { width:8px; height:8px; border-radius:999px; margin-top:6px; flex:none; background:var(--amber-600); }
+  .notice p { margin:0; }
+  .notice .sub { color:var(--muted-foreground); font-size:var(--fs-xs); margin-top:2px; }
+
+  .side .card {
+    border:1px solid var(--border); border-radius:var(--radius-lg); background:var(--card);
+    box-shadow:var(--shadow-md); padding:14px; margin-bottom:12px;
+  }
+  .side h2 { margin:0 0 2px; font-size:var(--fs-sm); font-weight:600; }
+  .side .muted { color:var(--muted-foreground); font-size:var(--fs-xs); margin:0; }
+  .kv { display:flex; justify-content:space-between; gap:12px; padding:5px 0; font-size:var(--fs-sm); border-top:1px solid var(--border); }
+  .kv:first-of-type { border-top:0; }
+  .kv .k { color:var(--muted-foreground); }
+  .kv .v { font-variant-numeric:tabular-nums; }
+  .mono { font-family:var(--font-mono); font-size:var(--fs-xs); }
+
+  .empty { text-align:center; color:var(--muted-foreground); font-size:var(--fs-sm); padding:24px 8px; }
+
+  .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:var(--fs-xs); color:var(--muted-foreground); margin-top:12px; }
+  .legend span { display:inline-flex; align-items:center; gap:6px; }
+  .swatch { width:10px; height:10px; border-radius:999px; display:inline-block; }
+
+  .marker { cursor:pointer; }
+  .marker text { font-family:var(--font-sans); font-size:11px; font-weight:600; fill:#fff; }
+  .marker.selected .pin { stroke:var(--ring); stroke-width:3; }
+
+  .hidden { display:none !important; }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ============ mock-only controls ============ -->
+  <div class="mockbar">
+    <span class="label">State</span>
+    <button type="button" data-state="live"        aria-pressed="true">Live feed</button>
+    <button type="button" data-state="selected"    aria-pressed="false">Unit selected</button>
+    <button type="button" data-state="degraded"    aria-pressed="false">Live feed unavailable</button>
+    <button type="button" data-state="unpositioned" aria-pressed="false">No positioned units</button>
+    <button type="button" data-state="viewer"      aria-pressed="false">Viewer (read-only)</button>
+    <span class="spacer"></span>
+    <button type="button" id="theme">Light / dark</button>
+  </div>
+
+  <!-- ============ product ============ -->
+  <div class="topline">
+    <div>
+      <h1>Map</h1>
+      <p class="desc" id="pagedesc">Field units in the development tenant, updating live.</p>
+    </div>
+    <div class="who">
+      <span id="whoami">Signed in as <strong>rmorales</strong></span>
+      <span class="badge" id="rolebadge">Dispatcher</span>
+      <button class="btn" type="button">Sign out</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <!-- ---------- map ---------- -->
+    <div class="mapcard">
+      <svg class="canvas" viewBox="0 0 900 460" preserveAspectRatio="xMidYMid slice" aria-label="Map canvas (mock)">
+        <rect x="0" y="0" width="900" height="460" fill="var(--map-bg)"/>
+        <!-- coarse landmass + grid, standing in for OSM raster tiles -->
+        <path d="M80 300 Q200 240 320 275 T600 250 Q720 235 830 285 L830 460 L80 460 Z" fill="var(--map-land)"/>
+        <path d="M120 120 Q260 90 400 130 T760 110" fill="none" stroke="var(--map-line)" stroke-width="2"/>
+        <g stroke="var(--map-line)" stroke-width="1" opacity=".7">
+          <line x1="0" y1="115" x2="900" y2="115"/><line x1="0" y1="230" x2="900" y2="230"/>
+          <line x1="0" y1="345" x2="900" y2="345"/>
+          <line x1="225" y1="0" x2="225" y2="460"/><line x1="450" y1="0" x2="450" y2="460"/>
+          <line x1="675" y1="0" x2="675" y2="460"/>
+        </g>
+
+        <g id="markers">
+          <g class="marker" data-unit="FU-101" transform="translate(300,250)">
+            <circle class="pin" r="13" fill="var(--green-600)"/><text text-anchor="middle" y="4">A1</text>
+          </g>
+          <g class="marker" data-unit="FU-102" transform="translate(468,196)">
+            <circle class="pin" r="13" fill="var(--sky-600)"/><text text-anchor="middle" y="4">B2</text>
+          </g>
+          <g class="marker" data-unit="FU-103" transform="translate(612,312)">
+            <circle class="pin" r="13" fill="var(--zinc-500)"/><text text-anchor="middle" y="4">C3</text>
+          </g>
+          <g class="marker" data-unit="FU-104" transform="translate(196,338)">
+            <circle class="pin" r="13" fill="var(--green-600)"/><text text-anchor="middle" y="4">D4</text>
+          </g>
+        </g>
+      </svg>
+
+      <!-- layer manager: MapLayerManager from @mssfoobar/gis-web-sdk -->
+      <div class="overlay tl">
+        <div class="panel">
+          <h3>Layers</h3>
+          <label class="row"><input type="checkbox" checked /> Field units</label>
+          <label class="row"><input type="checkbox" checked /> OpenStreetMap</label>
+        </div>
+      </div>
+
+      <div class="overlay tr">
+        <span class="badge success" id="feedbadge">Live</span>
+      </div>
+
+      <div class="overlay bl">
+        <div class="notice hidden" id="degradednotice">
+          <span class="dot"></span>
+          <div>
+            <p>Live positions are unavailable.</p>
+            <p class="sub">Positions shown were last known when the page loaded.</p>
+          </div>
+        </div>
+        <div class="notice hidden" id="emptynotice">
+          <span class="dot"></span>
+          <div>
+            <p>No unit has reported a position.</p>
+            <p class="sub">Units appear here once they report one.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------- side rail ---------- -->
+    <div class="side">
+      <div class="card" id="fleetcard">
+        <h2>Fleet</h2>
+        <p class="muted" id="fleetsub">4 of 5 units on the map.</p>
+        <div style="height:8px"></div>
+        <div class="kv"><span class="k">Available</span><span class="v">2</span></div>
+        <div class="kv"><span class="k">En route</span><span class="v">1</span></div>
+        <div class="kv"><span class="k">Idle</span><span class="v">1</span></div>
+        <div class="kv"><span class="k">No position</span><span class="v" id="noposcount">1</span></div>
+      </div>
+
+      <div class="card" id="selectioncard">
+        <div class="empty" id="noselection">Select a unit on the map to see its details.</div>
+
+        <div id="selectiondetail" class="hidden">
+          <h2>Bravo-2 <span class="badge info">En route</span></h2>
+          <p class="muted mono">FU-102</p>
+          <div style="height:10px"></div>
+          <div class="kv"><span class="k">Position</span><span class="v mono">1.3521, 103.8198</span></div>
+          <div class="kv"><span class="k">Fix</span><span class="v">2 min ago</span></div>
+          <div class="kv"><span class="k">Station</span><span class="v">Central</span></div>
+          <div class="kv"><span class="k">Assignment</span><span class="v">INC-2841</span></div>
+          <div style="height:12px"></div>
+          <button class="btn primary" type="button" style="width:100%">Open in console</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><i class="swatch" style="background:var(--green-600)"></i> Available</span>
+    <span><i class="swatch" style="background:var(--sky-600)"></i> En route</span>
+    <span><i class="swatch" style="background:var(--zinc-500)"></i> Idle</span>
+  </div>
+</div>
+
+<script>
+  // Mock-only wiring. The product's state comes from the SDK's live entity store and
+  // the page's own load; nothing here is a design statement about implementation.
+  const $ = (s) => document.querySelector(s);
+  const markers = document.getElementById('markers');
+
+  function apply(state) {
+    const degraded     = state === 'degraded';
+    const unpositioned = state === 'unpositioned';
+    const selected     = state === 'selected';
+    const viewer       = state === 'viewer';
+
+    markers.classList.toggle('hidden', unpositioned);
+    $('#degradednotice').classList.toggle('hidden', !degraded);
+    $('#emptynotice').classList.toggle('hidden', !unpositioned);
+
+    const feed = $('#feedbadge');
+    feed.textContent = degraded ? 'Not live' : 'Live';
+    feed.className = 'badge ' + (degraded ? 'warn' : 'success');
+
+    $('#fleetsub').textContent = unpositioned ? '0 of 5 units on the map.' : '4 of 5 units on the map.';
+    $('#noposcount').textContent = unpositioned ? '5' : '1';
+
+    $('#noselection').classList.toggle('hidden', selected);
+    $('#selectiondetail').classList.toggle('hidden', !selected);
+    document.querySelectorAll('.marker').forEach((m) =>
+      m.classList.toggle('selected', selected && m.dataset.unit === 'FU-102')
+    );
+
+    $('#whoami').innerHTML = viewer
+      ? 'Signed in as <strong>tlim</strong>'
+      : 'Signed in as <strong>rmorales</strong>';
+    $('#rolebadge').textContent = viewer ? 'Viewer' : 'Dispatcher';
+    $('#pagedesc').textContent = viewer
+      ? 'Field units in the development tenant. Read only.'
+      : 'Field units in the development tenant, updating live.';
+  }
+
+  document.querySelectorAll('.mockbar button[data-state]').forEach((b) => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.mockbar button[data-state]')
+        .forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+      apply(b.dataset.state);
+    });
+  });
+
+  // Clicking a marker demonstrates the map → console cross-link.
+  document.querySelectorAll('.marker').forEach((m) => {
+    m.addEventListener('click', () => {
+      document.querySelector('.mockbar button[data-state="selected"]').click();
+    });
+  });
+
+  document.getElementById('theme').addEventListener('click', () => {
+    const root = document.documentElement;
+    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+  });
+
+  apply('live');
+</script>
+</body>
+</html>
