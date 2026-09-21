@@ -454,10 +454,18 @@ it. → The vite plugin runs on both `buildStart` and `configureServer` so dev a
 covered, and the specs assert "no 404 under the Cesium base URL" as an observable outcome
 rather than trusting the plugin.
 
-**R7 — `@mssfoobar` image pulls.** The npm token checked into `.npmrc` covers packages, not
-`ghcr.io` container images. → Confirm image pull access (or a preloaded image tarball, as
-the repo already does for the devcontainer) before the workshop; this is a prerequisite of
-apply, not a discovery for the day.
+**R7 — `@mssfoobar` image pulls, and the offline bundle.** The npm token checked into
+`.npmrc` covers npm packages, not `ghcr.io` container images, so whoever applies this change
+needs pull access for `iams-*`, `rtus-*` and `gis-service`. → Confirm that access before
+starting, not at task 1.8.
+
+There is a second, larger version of this that is **deliberately out of scope here**:
+`SETUP.md` says the workshop network has no internet and ships a preloaded
+`ai-day-workshop-images.tar.gz` carrying the workshop image and `postgres:16-alpine`. A
+sixteen-service stack needs roughly ten more images in that bundle, and the bundle's size
+grows accordingly. That is workshop-day logistics, owned by whoever runs the session, not by
+this change — recorded here once so the decision is visible rather than discovered, and
+deliberately left without a task.
 
 **R8 — The `realm-import.json` edit is skip-if-exists.** Keycloak's `start --import-realm`
 imports only into an empty database, so adding the viewer user to an already-running stack

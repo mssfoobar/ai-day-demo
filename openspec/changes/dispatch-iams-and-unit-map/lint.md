@@ -280,7 +280,9 @@ failures:
    thing no amount of linting can decide.
 2. **R7 / task 1.1** — image pull access to `ghcr.io/mssfoobar` for `iams-*`, `rtus-*` and
    `gis-service`. The checked-in `.npmrc` token covers npm packages, not container images.
-   Confirm before starting, not at 1.8.
+   Confirm before starting, not at 1.8. The related question — whether the offline
+   `ai-day-workshop-images.tar.gz` bundle can carry ten more images on a network with no
+   internet — is recorded in R7 and **scoped out** of this change as workshop-day logistics.
 3. **R9** — `bootstrap.py` needs python3, which the workshop image does not carry. This is
    an authoring-time step whose output is committed, so it does not reach attendees, but
    whoever applies the change needs python3 somewhere. Everything that runs against a live
