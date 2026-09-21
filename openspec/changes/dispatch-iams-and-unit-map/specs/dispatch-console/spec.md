@@ -78,7 +78,7 @@ list of fields.
 
 Because the roster is fetched, the console SHALL show an explicit error state when the
 dispatch service cannot be reached, rather than rendering an empty list as though the
-fleet were empty. It SHALL distinguish an unreachable service from a refusal by the
+roster were empty. It SHALL distinguish an unreachable service from a refusal by the
 service, so an operator is not told to retry something that will never succeed.
 
 #### Scenario: Service unreachable

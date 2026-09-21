@@ -170,7 +170,7 @@ The console and `dispatch-svc` SHALL each derive their permissions from the role
 read a resolved permission list from the token, because AAS does not put one there.
 
 #### Scenario: The projection is what gates the action
-- **WHEN** the authorization path in either app is reviewed
+- **WHEN** the role→permission map in `internal/service` and its TypeScript counterpart are reviewed
 - **THEN** it reads `active_tenant.roles` and maps role names to permissions in-process
 - **AND** it references no `active_tenant.permissions` claim
 

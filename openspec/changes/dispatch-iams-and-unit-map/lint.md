@@ -69,10 +69,12 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
 - [x] **PASS** — Every endpoint this change exposes uses `/v{N}/<resource>`: `/v1/units`,
       `/v1/units/{unit_code}`, the four stub route/method pairs across three
       `/v1/units/{unit_code}/…` paths, plus root-mounted `/livez` and `/readyz`.
-      `grep -rn '/api' specs design.md proposal.md tasks.md` returns **4 hits, not zero** —
-      one each in `design.md` and `proposal.md`, two in `tasks.md`, every one of them the
-      SvelteKit `(public)/aoh/api/auth/*` route group or a reference to
-      `aoh-conventions/references/api.md`. No REST endpoint carries an
+      `grep -rn '/api' specs design.md proposal.md tasks.md` returns **5 hits, not zero** —
+      one each in `specs/dispatch-access-control/spec.md`, `design.md` and `proposal.md`, two
+      in `tasks.md`, every one of them the SvelteKit `(public)/aoh/api/auth/*` route group or
+      a reference to `aoh-conventions/references/api.md`. (Counted twice before and stated
+      wrongly twice: first as zero, then as four with the `specs/` hit missed — which is why
+      the count is now given per file.) No REST endpoint carries an
       `/api` prefix, so the verdict holds; the first pass of this lint claimed the grep
       returned nothing, which was false, and a fabricated mechanical result is the one thing
       a reader of a mechanical lint cannot be expected to re-check.
@@ -132,7 +134,7 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
 - [x] **PASS** — All six capabilities in `proposal.md` have a matching spec file, names
       identical: `dispatch-access-control`, `field-unit-geo-projection`, `dispatch-map`,
       `dispatch-console`, `dispatch-units-api`, `field-unit-roster`.
-- [x] **PASS** — 37 requirement blocks (36 ADDED/MODIFIED plus one REMOVED) and 122
+- [x] **PASS** — 37 requirement blocks (36 ADDED/MODIFIED plus one REMOVED) and 123
       scenarios; `grep -rn '^### Scenario' specs/` returns nothing, so every scenario header
       is exactly four hashes. The one scenario-less block is the REMOVED "The application has
       no authentication", which carries **Reason** and **Migration** instead — the shape
@@ -148,7 +150,11 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
       scoping; `GET /v1/units/{unit_code}` → units-api 404; `POST`/`PUT`/`DELETE` →
       access-control viewer/dispatcher + units-api position + geo-projection delete;
       `/livez`+`/readyz` → access-control health probes; the page routes → dispatch-console
-      and dispatch-map; the consumed `/geoentity*` → geo-projection. Two further gaps closed
+      and dispatch-map. Of the consumed `gis-service` endpoints, `PUT /geoentity` and
+      `DELETE`/`GET /geoentity/entity_id/{id}` are exercised by geo-projection scenarios; the
+      bare `GET /geoentity` collection is exercised by `tasks.md` 2.5 and by no scenario,
+      which is acceptable because `design.md` marks that table "consumed, not exposed —
+      **not** part of this change's API surface". Two further gaps closed
       in this pass: `DELETE /v1/units/{unit_code}/assignment` was in the surface and in no
       scenario (the stub-route scenario now names all four method/path pairs), and the
       surface listed four auth routes where `tasks.md` restores the scaffold's six — it now
@@ -177,8 +183,9 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
       Question 3 records what that leaves untested.
 - [x] **PASS** — Token acquisition is named, never hand-minted: the password grant against
       the bundled `web` client for both operator accounts, **with `scope=openid`**.
-      `tasks.md` 2.4 gives the exact `curl` and decode, and 5.1 makes the E2E script obtain
-      both tokens the same way. The scope is not decoration — AOH services validate through
+      `tasks.md` 2.4 gives the exact `curl` and decode, and **5.2** makes the E2E script obtain
+      both tokens the same way (5.1 is the seed step; the citation was stale after the
+      section-5 renumbering). The scope is not decoration — AOH services validate through
       Keycloak's userinfo endpoint, which 403s on a token issued without it and surfaces as
       an opaque 401. The first pass omitted it everywhere.
 
@@ -188,12 +195,14 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
       1.8 (compose `up -d` / `ps`, naming the containers that must be healthy and the init
       containers that must exit 0), 2.4 + 2.5 (a runnable token fetch, claim decode, and a
       `curl` to `gis-service` asserting `200`), 3.15 (`go build && go vet && go test -race`),
-      4.17 (`pnpm build && pnpm check-types && pnpm lint` plus a `grep` over the docs),
+      4.18 (`pnpm build && pnpm check-types && pnpm lint` plus a `grep` over the docs),
       5.6 (the reproducibility gate). Section 2's last step previously ended in prose with no
       command; it is now a `curl` with an asserted status.
-- [x] **PASS** — All 8 compose invocations carry both forms (`podman compose` ×8,
-      `docker compose` ×8), each pair on a single line so a line-oriented reader sees both —
-      including the 2.3 teardown, whose pair was split across two lines in the previous pass.
+- [x] **PASS** — All 9 compose invocations carry both forms (`podman compose` ×9,
+      `docker compose` ×9). Both previously split pairs are fixed: 2.3's teardown, and 5.3's
+      `exec … psql`, which had its podman form as a command and its docker form as prose —
+      both are now written out in full so a line-oriented reader sees a runnable command
+      either way.
 - [x] **PASS** — No task runs `compose up` for `dispatch-svc` or `dispatch-web`; both are
       exercised natively (`go run ./cmd/server`, `pnpm dev`).
 - [x] **PASS** — Section order is Compose (1) → Seed (2) → Implement `dispatch-svc` (3) →
@@ -220,7 +229,9 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
 ## 9. Native dev env documentation
 
 - [x] **PASS** — Each Implement section's last task before its verification is the env block:
-      `tasks.md` 3.14 for the Go service and 4.16 for the SvelteKit app. Corrected in this
+      `tasks.md` 3.14 for the Go service and 4.17 for the SvelteKit app (4.16, the repo's
+      start/reset tooling, sits between the docs task and the env block). The same task also
+      documents the block the two repo-root `.mjs` scripts read, which nothing covered before. Corrected in this
       pass, because the first draft would not have booted either process: `IAM_REALM` and
       `DISPATCH_SVC_CLIENT_ID`/`_SECRET` were invented (the scaffold's keys are
       `IAMS_KEYCLOAK_REALM` / `IAMS_KEYCLOAK_CLIENT_ID`, and the client pair is now
@@ -243,9 +254,10 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
       exists to prevent (R8).
 - [x] **PASS** — It **kills** and restarts both native processes, referring to the env blocks
       from 3.14 and 4.16. The Go server is killed by its listening port
-      (`lsof -ti :8081 | xargs -r kill`) rather than by a source-path `pkill`: `go run` execs
-      a compiled binary under `$TMPDIR`, so a pattern matching `cmd/server` misses the child
-      and leaves 8081 held — which is exactly the failure the kill step exists to prevent.
+      by `pkill` on **both** the `go run` parent and its compiled `exe/server` child: `go run`
+      spawns the child under `$TMPDIR`, so killing only the parent leaves 8081 held. `pkill`
+      is in `procps`, which the devcontainer installs and macOS has; an earlier draft used
+      `lsof -ti … | xargs -r`, neither of which is available in the documented environment.
 - [x] **PASS** — It re-runs `node scripts/e2e-smoke.mjs`, byte-identical to task 5.5's
       command, annotated "SAME command as 5.5". It also re-runs `scripts/seed-roster.mjs`
       first, because the roster is now part of what must reconverge (D12) rather than
@@ -269,7 +281,9 @@ failures:
    Confirm before starting, not at 1.8.
 3. **R9** — `bootstrap.py` needs python3, which the workshop image does not carry. This is
    an authoring-time step whose output is committed, so it does not reach attendees, but
-   whoever applies the change needs python3 somewhere.
+   whoever applies the change needs python3 somewhere. Everything that runs against a live
+   stack is on Node, which the image has — an earlier draft used python3 in the seed
+   verification, which would have failed in the documented environment.
 4. **R5** — the two platform skills disagree on whether `MapLibreEngineProvider` is a usable
    2D engine or an empty stub. The design proceeds with Cesium, which both agree works;
    if MapLibre turns out to be real it is strictly lighter for this surface, and the

@@ -217,8 +217,10 @@ in memory for the life of that write's delivery attempts, and retry is bounded b
 remaining lifetime (the shipped realm's `accessTokenLifespan` is 300s).
 
 A row that cannot be delivered inside that window stays **pending and visible** in the
-outbox table, and is flushed by re-running the seed/reconcile step (D12), which holds a
-fresh token. *Alternatives considered:* (a) storing the bearer in the outbox row — persists
+outbox table. Recovery is an ordinary write: re-writing that unit through the API enqueues a
+fresh row and delivers it with the new caller's token. For the seeded roster, re-running the
+seed does exactly that; for a unit an operator created, the operator re-saves it. There is no
+background sweeper, and this design deliberately does not add one. *Alternatives considered:* (a) storing the bearer in the outbox row — persists
 a credential in the database and still expires; (b) storing the refresh token — worse, it
 lets a background worker act as a user indefinitely; (c) draining the backlog
 opportunistically on the *next* authenticated request from the same tenant. (c) is the
@@ -367,8 +369,10 @@ for two independent reasons:
    prove a cold stack converges, would certify that broken state.
 
 So a one-shot seed step authenticates as `${DEV_USER}` with the password grant
-(`scope=openid`), reads `active_tenant.tenant_id` from its own token, and writes the roster
-through `POST` / `PUT /v1/units`. The service stamps tenant and audit columns from that
+(`scope=openid`) and writes the roster through `POST` / `PUT /v1/units`. It reads
+`active_tenant.tenant_id` from its own token only to key the second write step below and to
+assert the rows landed in the tenant it expected — the service, not the script, is what
+stamps them. The service stamps tenant and audit columns from that
 token, and the ordinary outbox path projects the units into GIS carrying the same operator's
 bearer. One mechanism, no special case for seeded data, and the same step doubles as the
 reconcile path for a stranded projection (D2a). This is the platform's own pattern — the GIS
@@ -377,9 +381,28 @@ password-grant user token. *Alternative considered:* keeping the SQL seed and ad
 separate GIS seeding script. Rejected: two seeding mechanisms that must agree, one of which
 still cannot name the tenant.
 
+**The seed is a two-step write, because the API cannot express the whole roster.**
+`UnitInput` deliberately omits crew and assignment — `dispatch-units-crud` left both for
+their own form design, and this change keeps them unwritable. So an API-only seed would
+silently produce a roster with **no crew and no assignment on any unit**, which would break
+the console's "a unit with an assignment and crew is selected" scenario, make both mockups
+depict data that cannot exist, and remove the assigned unit that workshop Exercise 1 starts
+from. Widening `UnitInput` to fix that would be building Exercise 1 and 3's write paths,
+which this change explicitly does not do.
+
+So the seed writes units through the API (which stamps the tenant, the audit columns, and
+drives the projection), then writes the crew and assignment rows for those same units
+**directly to the database**, keyed on the `unit_code` and the `tenant_id` the API just
+assigned. That second step is deliberately narrow: it touches only the two shapes the write
+API cannot carry, it runs in the seed and nowhere else, and it disappears the day crew and
+assignment become writable. It is recorded here rather than left as a surprise, because "the
+seed reaches around the API" is exactly the kind of shortcut that should be explicit.
+
 Consequence: the repo's "migrations and seed data apply themselves when the service starts"
-story changes, and a migration must delete the pre-auth `'workshop'`-tenant rows that
-`0002_seed.up.sql` inserts, or they linger invisibly.
+story changes; a migration must delete the pre-auth `'workshop'`-tenant rows that
+`0002_seed.up.sql` inserts, or they linger invisibly; and `scripts/dev.mjs`, the root
+`package.json` scripts, `README.md`, `SETUP.md` and both app READMEs all describe a start
+and reset flow that no longer holds.
 
 ## Risks / Trade-offs
 
@@ -405,11 +428,13 @@ is the signal to move to AAS `/evaluate`.
 
 **R4 — A projection can outlive the token that must deliver it.** The projection carries the
 writing operator's token (D2a), whose lifetime is 300s in the shipped realm. A `gis-service`
-outage longer than that strands the row: it stays pending rather than being delivered
-"eventually and without operator action". → The unit row remains the source of truth (D7),
+outage longer than that strands the row: it stays pending rather than being delivered with
+no operator action, which is what the brief-outage scenario promises and the long-outage one
+deliberately does not. → The unit row remains the source of truth (D7),
 the map's not-shown count is computed from unit data rather than entity data so the page
-never under-reports the roster, a pending row is visible in `gis_outbox`, and re-running the
-seed/reconcile step (D12) flushes it with a fresh token. What this design deliberately does
+never under-reports the roster, a pending row is visible in `gis_outbox`, and re-writing the
+affected unit through the API — which for the seeded roster means re-running the seed —
+enqueues and delivers it with a fresh token. What this design deliberately does
 **not** do is make some later, unrelated operator's request perform the write — see D2a for
 why that is worse than a visible backlog. If the projection ever has to survive without any
 operator, the answer is a scheduled job holding its own credential against a tenant-aware
@@ -446,16 +471,18 @@ per-service volume wipe when a service name is given, and podman-compose's `down
 accept service arguments at all, so the per-service form may silently do nothing — which is
 the exact failure this risk is about. The reproducibility gate tears the whole stack anyway.
 
-**R9 — The change is authored with tooling the workshop image does not carry.** Two tasks
-need binaries that are absent from `.devcontainer/Dockerfile` (`node:24-bookworm-slim` plus
-`ca-certificates curl git procps`): `aoh-compose`'s `bootstrap.py` needs **python3** — the
-same gap that `apps/dispatch-svc/AGENTS.md` records as why that service was hand-written —
-and there is no `golangci-lint` binary or `.golangci.yml` anywhere in this repo. →
-Neither blocks an attendee: `compose/` is generated **once by the change author** and
-committed, and attendees only consume it. The task list says so explicitly and uses the
-repo's actual configured Go lint (`go vet`, via `pnpm lint`) rather than a linter nobody
-here has. If the author also lacks python3, the fallback is to run `bootstrap.py` wherever
-python3 exists and commit the output — it writes files, it does not need the stack.
+**R9 — One authoring step needs tooling the workshop image does not carry.**
+`aoh-compose`'s `bootstrap.py` needs **python3**, which is absent from
+`.devcontainer/Dockerfile` (`node:24-bookworm-slim` plus `ca-certificates curl git procps`)
+— the same gap `apps/dispatch-svc/AGENTS.md` records as why that service was hand-written.
+→ It does not reach attendees: `compose/` is generated **once by the change author** and
+committed, and attendees only consume it. If the author also lacks python3, run
+`bootstrap.py` wherever python3 exists and commit the output — it writes files and does not
+need the stack. Everything that runs against a live stack stays on Node, which the image
+does have: the token fetch and claim decode in the seed verification, and both repo-root
+scripts. The same audit removed `golangci-lint` from the task list — there is no
+`.golangci.yml` or binary anywhere in this repo, and `go vet` is what `pnpm lint` actually
+runs.
 
 ## Migration Plan
 
@@ -478,8 +505,10 @@ python3 exists and commit the output — it writes files, it does not need the s
 
 **Rollback:** revert both apps and re-run the seed. The position and outbox migrations are
 additive, so a rolled-back binary ignores them without error. The pre-auth row deletion is
-not reversible in place — recover by `pnpm reset-db` and re-seeding, which is the supported
-path and the one the gate exercises. Orphaned geo-entities in `gis-service` are harmless and
+not reversible in place — recover by tearing the stack (`compose down -v`) and re-running the
+seed, which is what the gate exercises. Note `pnpm reset-db` is **not** that command any
+more: once the dispatch database joins the generated compose project it tears the whole
+sixteen-service stack, so the root scripts have to be rewritten with this change. Orphaned geo-entities in `gis-service` are harmless and
 are cleared by tearing the GIS volume.
 
 ## Open Questions

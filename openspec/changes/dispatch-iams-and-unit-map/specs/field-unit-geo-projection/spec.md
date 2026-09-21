@@ -119,7 +119,7 @@ The projection SHALL rely on `gis-service`'s own publication to the RTUS map nam
 
 #### Scenario: The dispatch service holds no RTUS credentials
 - **WHEN** `dispatch-svc`'s configuration is reviewed
-- **THEN** it names `gis-service` as its only downstream and carries no RTUS endpoint
+- **THEN** `gis-service` is its only downstream for entity data, and it carries no RTUS endpoint, topic name or credential
 
 ### Requirement: The projection is written in the tenant of the operator who caused it
 
@@ -133,5 +133,5 @@ has no operator token for.
 - **THEN** reading `GET /geoentity/entity_id/{unit_code}` with that same operator's token returns the entity
 
 #### Scenario: No tenant-independent credential exists
-- **WHEN** `dispatch-svc`'s configuration and code are reviewed
+- **WHEN** `internal/config` and the projection worker's source are reviewed
 - **THEN** they contain no client secret, service-account credential, or client-credentials grant

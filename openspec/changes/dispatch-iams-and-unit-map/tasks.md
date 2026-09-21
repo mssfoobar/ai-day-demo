@@ -13,19 +13,23 @@
       `iams` (with `iams-aas`, `iams-web`, `iams-init`, `project-aas-init`), `sds` (with
       `valkey`), `traefik` and the `otel-collector` gateway come in automatically; `gis`
       pulls `rtus` transitively. Do not hand-write these files.
-- [ ] 1.2 Fold the existing dispatch PostgreSQL into the generated layout: move the
-      `postgres` service from `compose/compose.yml` into `compose/dispatch/compose.yml`
-      (container `dispatch-postgres`, `name: aoh` so it joins the shared network) and add it
-      to the regenerated top-level include list. Delete the now-false header comment that
-      says there is "deliberately no Traefik, no Keycloak, no iams-aas, no sds-server and no
-      valkey".
+- [ ] 1.2 Fold the existing dispatch PostgreSQL into the generated layout. **Copy the
+      `postgres` service block out of `compose/compose.yml` before running 1.1** —
+      `bootstrap.py` regenerates that file from scratch as a `name:` + `include:` list and
+      keeps only include entries, so both the service definition and the file's header
+      comment are discarded by 1.1, not edited by you. Put the block in
+      `compose/dispatch/compose.yml` (service name **`postgres`**, `container_name:
+      dispatch-postgres`, `name: aoh` so it joins the shared network) and add
+      `./dispatch/compose.yml` to the regenerated include list. Keep the service name
+      `postgres`: `compose exec` and `compose up` take the service name, and 5.3 depends on
+      it.
 - [ ] 1.3 Confirm `rtus-pms` and `rtus-seh` both set the same `rtus.clustername`
       (`aoh_rtus` in the shipped template). A mismatch makes rtus-seh form its own one-node
       Hazelcast cluster and every SSE subscription silently receives nothing.
 - [ ] 1.4 Leave `compose/rtus/compose.yml` **unedited**, and verify why that is safe:
       `rtus.session-id.cookienames` already carries `web_auth_session_id` (which
       `PUBLIC_COOKIE_PREFIX=web` produces), and rtus-seh's Traefik CORS middleware already
-      lists `http://${DEV_DOMAIN}:5173` — the origin task 4.16 serves the console on. Serving
+      lists `http://${DEV_DOMAIN}:5173` — the origin task 4.17 serves the console on. Serving
       it anywhere else (e.g. `dispatch.${DEV_DOMAIN}:5173`) would require adding that origin
       to `accesscontrolalloworiginlist` here, and the credentialed SSE request would be
       blocked until you did.
@@ -55,7 +59,8 @@
 - [ ] 1.8 Verify: run `podman compose -f compose/compose.yml up -d` (or `docker compose -f compose/compose.yml up -d`),
       then `podman compose -f compose/compose.yml ps` (or `docker compose -f compose/compose.yml ps`)
       shows `traefik`, `iams-keycloak`, `iams-aas`, `iams-web`, `sds-server`, `valkey`,
-      `rtus-pms`, `rtus-seh`, `gis-service` and `dispatch-postgres` healthy, and `iams-init`
+      `rtus-pms`, `rtus-seh`, `gis-service` and `postgres` (container `dispatch-postgres`)
+      healthy, and `iams-init`
       and `project-aas-init` exited 0.
 
 ## 2. Seed / resource creation
@@ -66,13 +71,18 @@
       `iams-aas-init.postman_collection.json`.
 - [ ] 2.2 In `compose/iams/init/project-aas/roles.yaml`, under `tenant: development`, add the
       two application roles `dispatch-viewer` and `dispatch-dispatcher`, and under
-      `assignments` give `${DEV_USER}` both roles and the viewer account from 1.5
-      `dispatch-viewer` only. Use only the documented top-level keys — `roles`,
+      `assignments` give the dispatcher account both roles and the viewer account from 1.5
+      `dispatch-viewer` only. Write **literal usernames** (`admin` is the shipped `DEV_USER`
+      default): `bootstrap.py` reads this file with `yaml.safe_load` and performs no `${VAR}`
+      substitution — unlike `realm-import.json` — so a literal `${DEV_USER}` is searched for
+      verbatim in Keycloak and the bootstrap exits "user not found". Use only the documented top-level keys — `roles`,
       `assignments`, `tenant_admins`, `groups`, `resources`, `scopes`, `resource_scopes`,
       `permissions`. There is no membership key: membership follows from `assignments`.
       Keep the file idempotent; `bootstrap.py` is GET-then-create per section.
-- [ ] 2.3 Re-import the realm and re-run the bootstrap, because Keycloak's
-      `start --import-realm` is skip-if-exists and task 1.5 edited the import file. Use a
+- [ ] 2.3 Re-run the stack so `project-aas-init` picks up 2.2's `roles.yaml` edit. Task 1.5
+      edits `realm-import.json` *before* 1.8's first `up -d`, so the viewer user is already in
+      the initial import — but if you reordered, or edited the realm after a stack was up,
+      the import is skip-if-exists and only a volume teardown re-applies it (R8). Use a
       **project-wide** teardown — `podman compose -f compose/compose.yml down -v` (or `docker compose -f compose/compose.yml down -v`),
       then `podman compose -f compose/compose.yml up -d` (or `docker compose -f compose/compose.yml up -d`).
       Do **not** use `down -v iams-db`: Compose does not treat `-v` as a per-service volume
@@ -85,12 +95,17 @@
       TOKEN=$(curl -fsS -X POST "http://iams-keycloak.${DEV_DOMAIN}/realms/aoh/protocol/openid-connect/token" \
         -d grant_type=password -d client_id=web -d scope=openid \
         --data-urlencode "username=${DEV_USER}" --data-urlencode "password=${DEV_PASSWORD}" \
-        | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
-      python3 -c "import base64,json,sys; p=sys.argv[1].split('.')[1]; print(json.loads(base64.urlsafe_b64decode(p+'='*(-len(p)%4)))['active_tenant'])" "$TOKEN"
+        | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).access_token))")
+      node -e "console.log(JSON.parse(Buffer.from(process.argv[1].split('.')[1],'base64url')).active_tenant)" "$TOKEN"
       ```
+      Node, not python3: the workshop image is `node:24-bookworm-slim` with no python3, and
+      unlike `bootstrap.py` this step runs against a live stack rather than at authoring
+      time.
       The dispatcher's `active_tenant.roles` contains `dispatch-dispatcher`; the viewer's
       contains `dispatch-viewer` and not `dispatch-dispatcher`; both carry the `development`
-      tenant's id. `scope=openid` is mandatory — AOH services validate via Keycloak's
+      tenant's id. Run `project-aas-init` a second time against the same stack and confirm
+      the role set is unchanged — that is what "the role bootstrap is idempotent" asserts, and
+      a single run cannot show it. `scope=openid` is mandatory — AOH services validate via Keycloak's
       userinfo endpoint, which 403s on a token issued without it, surfacing as an opaque 401.
 - [ ] 2.5 Verify (GIS accepts an operator token): `curl -fsS -o /dev/null -w '%{http_code}\n'
       -H "Authorization: Bearer $TOKEN" "http://gis.${DEV_DOMAIN}/geoentity"` prints `200`
@@ -116,18 +131,42 @@
       id (AAS assigns it at stack-up; `bootstrap.py` has to look it up by name), and rows
       written in SQL bypass the outbox and would be permanently absent from the map
       (design.md D12). Seeding moves to task 3.4.
-- [ ] 3.4 Write `scripts/seed-roster.mjs` — the replacement seed, and also the reconcile path
-      for a stranded projection (design.md D2a/D12). It authenticates as `${DEV_USER}` with
+- [ ] 3.4 Write `scripts/seed-roster.mjs` at the **repo root** (beside `scripts/dev.mjs`, not
+      under `apps/dispatch-svc/`) — the replacement seed, and also the reconcile path for a
+      stranded projection (design.md D2a/D12). It is authored here because it is this
+      service's seed data, but it exercises features built later in this section, so it is
+      only *run* in 5.1. It authenticates as `${DEV_USER}` with
       the password grant and `scope=openid`, reads `active_tenant.tenant_id` from its own
-      token, and writes the baseline roster through `POST` / `PUT /v1/units` so the service
-      stamps tenant and audit columns from that token and the ordinary outbox path projects
-      each unit into GIS. Keep the seeded call sign ↔ `unit_code` pairings (`FU-101` Alpha-1,
-      `FU-102` Alpha-2, `FU-204` Bravo-1, `FU-205` Bravo-2, `FU-311` Charlie-1), give every
-      unit but `FU-204` a position so the "not shown" count and the un-positioned detail
-      state are both exercised, and make it idempotent — re-running converges on the same
-      rows rather than duplicating them. Model it on the platform's own
+      token, and writes the baseline roster through the API so the service stamps tenant and
+      audit columns from that token and the ordinary outbox path projects each unit into GIS.
+
+      **Idempotence has to be explicit**, because neither verb is idempotent alone: for each
+      unit `GET /v1/units/{unit_code}`, then `POST` on 404, or `PUT` on 200 echoing the
+      `occ_lock` from that read (a bare `POST` of an existing code is 409
+      `DISPATCH_UNIT_CODE_TAKEN`; a `PUT` without `occ_lock` is 400). Exit non-zero on any
+      other status.
+
+      **Reproduce the whole baseline row, not just its name**: the call sign ↔ `unit_code`
+      pairings (`FU-101` Alpha-1, `FU-102` Alpha-2, `FU-204` Bravo-1, `FU-205` Bravo-2,
+      `FU-311` Charlie-1), and each unit's status, type, station, sector, radio channel,
+      shift and capabilities as `0002_seed.up.sql` had them — the status vocabulary must
+      still be fully covered, and `FU-311` must keep its deliberately empty capability list.
+      Give every unit but `FU-204` a position, so the "not shown" count and the
+      un-positioned detail state are both exercised.
+
+      **Then write crew and assignment directly to the database** for those same units, keyed
+      on `unit_code` and the `tenant_id` the API assigned (read it back from the created unit,
+      or from the script's own `active_tenant.tenant_id`). This second step exists because
+      `UnitInput` carries neither field and this change does not widen it (design.md D12);
+      without it the seeded roster would have no crew and no assignment at all, which breaks
+      the console's assigned-unit scenario and removes the assigned unit workshop Exercise 1
+      starts from. Restore the two assignments (`FU-102` → `INC-2841`, `FU-311` → `INC-2839`)
+      and the crew rows `0002_seed.up.sql` carried. Model it on the platform's own
       `.claude/skills/aoh-gis-integration/scripts/seed-geoentities.sh`, which seeds GIS with
-      exactly this password-grant user token.
+      exactly this password-grant user token. Because a re-run re-writes each baseline unit
+      through the API, it also re-enqueues and delivers any projection for those units that
+      was stranded by an expired token (design.md D2a). It is not a general sweeper: a unit an
+      operator created is recovered by that operator re-saving it.
 - [ ] 3.5 Add bearer authentication using `aoh-golib`'s shipped `aohhttp.BearerAuth`
       middleware — do not hand-roll offline JWKS validation. Mount it on `/v1/units` only, so
       `/livez` and `/readyz` stay unauthenticated. Put `sub`, `active_tenant.tenant_id` and
@@ -153,18 +192,23 @@
       `delete` (design.md D6a). The handler must not call `gis-service`; a GIS outage must
       not fail a unit write.
 - [ ] 3.10 Add the outbox worker. It delivers `PUT /geoentity` (upsert, keyed on `entity_id` =
-      `unit_code`, `entity_type` `track`, `properties.kind` `field-unit`) or
+      `unit_code`, `entity_type` `track`, `geojson.properties.kind` `field-unit`) or
       `DELETE /geoentity/entity_id/{unit_code}`, with backoff and at-least-once retry; a
       delete for an entity that is already gone counts as delivered. It authenticates with
       **the operator's access token**, captured by value from the request before the
       post-commit work detaches from the request context — a client-credentials token carries
       no `active_tenant` claim and `gis-service` resolves the tenant from it. Never persist a
-      token: a row whose token has expired stays pending and is drained on a later
-      authenticated request from the same tenant.
+      token, and bound retry by that token's **remaining lifetime**. A row still undelivered
+      when the token expires stays pending, with its attempt count and last error recorded,
+      and is left for the reconcile step (3.4) to flush. Do **not** drain it on a later
+      request from another operator: that would attribute the entity to whoever happened to
+      call next, and would make a `dispatch-viewer`'s read perform a GIS write (design.md
+      D2a rejects this explicitly).
 - [ ] 3.11 Extend `internal/config` using the scaffold's own key names:
       `IAMS_KEYCLOAK_HOST` (a URL **including the scheme**), `IAMS_KEYCLOAK_PORT`,
-      `IAMS_KEYCLOAK_REALM`, `GIS_URL`, and the projection's retry budget (attempts and
-      backoff). There is **no** poll interval: the projection is triggered by the write that
+      `IAMS_KEYCLOAK_REALM`, `GIS_URL`, and the projection's retry budget — attempts and
+      backoff, capped by the remaining lifetime of the token the delivery carries, which is
+      the real bound (design.md D2a). There is **no** poll interval: the projection is triggered by the write that
       produced it and runs on the token that write carried, so a timer that woke with no
       credential could deliver nothing (design.md D2a). No client id or secret either — there
       is no confidential client. Keep the existing Viper defaults pattern.
@@ -262,8 +306,7 @@
       `.env.development`, so serving on the `${DEV_DOMAIN}` origin without it is host-checked
       and refused in both. Add `static/cesium/` to
       `apps/dispatch-web/.gitignore`; `eslint.config.js` already ignores it, so leave that
-      alone — the roster included, which is why the seed runs inside the gate rather than
-      being assumed to have survived the teardown.
+      alone.
 - [ ] 4.12 Mount `<GisProvider>` at the root `+layout.svelte`, fed by the app's existing
       `ThemeProvider` dark-mode store so the map repaints with the theme.
 - [ ] 4.13 Build the map page: `+page.ts` exporting `ssr = false`; a `+page.server.ts` whose
@@ -299,7 +342,36 @@
       Also sweep the inline comments that still assert no-auth in
       `apps/dispatch-web/{.env.template,.env.development,vite.config.ts,src/hooks.server.ts,src/app.d.ts}`
       and `apps/dispatch-svc/internal/repo/unit_repo.go`.
-- [ ] 4.16 Document the env block for a native run (`cd apps/dispatch-web && pnpm dev`),
+      Four more places assert a seeding story this change ends, and one of them instructs
+      future agents to preserve the mechanism being removed — fix all four: `README.md`
+      ("Migrations and seed data apply themselves when the service starts"),
+      `apps/dispatch-svc/README.md` (the same claim, plus its layout line calling
+      `migrations` the "schema + idempotent seed"), and `apps/dispatch-svc/AGENTS.md`
+      ("**Migrations are embedded and run on start** … The seed is idempotent
+      (`ON CONFLICT … DO UPDATE`); keep it that way"). The replacement is: migrations still
+      apply on start; the roster is seeded separately through the authenticated API by
+      `scripts/seed-roster.mjs`. In `SETUP.md`, the checkpoint itself moves — it currently
+      says open `http://localhost:5173` and "if you see the dispatch console with a list of
+      units, you are done"; after this change that is the wrong origin, sign-in comes first,
+      and the roster is empty until the seed runs. In `WORKSHOP.md`, beyond the `curl`: its
+      Exercise 2 hint tells attendees to add `0003_unit_event.up.sql`, a prefix task 3.2 now
+      takes, and its "Done looks like" section ends with `pnpm reset-db && pnpm start`, which
+      task 4.16 redefines.
+- [ ] 4.16 Update the repo's start and reset tooling, which this change breaks. None of it
+      is optional — `pnpm start` is what `README.md` and `SETUP.md` tell attendees to run:
+      - `scripts/dev.mjs` brings up **only** `postgres`. With the auth layer restored, the
+        console's `hooks.server.ts` does OIDC discovery in a top-level `await`, so with no
+        `iams-keycloak` running every route returns 500 — the all-or-nothing failure
+        `design.md` opens with. Bring up the whole stack (or drop the db-only step).
+      - its readiness probe waits on `http://localhost:5173/units`; the console moves to
+        `/aoh/dispatch/units` (4.5) and `/units` stops serving it, so the probe never passes.
+      - its `WEB_URL` is `http://localhost:5173`; 4.17 requires the `${DEV_DOMAIN}` origin.
+      - after 1.2 the dispatch database lives in the generated compose project, so
+        `package.json`'s `stop` and `reset-db` (`compose down` / `down -v`) now tear the whole
+        sixteen-service stack rather than one container. Rename or rescope them, add a `seed`
+        script for `scripts/seed-roster.mjs`, and have `dev.mjs` run the seed once
+        `/readyz` answers.
+- [ ] 4.17 Document the env block for a native run (`cd apps/dispatch-web && pnpm dev`),
       added to `.env.development` and `.env.template`:
       ```sh
       ORIGIN=http://${DEV_DOMAIN}:5173
@@ -316,12 +388,21 @@
       X_FRAME_OPTIONS=SAMEORIGIN
       PUBLIC_STATIC_BUILD_VERSION=dev
       ```
+      The two repo-root scripts read their own block, documented in the same place:
+      ```sh
+      IAM_URL=http://iams-keycloak.${DEV_DOMAIN}/realms/aoh
+      IAM_CLIENT_ID=web
+      DEV_USER=… DEV_PASSWORD=…            # dispatcher account
+      VIEWER_USER=…                        # viewer account; shares DEV_PASSWORD (task 1.5)
+      DISPATCH_SVC_URL=http://localhost:8081
+      GIS_URL=http://gis.${DEV_DOMAIN}
+      ```
       `OIDC_ALLOW_INSECURE_REQUESTS=1` is not optional over plain `http`: the scaffold's
       `discovery()` runs in a **top-level await**, so without it every route returns 500 at
       startup — the exact failure the baseline documented. `ORIGIN` must be the
       `${DEV_DOMAIN}` origin, not `localhost`, or the session cookie never reaches
       `rtus-seh` and its CORS list rejects the SSE request (design.md D10).
-- [ ] 4.17 Verify: `cd apps/dispatch-web && pnpm build && pnpm check-types && pnpm lint` all
+- [ ] 4.18 Verify: `cd apps/dispatch-web && pnpm build && pnpm check-types && pnpm lint` all
       exit 0, and
       `grep -rniE "no authentication|NO AUTH" apps README.md SETUP.md WORKSHOP.md compose/compose.yml`
       returns nothing.
@@ -339,15 +420,24 @@
       dispatcher token, and that the seeded roster comes back with positions; assert
       `POST /v1/units` is 403 with the viewer token and 201 with the dispatcher token; poll
       `gis-service` `GET /geoentity/entity_id/{unit_code}` until the new unit's entity appears
-      and assert its `entity_type` is `track` and its `properties.kind` is `field-unit`; move
+      and assert its `entity_type` is `track` and its `geojson.properties.kind` is `field-unit`; move
       the unit with a `PUT` and assert the entity's coordinates follow; **clear** the position
-      with a `PUT` and assert the entity is removed; delete the unit; and exit non-zero with a
-      named assertion on any failure.
+      with a `PUT` and assert the entity is removed; delete the unit; assert that a replayed
+      session-id cookie captured before sign-out is refused, and that a malformed token and an
+      expired token each answer 401 (not only a missing one); and exit non-zero with a named
+      assertion on any failure.
 - [ ] 5.3 Add the tenant-isolation checks to the same script. It SHALL first insert a unit row
-      under a **different** `tenant_id` — directly, with
-      `podman compose -f compose/compose.yml exec -T dispatch-postgres psql -U dispatch -d dispatch -c "INSERT INTO dispatch.unit (...) VALUES (..., 'other-tenant', ...)"`
-      (or the `docker compose` form) — reusing a `unit_code` that already exists in the
-      caller's tenant. It SHALL then assert, with the dispatcher token: that row is absent
+      under a **different** `tenant_id`, directly:
+      ```sh
+      podman compose -f compose/compose.yml exec -T postgres psql -U dispatch -d dispatch -c "INSERT INTO dispatch.unit (unit_code, call_sign, status, unit_type, station, sector, radio_channel, shift, tenant_id) VALUES ('FU-101','Other-1','Idle','Ambulance','Elsewhere','Sector 9','TAC-9','Day','other-tenant')"
+      docker compose -f compose/compose.yml exec -T postgres psql -U dispatch -d dispatch -c "INSERT INTO dispatch.unit (unit_code, call_sign, status, unit_type, station, sector, radio_channel, shift, tenant_id) VALUES ('FU-101','Other-1','Idle','Ambulance','Elsewhere','Sector 9','TAC-9','Day','other-tenant')"
+      ```
+      Insert **two** rows under `'other-tenant'`: one reusing a `unit_code` that already
+      exists in the caller's tenant (for the list and read assertions) and one with a code the
+      caller's tenant does not have (so "exists only under the other tenant" and "the same
+      code may exist in two tenants" both have a subject). A single row cannot satisfy all
+      four — with only a shared code, nothing exists solely in the other tenant and the create
+      assertion would hit the caller's own row and 409. It SHALL then assert, with the dispatcher token: that row is absent
       from `GET /v1/units`; `GET /v1/units/{unit_code}` returns the caller's own unit and
       never the other tenant's; `PUT` and `DELETE` against a `unit_code` that exists **only**
       under the other tenant answer 404 and leave that row byte-identical; and creating a unit
@@ -361,24 +451,35 @@
       unit with `PUT` in another terminal and watch the marker move without a reload; click a
       marker and confirm it opens in the console; select an un-positioned unit and confirm the
       camera stays put; leave the tab idle past the access-token lifetime and confirm the next
-      action succeeds without a return to sign-in; sign out, sign in as the viewer, and
-      confirm the add / edit / delete controls are absent and the map still renders.
+      action succeeds without a return to sign-in; create a positioned unit and delete it in
+      another terminal and confirm the marker appears and disappears without a reload; give
+      `FU-204` a position and confirm the not-shown count disappears, then clear every
+      position and confirm the empty state; stop `rtus-seh`
+      (`podman compose -f compose/compose.yml stop rtus-seh`, or `docker compose -f compose/compose.yml stop rtus-seh`)
+      and confirm the map still renders its base layer with the "live positions are
+      unavailable" notice; stop `gis-service` the same way, write a unit, and confirm the
+      write succeeds and its outbox row is left pending with an attempt count; restart both;
+      sign out, sign in as the viewer, and confirm the add / edit / delete controls are absent
+      and the map still renders.
 - [ ] 5.5 Native dev E2E: `node scripts/e2e-smoke.mjs` exits 0.
 - [ ] 5.6 **Reproducibility gate** — tear and rebuild infra, kill and restart the native dev
-      processes for both apps using the env blocks from 3.14 and 4.16, and re-run the SAME
+      processes for both apps using the env blocks from 3.14 and 4.17, and re-run the SAME
       E2E command from 5.5:
       ```bash
       # Kill natives first: a stale process holds 8081/5173 and hides the rebuild.
-      # `go run` execs a compiled binary under $TMPDIR, so match the listening port,
-      # not the source path — `pkill -f 'cmd/server'` would miss the child.
-      lsof -ti :8081 | xargs -r kill || true          # dispatch-svc (go run's child)
+      # `go run` spawns a compiled child under $TMPDIR, so kill BOTH the parent and
+      # the child — a pattern matching only 'cmd/server' leaves the child holding 8081.
+      # pkill is in procps (present in the devcontainer and on macOS); lsof is not.
+      pkill -f 'go run ./cmd/server' || true          # dispatch-svc parent
+      pkill -f 'exe/server' || true                   # dispatch-svc compiled child
       pkill -f 'vite dev' || true                     # dispatch-web
       podman compose -f compose/compose.yml down -v   # or: docker compose -f compose/compose.yml down -v
       podman compose -f compose/compose.yml up -d     # or: docker compose -f compose/compose.yml up -d
       # wait for healthy, and for iams-init + project-aas-init to exit 0:
       podman compose -f compose/compose.yml ps        # or: docker compose -f compose/compose.yml ps
       cd apps/dispatch-svc && go run ./cmd/server &   # native, env block from 3.14
-      cd apps/dispatch-web && pnpm dev &              # native, env block from 4.16
+      cd apps/dispatch-web && pnpm dev &              # native, env block from 4.17
+      until curl -fsS http://localhost:8081/readyz >/dev/null; do sleep 1; done
       node scripts/seed-roster.mjs                    # the seed is part of convergence now
       node scripts/e2e-smoke.mjs                      # SAME command as 5.5
       ```

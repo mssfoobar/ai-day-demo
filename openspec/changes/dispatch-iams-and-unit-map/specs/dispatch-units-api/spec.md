@@ -41,8 +41,9 @@ written by the service on a caller-initiated write.
 - **AND** its `tenant_id` equals that caller's `active_tenant.tenant_id`
 
 #### Scenario: An edit records the editor
-- **WHEN** a different dispatcher then replaces the same unit
-- **THEN** the row's `updated_by` is the second caller's `sub` and its `created_by` is unchanged
+- **WHEN** a dispatcher replaces a unit created earlier
+- **THEN** the row's `updated_by` is that caller's `sub`
+- **AND** its `created_by` is unchanged from the create
 
 #### Scenario: Identity is not taken from the request body
 - **WHEN** a write body includes `created_by`, `updated_by` or `tenant_id`
