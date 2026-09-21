@@ -30,7 +30,7 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
       spec mention is the negative assertion in `specs/dispatch-access-control/spec.md`
       ("it references no `active_tenant.permissions` claim"). Permission-level gating is an
       in-service role→permission projection over `active_tenant.roles` (`design.md` D3,
-      `tasks.md` 3.6 / 4.6) — option (b) of the check.
+      `tasks.md` 3.7 / 4.6) — option (b) of the check.
 
 ## 2. Session storage
 
@@ -40,11 +40,11 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
       `design.md` D4 names the cookie-only fallback only to reject it, and
       `specs/dispatch-access-control/spec.md` requires "no cookie, `localStorage` entry, or
       server-rendered payload contains a JWT" — including across a token renewal.
-- [x] **PASS** — Option (a): the platform default is kept. `tasks.md` 4.16 sets
+- [x] **PASS** — Option (a): the platform default is kept. `tasks.md` 4.17 sets
       `PUBLIC_COOKIE_PREFIX=web`, and `tasks.md` 1.4 leaves `compose/rtus/compose.yml`
       unedited **and states the two reasons that is safe** — `rtus.session-id.cookienames`
       already carries `web_auth_session_id`, and rtus-seh's CORS middleware already lists
-      `http://${DEV_DOMAIN}:5173`, the origin 4.16 serves on. An earlier draft served the
+      `http://${DEV_DOMAIN}:5173`, the origin 4.17 serves on. An earlier draft served the
       console at `dispatch.${DEV_DOMAIN}:5173`, which is **not** in that CORS list and would
       have blocked every SSE connect; `design.md` D10 now records the origin choice and its
       three consequences.
@@ -67,7 +67,7 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
 ## 3. API contract
 
 - [x] **PASS** — Every endpoint this change exposes uses `/v{N}/<resource>`: `/v1/units`,
-      `/v1/units/{unit_code}`, the four stub route/method pairs across three
+      `/v1/units/{unit_code}`, `/v1/units/seed`, the four stub route/method pairs across three
       `/v1/units/{unit_code}/…` paths, plus root-mounted `/livez` and `/readyz`.
       `grep -rn '/api' specs design.md proposal.md tasks.md` returns **5 hits, not zero** —
       one each in `specs/dispatch-access-control/spec.md`, `design.md` and `proposal.md`, two
@@ -98,7 +98,7 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
 - [x] **PASS** — `/livez` and `/readyz` appear in `design.md`'s API surface, mounted at root
       and marked Unauthenticated, and `specs/dispatch-access-control/spec.md`'s "Health probes
       stay outside the authenticated surface" covers **both** apps — the console's probes as
-      well as the service's. `tasks.md` 3.5 and 4.4 each implement their half; an earlier
+      well as the service's. `tasks.md` 3.6 and 4.4 each implement their half; an earlier
       draft specified both and implemented only one.
 
 ## 4. UI surfaces
@@ -134,7 +134,7 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
 - [x] **PASS** — All six capabilities in `proposal.md` have a matching spec file, names
       identical: `dispatch-access-control`, `field-unit-geo-projection`, `dispatch-map`,
       `dispatch-console`, `dispatch-units-api`, `field-unit-roster`.
-- [x] **PASS** — 37 requirement blocks (36 ADDED/MODIFIED plus one REMOVED) and 123
+- [x] **PASS** — 37 requirement blocks (36 ADDED/MODIFIED plus one REMOVED) and 125
       scenarios; `grep -rn '^### Scenario' specs/` returns nothing, so every scenario header
       is exactly four hashes. The one scenario-less block is the REMOVED "The application has
       no authentication", which carries **Reason** and **Migration** instead — the shape
@@ -149,8 +149,9 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
       protected". The rest: `GET /v1/units` → access-control 401/200 + units-api tenant
       scoping; `GET /v1/units/{unit_code}` → units-api 404; `POST`/`PUT`/`DELETE` →
       access-control viewer/dispatcher + units-api position + geo-projection delete;
-      `/livez`+`/readyz` → access-control health probes; the page routes → dispatch-console
-      and dispatch-map. Of the consumed `gis-service` endpoints, `PUT /geoentity` and
+      `/livez`+`/readyz` → access-control health probes; `POST /v1/units/seed` → units-api
+      "Re-running the seed", "Seeding requires the dispatcher role" and "Seeded rows belong to
+      the caller's tenant"; the page routes → dispatch-console and dispatch-map. Of the consumed `gis-service` endpoints, `PUT /geoentity` and
       `DELETE`/`GET /geoentity/entity_id/{id}` are exercised by geo-projection scenarios; the
       bare `GET /geoentity` collection is exercised by `tasks.md` 2.5 and by no scenario,
       which is acceptable because `design.md` marks that table "consumed, not exposed —
@@ -194,7 +195,7 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
 - [x] **PASS** — Every section ends with a concrete verification naming exact commands:
       1.8 (compose `up -d` / `ps`, naming the containers that must be healthy and the init
       containers that must exit 0), 2.4 + 2.5 (a runnable token fetch, claim decode, and a
-      `curl` to `gis-service` asserting `200`), 3.15 (`go build && go vet && go test -race`),
+      `curl` to `gis-service` asserting `200`), 3.16 (`go build && go vet && go test -race`),
       4.18 (`pnpm build && pnpm check-types && pnpm lint` plus a `grep` over the docs),
       5.6 (the reproducibility gate). Section 2's last step previously ended in prose with no
       command; it is now a `curl` with an asserted status.
@@ -229,9 +230,10 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
 ## 9. Native dev env documentation
 
 - [x] **PASS** — Each Implement section's last task before its verification is the env block:
-      `tasks.md` 3.14 for the Go service and 4.17 for the SvelteKit app (4.16, the repo's
+      `tasks.md` 3.15 for the Go service and 4.17 for the SvelteKit app (4.16, the repo's
       start/reset tooling, sits between the docs task and the env block). The same task also
-      documents the block the two repo-root `.mjs` scripts read, which nothing covered before. Corrected in this
+      documents the block the two repo-root `.mjs` scripts read — and names their env
+      **source**, since a bare `node scripts/*.mjs` loads no app `.env`. Corrected in this
       pass, because the first draft would not have booted either process: `IAM_REALM` and
       `DISPATCH_SVC_CLIENT_ID`/`_SECRET` were invented (the scaffold's keys are
       `IAMS_KEYCLOAK_REALM` / `IAMS_KEYCLOAK_CLIENT_ID`, and the client pair is now
@@ -253,7 +255,7 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
       so it could have silently left the old realm in place — the exact failure that step
       exists to prevent (R8).
 - [x] **PASS** — It **kills** and restarts both native processes, referring to the env blocks
-      from 3.14 and 4.16. The Go server is killed by its listening port
+      from 3.15 and 4.17. The Go server is killed by its listening port
       by `pkill` on **both** the `go run` parent and its compiled `exe/server` child: `go run`
       spawns the child under `$TMPDIR`, so killing only the parent leaves 8081 held. `pkill`
       is in `procps`, which the devcontainer installs and macOS has; an earlier draft used

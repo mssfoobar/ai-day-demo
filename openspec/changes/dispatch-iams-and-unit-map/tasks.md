@@ -59,8 +59,8 @@
 - [ ] 1.8 Verify: run `podman compose -f compose/compose.yml up -d` (or `docker compose -f compose/compose.yml up -d`),
       then `podman compose -f compose/compose.yml ps` (or `docker compose -f compose/compose.yml ps`)
       shows `traefik`, `iams-keycloak`, `iams-aas`, `iams-web`, `sds-server`, `valkey`,
-      `rtus-pms`, `rtus-seh`, `gis-service` and `postgres` (container `dispatch-postgres`)
-      healthy, and `iams-init`
+      `iams-db`, `rtus-db`, `rtus-pms`, `rtus-seh`, `gis-db`, `gis-service`, `otel-collector`
+      and `postgres` (container `dispatch-postgres`) healthy, and `iams-init`
       and `project-aas-init` exited 0.
 
 ## 2. Seed / resource creation
@@ -131,67 +131,55 @@
       id (AAS assigns it at stack-up; `bootstrap.py` has to look it up by name), and rows
       written in SQL bypass the outbox and would be permanently absent from the map
       (design.md D12). Seeding moves to task 3.4.
-- [ ] 3.4 Write `scripts/seed-roster.mjs` at the **repo root** (beside `scripts/dev.mjs`, not
-      under `apps/dispatch-svc/`) — the replacement seed, and also the reconcile path for a
-      stranded projection (design.md D2a/D12). It is authored here because it is this
-      service's seed data, but it exercises features built later in this section, so it is
-      only *run* in 5.1. It authenticates as `${DEV_USER}` with
-      the password grant and `scope=openid`, reads `active_tenant.tenant_id` from its own
-      token, and writes the baseline roster through the API so the service stamps tenant and
-      audit columns from that token and the ordinary outbox path projects each unit into GIS.
+- [ ] 3.4 Implement the seed **inside the service**: `POST /v1/units/seed`, gated on
+      `dispatch-dispatcher` like any other write (design.md D12). In one transaction it writes
+      the baseline roster into the caller's tenant — units, positions, crew and assignments —
+      stamping `created_by` / `updated_by` from the caller's `sub`, and enqueues the ordinary
+      outbox rows so the projection travels the same path as any other write. Reuse the
+      `ON CONFLICT … DO UPDATE` shape `0002_seed.up.sql` already has, including
+      `ON CONFLICT (unit_id, name)` for `unit_crew`, so a second call converges instead of
+      failing on the unique constraint. Reproduce the baseline rows in full: the call sign ↔
+      `unit_code` pairings (`FU-101` Alpha-1, `FU-102` Alpha-2, `FU-204` Bravo-1, `FU-205`
+      Bravo-2, `FU-311` Charlie-1), each unit's status, type, station, sector, radio channel,
+      shift and capabilities (`FU-311` keeps its deliberately empty list), the two assignments
+      (`FU-102` → `INC-2841`, `FU-311` → `INC-2839`) **with all five assignment columns set**,
+      since the all-or-nothing CHECK rejects a partial one, and the crew rows. Give every unit
+      but `FU-204` a position, so the "not shown" count and the un-positioned detail state are
+      both exercised.
 
-      **Idempotence has to be explicit**, because neither verb is idempotent alone: for each
-      unit `GET /v1/units/{unit_code}`, then `POST` on 404, or `PUT` on 200 echoing the
-      `occ_lock` from that read (a bare `POST` of an existing code is 409
-      `DISPATCH_UNIT_CODE_TAKEN`; a `PUT` without `occ_lock` is 400). Exit non-zero on any
-      other status.
-
-      **Reproduce the whole baseline row, not just its name**: the call sign ↔ `unit_code`
-      pairings (`FU-101` Alpha-1, `FU-102` Alpha-2, `FU-204` Bravo-1, `FU-205` Bravo-2,
-      `FU-311` Charlie-1), and each unit's status, type, station, sector, radio channel,
-      shift and capabilities as `0002_seed.up.sql` had them — the status vocabulary must
-      still be fully covered, and `FU-311` must keep its deliberately empty capability list.
-      Give every unit but `FU-204` a position, so the "not shown" count and the
-      un-positioned detail state are both exercised.
-
-      **Then write crew and assignment directly to the database** for those same units, keyed
-      on `unit_code` and the `tenant_id` the API assigned (read it back from the created unit,
-      or from the script's own `active_tenant.tenant_id`). This second step exists because
-      `UnitInput` carries neither field and this change does not widen it (design.md D12);
-      without it the seeded roster would have no crew and no assignment at all, which breaks
-      the console's assigned-unit scenario and removes the assigned unit workshop Exercise 1
-      starts from. Restore the two assignments (`FU-102` → `INC-2841`, `FU-311` → `INC-2839`)
-      and the crew rows `0002_seed.up.sql` carried. Model it on the platform's own
-      `.claude/skills/aoh-gis-integration/scripts/seed-geoentities.sh`, which seeds GIS with
-      exactly this password-grant user token. Because a re-run re-writes each baseline unit
-      through the API, it also re-enqueues and delivers any projection for those units that
-      was stranded by an expired token (design.md D2a). It is not a general sweeper: a unit an
-      operator created is recovered by that operator re-saving it.
-- [ ] 3.5 Add bearer authentication using `aoh-golib`'s shipped `aohhttp.BearerAuth`
+      This lives in the service rather than in a script because everything it needs is already
+      here — the tenant, the identity, the crew and assignment shapes the write API withholds,
+      the outbox, and the constraints. A script would need a Postgres driver the repo does not
+      have, or a `psql` the workshop image does not ship.
+- [ ] 3.5 Write `scripts/seed-roster.mjs` at the **repo root** (beside `scripts/dev.mjs`): get
+      a dispatcher token by password grant with `scope=openid`, `POST /v1/units/seed`, exit
+      non-zero on any non-2xx. That is the whole script — it holds no SQL and no credentials
+      beyond the ones its env block supplies.
+- [ ] 3.6 Add bearer authentication using `aoh-golib`'s shipped `aohhttp.BearerAuth`
       middleware — do not hand-roll offline JWKS validation. Mount it on `/v1/units` only, so
       `/livez` and `/readyz` stay unauthenticated. Put `sub`, `active_tenant.tenant_id` and
       `active_tenant.roles` on the request context. The middleware covers the four workshop
       stub routes too: they keep answering 501, but only to an authorised caller.
-- [ ] 3.6 Add the role→permission projection in `internal/service`: a static map from role
+- [ ] 3.7 Add the role→permission projection in `internal/service`: a static map from role
       name to read/write permission that mirrors `roles.yaml`, with a comment naming that
       file as its source. Read `active_tenant.roles` only — **never**
       `active_tenant.permissions`; AAS does not emit it and code that expects it 403s every
       legitimate user. Gate writes on `dispatch-dispatcher`, reads on either role, and
       return 403 with a `DISPATCH_*` code otherwise.
-- [ ] 3.7 Thread tenant and identity through service and repo: add
+- [ ] 3.8 Thread tenant and identity through service and repo: add
       `WHERE tenant_id = $n` to every query, set `created_by` / `updated_by` from `sub` and
       `tenant_id` from the claim, and ignore any of the three arriving in a request body.
-- [ ] 3.8 Add `position` to `domain.Unit` (a `*Position` so an un-positioned unit omits the
+- [ ] 3.9 Add `position` to `domain.Unit` (a `*Position` so an un-positioned unit omits the
       key, exactly as `Assignment` does) and to `domain.UnitInput`, with range validation
       returning 400 and an `aoherr.FieldDetail` per bad field. Keep `last_contact` bumping on
       every write as today, and do **not** let `position_at` follow it — `position_at` changes
       only when a write supplies a position (design.md D11).
-- [ ] 3.9 Write the outbox row inside the same transaction as every create / replace /
+- [ ] 3.10 Write the outbox row inside the same transaction as every create / replace /
       delete, deriving the intent from the unit's position **after** the write, not from the
       verb: has a position → `upsert`; no position, position cleared, or unit deleted →
       `delete` (design.md D6a). The handler must not call `gis-service`; a GIS outage must
       not fail a unit write.
-- [ ] 3.10 Add the outbox worker. It delivers `PUT /geoentity` (upsert, keyed on `entity_id` =
+- [ ] 3.11 Add the outbox worker. It delivers `PUT /geoentity` (upsert, keyed on `entity_id` =
       `unit_code`, `entity_type` `track`, `geojson.properties.kind` `field-unit`) or
       `DELETE /geoentity/entity_id/{unit_code}`, with backoff and at-least-once retry; a
       delete for an entity that is already gone counts as delivered. It authenticates with
@@ -204,7 +192,7 @@
       request from another operator: that would attribute the entity to whoever happened to
       call next, and would make a `dispatch-viewer`'s read perform a GIS write (design.md
       D2a rejects this explicitly).
-- [ ] 3.11 Extend `internal/config` using the scaffold's own key names:
+- [ ] 3.12 Extend `internal/config` using the scaffold's own key names:
       `IAMS_KEYCLOAK_HOST` (a URL **including the scheme**), `IAMS_KEYCLOAK_PORT`,
       `IAMS_KEYCLOAK_REALM`, `GIS_URL`, and the projection's retry budget — attempts and
       backoff, capped by the remaining lifetime of the token the delivery carries, which is
@@ -212,7 +200,7 @@
       produced it and runs on the token that write carried, so a timer that woke with no
       credential could deliver nothing (design.md D2a). No client id or secret either — there
       is no confidential client. Keep the existing Viper defaults pattern.
-- [ ] 3.12 Go tests, following the consumer-declared-interface style the service already uses
+- [ ] 3.13 Go tests, following the consumer-declared-interface style the service already uses
       (`service.UnitReader`, `handler.UnitService`) with a fake repo and no mock framework —
       note these are the first tests in the repo, so establish the pattern rather than
       matching an existing file. Cover: the role projection, tenant scoping, position
@@ -220,11 +208,11 @@
       transaction, and worker idempotence against a stub `gis-service`. Do **not** add a
       frontend test framework — `apps/dispatch-web/AGENTS.md` records its absence as a
       decision to be raised, not reversed in passing.
-- [ ] 3.13 Update `apps/dispatch-svc/AGENTS.md` (the "**No authentication**" bullet is now
+- [ ] 3.14 Update `apps/dispatch-svc/AGENTS.md` (the "**No authentication**" bullet is now
       false — replace it with the bearer + tenant + role posture, and add the outbox worker to
       the load-bearing architecture list) and `apps/dispatch-svc/README.md` (its summary line
       says "no authentication").
-- [ ] 3.14 Document the env block for a native run (`cd apps/dispatch-svc && go run ./cmd/server`):
+- [ ] 3.15 Document the env block for a native run (`cd apps/dispatch-svc && go run ./cmd/server`):
       ```sh
       SQL_HOST=localhost SQL_PORT=5432 SQL_USER=dispatch SQL_PASSWORD=dispatch \
       SQL_DATABASE_NAME=dispatch SQL_SCHEMA_NAME=dispatch SQL_SSL_MODE=disable \
@@ -237,7 +225,7 @@
       `http://iams-keycloak`); without it the composed Keycloak URL is unparseable.
       `HTTP_ALLOWED_ORIGINS` stays empty: the browser still never calls this service
       directly (design.md D5), so no CORS is required.
-- [ ] 3.15 Verify: `cd apps/dispatch-svc && go build ./... && go vet ./... && go test ./... -count=1 -race`
+- [ ] 3.16 Verify: `cd apps/dispatch-svc && go build ./... && go vet ./... && go test ./... -count=1 -race`
       all exit 0. `go vet` is this repo's configured Go lint (`apps/dispatch-svc/package.json`,
       what `pnpm lint` runs); there is no `.golangci.yml` and no `golangci-lint` in the
       toolchain or the devcontainer image, so do not introduce one here.
@@ -274,7 +262,7 @@
       ships no root `+page.svelte`, so dropping it without a replacement leaves `/` a 404
       rather than the sign-in flow the spec requires.
 - [ ] 4.6 Add the role→permission projection mirroring `roles.yaml` (the TypeScript half of
-      task 3.6, same two roles, same source-of-truth comment), read from
+      task 3.7, same two roles, same source-of-truth comment), read from
       `locals.authResult.claims.active_tenant.roles`. Hide add / edit / delete for a viewer
       and render the permission-denied card on a 403 from the service, exactly as the
       console-auth mockup's "Viewer" and "Permission denied" states show.
@@ -336,12 +324,20 @@
       `apps/dispatch-web/README.md` ("This app has no authentication"), the root `README.md`
       (no-auth and one-container claims), `SETUP.md` (the full stack and both seeded
       accounts), `WORKSHOP.md` (its one `curl` example gains a `scope=openid` token fetch),
-      `compose/compose.yml`'s header comment, and `UBIQUITOUS_LANGUAGE.md` (*position* and
-      *fix time* join the term table; the *field unit* ↔ `geo-entity` mapping stops being
-      conditional and is corrected — `field-unit` is a `kind`, `track` is the `entity_type`).
+      and `UBIQUITOUS_LANGUAGE.md`. Do **not** try to edit `compose/compose.yml`'s header
+      comment — task 1.1 regenerates that file and the comment is already gone. In
+      `UBIQUITOUS_LANGUAGE.md` there are **two** mappings to fix, not one: *position* and
+      *fix time* join the term table, the *field unit* ↔ `geo-entity` mapping stops being
+      conditional and is corrected (`field-unit` is the `kind`, `track` is the
+      `entity_type`), and the existing claim that our *status* is "closest to a GIS `kind`"
+      becomes false — `geojson.properties.kind` is now the fixed literal `field-unit`, so
+      status maps to a GeoJSON property, not to `kind`.
       Also sweep the inline comments that still assert no-auth in
       `apps/dispatch-web/{.env.template,.env.development,vite.config.ts,src/hooks.server.ts,src/app.d.ts}`
-      and `apps/dispatch-svc/internal/repo/unit_repo.go`.
+      `apps/dispatch-svc/internal/repo/unit_repo.go`, `apps/dispatch-web/Dockerfile` (its
+      comment explains which scaffold env vars were removed *because* there is no auth) and
+      the console page's own header comment, which moves with the file in 4.5. Task 4.18's
+      grep is the check that this sweep was complete — run it while editing, not after.
       Four more places assert a seeding story this change ends, and one of them instructs
       future agents to preserve the mechanism being removed — fix all four: `README.md`
       ("Migrations and seed data apply themselves when the service starts"),
@@ -356,15 +352,46 @@
       and the roster is empty until the seed runs. In `WORKSHOP.md`, beyond the `curl`: its
       Exercise 2 hint tells attendees to add `0003_unit_event.up.sql`, a prefix task 3.2 now
       takes, and its "Done looks like" section ends with `pnpm reset-db && pnpm start`, which
-      task 4.16 redefines.
+      task 4.16 redefines. Four more files assert the old flow and are in no other task:
+      `.devcontainer/post-create.sh` ("Postgres already runs as a sibling container" and the
+      `localhost:5173` console URL), `apps/dispatch-web/README.md` (the `localhost:5173` open
+      instruction, the `/` → `/units` redirect, and "**One container is required** … There is
+      still no Keycloak, no Traefik, no IAMS and no SDS"), `apps/dispatch-svc/README.md` (the
+      "only container in the workshop stack" line, the env table — which is no longer "all
+      optional" and omits every variable task 3.12 adds — and the writable-field list task 3.9
+      widens with `position`), and `USER_STORIES.md` + `WORKSHOP.md`'s "who did it (there is
+      no login)", which is now false. The slides deck (`slides/slides.md`) also shows
+      `pnpm start` and `http://localhost:5173`; update it or note explicitly that it is out of
+      scope, rather than leaving it to be discovered on stage.
 - [ ] 4.16 Update the repo's start and reset tooling, which this change breaks. None of it
       is optional — `pnpm start` is what `README.md` and `SETUP.md` tell attendees to run:
       - `scripts/dev.mjs` brings up **only** `postgres`. With the auth layer restored, the
         console's `hooks.server.ts` does OIDC discovery in a top-level `await`, so with no
         `iams-keycloak` running every route returns 500 — the all-or-nothing failure
-        `design.md` opens with. Bring up the whole stack (or drop the db-only step).
+        `design.md` opens with. It must bring up the whole stack; dropping the step instead
+        leaves `pnpm start` with no infrastructure at all.
       - its readiness probe waits on `http://localhost:5173/units`; the console moves to
         `/aoh/dispatch/units` (4.5) and `/units` stops serving it, so the probe never passes.
+        Probe an **unauthenticated** target (`/livez`): any `(private)` route redirects to
+        Keycloak and `fetch` follows redirects, so it would report ready before it is.
+      - it passes the service only `SQL_PORT`; the service now needs the 3.14 block, whose
+        `IAMS_KEYCLOAK_HOST` default (`http://iams-keycloak`) resolves only inside the
+        compose network. Without it `pnpm start` yields a service that cannot validate a
+        token.
+      - `composeRunner()` probes `podman` only, while every command in this change is
+        dual-form; and `start:no-db` / `pnpm start --no-db` now means "skip the whole stack",
+        which its README line does not say.
+      - it must call the seed, but **not** on `/readyz`: that is the service's database probe,
+        and Postgres is healthy long before Keycloak is. The seed needs a token carrying
+        `dispatch-dispatcher`, which exists only once `iams-init` and `project-aas-init` have
+        exited 0 — gate on that, or the seed 403s.
+      - the compose **project name changes from `compose` to `aoh`** once `bootstrap.py`
+        writes `name: aoh`. Every existing volume is renamed with it:
+        `compose_dispatch-pgdata` → `aoh_dispatch-pgdata`, so an attendee's database is
+        silently replaced by an empty one, and `compose.devcontainer.yml`'s three
+        `node_modules` volumes are orphaned, forcing a full `pnpm install` — on a network
+        `SETUP.md` says has no internet. Say so in `SETUP.md` and check
+        `compose/compose.devcontainer.yml` still resolves against the renamed project.
       - its `WEB_URL` is `http://localhost:5173`; 4.17 requires the `${DEV_DOMAIN}` origin.
       - after 1.2 the dispatch database lives in the generated compose project, so
         `package.json`'s `stop` and `reset-db` (`compose down` / `down -v`) now tear the whole
@@ -388,7 +415,10 @@
       X_FRAME_OPTIONS=SAMEORIGIN
       PUBLIC_STATIC_BUILD_VERSION=dev
       ```
-      The two repo-root scripts read their own block, documented in the same place:
+      The two repo-root scripts need their own block, and their own **source**: they run as
+      bare `node scripts/*.mjs` from the repo root, so nothing loads this app's
+      `.env.development` for them. Point them at `compose/.env` (which task 1.7 already
+      fills) or a root `.env`, and document which:
       ```sh
       IAM_URL=http://iams-keycloak.${DEV_DOMAIN}/realms/aoh
       IAM_CLIENT_ID=web
@@ -397,6 +427,9 @@
       DISPATCH_SVC_URL=http://localhost:8081
       GIS_URL=http://gis.${DEV_DOMAIN}
       ```
+      No `SQL_*`: the seed is an endpoint on the service now (3.4), so no script talks to
+      PostgreSQL. `e2e-smoke.mjs`'s tenant-isolation step (5.3) is the one exception and it
+      shells out to `compose exec`, not to a driver.
       `OIDC_ALLOW_INSECURE_REQUESTS=1` is not optional over plain `http`: the scaffold's
       `discovery()` runs in a **top-level await**, so without it every route returns 500 at
       startup — the exact failure the baseline documented. `ORIGIN` must be the
@@ -410,9 +443,11 @@
 ## 5. End-to-end verification + reproducibility gate
 
 - [ ] 5.1 Apply the roster seed against the running stack: `node scripts/seed-roster.mjs`
-      exits 0, and `GET /v1/units` with the dispatcher token returns the five seeded units.
-      This replaces the migration seed the baseline relied on (design.md D12) and is a
-      prerequisite of everything below.
+      exits 0 (it calls `POST /v1/units/seed`), and `GET /v1/units` with the dispatcher token
+      returns the five seeded units, at least one with crew and one with an assignment. Call
+      it a second time and confirm the counts are unchanged — idempotence is what the
+      reproducibility gate leans on. This replaces the migration seed the baseline relied on
+      (design.md D12) and is a prerequisite of everything below.
 - [ ] 5.2 Write `scripts/e2e-smoke.mjs` — Node, matching the repo's existing `scripts/*.mjs`
       convention and its Node 24 prerequisite. It SHALL, with no manual step: fetch a
       dispatcher token and a viewer token by password grant against the bundled `web` client
@@ -427,7 +462,7 @@
       expired token each answer 401 (not only a missing one); and exit non-zero with a named
       assertion on any failure.
 - [ ] 5.3 Add the tenant-isolation checks to the same script. It SHALL first insert a unit row
-      under a **different** `tenant_id`, directly:
+      under a **different** `tenant_id`, directly — **two** of them, per the note below:
       ```sh
       podman compose -f compose/compose.yml exec -T postgres psql -U dispatch -d dispatch -c "INSERT INTO dispatch.unit (unit_code, call_sign, status, unit_type, station, sector, radio_channel, shift, tenant_id) VALUES ('FU-101','Other-1','Idle','Ambulance','Elsewhere','Sector 9','TAC-9','Day','other-tenant')"
       docker compose -f compose/compose.yml exec -T postgres psql -U dispatch -d dispatch -c "INSERT INTO dispatch.unit (unit_code, call_sign, status, unit_type, station, sector, radio_channel, shift, tenant_id) VALUES ('FU-101','Other-1','Idle','Ambulance','Elsewhere','Sector 9','TAC-9','Day','other-tenant')"
@@ -463,7 +498,7 @@
       and the map still renders.
 - [ ] 5.5 Native dev E2E: `node scripts/e2e-smoke.mjs` exits 0.
 - [ ] 5.6 **Reproducibility gate** — tear and rebuild infra, kill and restart the native dev
-      processes for both apps using the env blocks from 3.14 and 4.17, and re-run the SAME
+      processes for both apps using the env blocks from 3.15 and 4.17, and re-run the SAME
       E2E command from 5.5:
       ```bash
       # Kill natives first: a stale process holds 8081/5173 and hides the rebuild.
@@ -477,7 +512,7 @@
       podman compose -f compose/compose.yml up -d     # or: docker compose -f compose/compose.yml up -d
       # wait for healthy, and for iams-init + project-aas-init to exit 0:
       podman compose -f compose/compose.yml ps        # or: docker compose -f compose/compose.yml ps
-      cd apps/dispatch-svc && go run ./cmd/server &   # native, env block from 3.14
+      cd apps/dispatch-svc && go run ./cmd/server &   # native, env block from 3.15
       cd apps/dispatch-web && pnpm dev &              # native, env block from 4.17
       until curl -fsS http://localhost:8081/readyz >/dev/null; do sleep 1; done
       node scripts/seed-roster.mjs                    # the seed is part of convergence now

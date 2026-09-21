@@ -88,7 +88,7 @@ operator's credential.
 #### Scenario: A longer outage leaves the row pending and visible
 - **WHEN** `gis-service` is unavailable for longer than the writing operator's token lifetime
 - **THEN** the outbox row is still present and marked undelivered, with its attempt count and last error recorded
-- **AND** re-running the seed/reconcile step delivers it
+- **AND** re-writing that unit through the API enqueues a fresh row and delivers it — for a seeded unit that means re-running the seed; for one an operator created, that operator re-saving it
 
 #### Scenario: An un-positioned unit has no entity
 - **WHEN** a unit has no position and the outbox has drained

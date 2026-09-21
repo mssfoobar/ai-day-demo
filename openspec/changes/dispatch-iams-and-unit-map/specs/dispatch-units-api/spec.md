@@ -108,36 +108,48 @@ describes.
 
 ### Requirement: Seed data is idempotent
 
-The project SHALL ship a checked-in seed covering the baseline roster, and applying it
-repeatedly SHALL converge on the same rows rather than duplicating them. The seed SHALL be
-applied through the authenticated API rather than by a SQL migration, because the tenant the
-rows belong to is assigned by AAS at stack-up time and is not knowable to a committed
-migration, and because rows inserted directly bypass the GIS projection and would be
-permanently absent from the map. Seeded units SHALL therefore belong to the tenant of the
-account that applies the seed, and SHALL carry positions so the map is populated on first
-boot. A migration SHALL remove the pre-auth seeded rows that predate this change.
+`POST /v1/units/seed` SHALL write the baseline roster into the caller's tenant and SHALL
+converge on the same rows when applied repeatedly rather than duplicating them. It SHALL
+require the `dispatch-dispatcher` role. The seed SHALL be owned by the service rather than by
+a SQL migration or an external script, because the tenant the rows belong to is assigned by
+AAS at stack-up time and is not knowable to a committed migration, because rows inserted
+directly bypass the GIS projection, and because crew and assignment are not expressible
+through the write API — so anything outside the service would have to reach around it for
+exactly the two shapes it withholds. Seeded units SHALL carry positions, crew and
+assignments, and SHALL enqueue the same projections any other write enqueues. A migration
+SHALL remove the pre-auth seeded rows that predate this change.
 
 #### Scenario: Re-running the seed
-- **WHEN** the seed is applied twice against the same stack
-- **THEN** the unit count is the same after the second run as after the first
-- **AND** no unit is duplicated
+- **WHEN** the seed endpoint is called twice against the same stack
+- **THEN** the second call succeeds
+- **AND** the unit count, crew count and assignment count are the same after it as after the first
+
+#### Scenario: Seeding requires the dispatcher role
+- **WHEN** a caller holding only `dispatch-viewer` calls the seed endpoint
+- **THEN** the response status is 403 and no row is written
+
+#### Scenario: Seeded rows belong to the caller's tenant
+- **WHEN** a dispatcher seeds and then lists units
+- **THEN** the seeded roster is returned
+- **AND** the stored rows carry that caller's `sub` in `created_by` and their tenant in `tenant_id`, not the pre-auth placeholders
 
 #### Scenario: Seeded roster covers the status vocabulary
 - **WHEN** the seeded units are listed
 - **THEN** at least one unit has each of `Available`, `En route` and `Idle`
 
-#### Scenario: Seeded units belong to the seeding account's tenant
-- **WHEN** the operator whose credentials applied the seed lists units
-- **THEN** the seeded roster is returned
-
-#### Scenario: The pre-auth rows are gone
-- **WHEN** the database is inspected after migration
-- **THEN** no unit row remains under the pre-auth placeholder tenant
+#### Scenario: Seeded units carry crew and an assignment
+- **WHEN** the seeded units are listed
+- **THEN** at least one carries crew members with their roles
+- **AND** at least one carries an assignment, so the console's assigned-unit state and workshop Exercise 1 have a starting point
 
 #### Scenario: Seeded units carry positions
 - **WHEN** the seeded units are listed
 - **THEN** at least one carries a `position`, one carries none, and every seeded position is within valid coordinate ranges
 
+#### Scenario: The pre-auth rows are gone
+- **WHEN** the database is inspected after migration
+- **THEN** no unit row remains under the pre-auth placeholder tenant
+
 #### Scenario: Seeded units reach the map
-- **WHEN** the stack is brought up fresh, the seed is applied, and the outbox drains
+- **WHEN** the stack is brought up fresh, the seed endpoint is called, and the outbox drains
 - **THEN** each seeded, positioned unit has a corresponding geo-entity in `gis-service`
