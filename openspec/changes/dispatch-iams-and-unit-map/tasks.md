@@ -133,22 +133,33 @@
       written in SQL bypass the outbox and would be permanently absent from the map
       (design.md D12). Seeding moves to task 3.4.
 - [ ] 3.4 Implement seeding as service behaviour, not as a command (design.md D12). After
-      `BearerAuth` and the role check, on a request from a caller holding
-      `dispatch-dispatcher`, the service seeds that caller's tenant **if it has never been
-      seeded**, in one transaction, and **before the triggering request is answered** — so the
-      dispatcher's first `GET /v1/units` already returns the roster.
-      - Gate on the `{{SCHEMA}}.tenant_seed` marker from 3.2, written in the same
-        transaction with `INSERT … ON CONFLICT DO NOTHING`. That is both the "once per
-        tenant, ever" rule and the concurrency guard: two simultaneous dispatchers race, one
-        inserts, the other sees the conflict and skips.
+      `BearerAuth`, on a request whose claims carry `dispatch-dispatcher`, the service seeds
+      that caller's tenant **if it has never been seeded**, in one transaction, and **before
+      the triggering request is answered** — so the dispatcher's first `GET /v1/units` already
+      returns the roster. Note this is a **distinct** check from 3.6's read/write gate, which
+      admits a viewer on a `GET`: state which layer owns it (a service-layer call at the top
+      of each handler path is the obvious home) rather than leaving it implied.
+      - If the transaction cannot commit, fail the triggering request with a `DISPATCH_*` 5xx
+        and leave no marker row, so the next dispatcher request retries. Do not log it and
+        serve an empty roster: that is indistinguishable, to the operator, from a tenant
+        nobody has seeded and from one whose units were deleted on purpose.
+      - Gate on the `{{SCHEMA}}.tenant_seed` marker from 3.2. The marker insert MUST be the
+        transaction's **first** statement and MUST report whether it inserted —
+        `INSERT … ON CONFLICT DO NOTHING RETURNING tenant_id` — and a zero-row result MUST
+        abort the seed before any roster row is written. `ON CONFLICT DO NOTHING` raises
+        nothing and returns no error, so a guard that runs the insert and carries on lets
+        both racers write the whole roster, bump every `occ_lock` and enqueue two full sets
+        of outbox rows on two different operators' tokens. Row counts would still look
+        correct, which is why this has to be spelled out.
       - Do **not** decide by counting units. Deleting units is a legitimate operator action
         and must not resurrect the roster — the console ships a working delete today.
       - Do **not** let a `dispatch-viewer` trigger it. Seeding is a write, and D2a forbids a
         reader performing writes elsewhere in this service; the rule has to hold in both
         places.
-      - Write the baseline rows in full, reusing the `ON CONFLICT … DO UPDATE` shape
-        `0002_seed.up.sql` already has (including `ON CONFLICT (unit_id, name)` for
-        `unit_crew`): the call sign ↔ `unit_code` pairings (`FU-101` Alpha-1, `FU-102`
+      - Write the baseline rows in full, as **plain inserts** — no `ON CONFLICT` clause. The
+        marker makes the seed run at most once, so a conflict branch is unreachable by design
+        and would only convert a lost race into a silent double write instead of a loud
+        failure. Copy the *data* from `0002_seed.up.sql`, not its upsert shape: the call sign ↔ `unit_code` pairings (`FU-101` Alpha-1, `FU-102`
         Alpha-2, `FU-204` Bravo-1, `FU-205` Bravo-2, `FU-311` Charlie-1), each unit's status,
         type, station, sector, radio channel, shift and capabilities (`FU-311` keeps its
         deliberately empty list), the two assignments (`FU-102` → `INC-2841`, `FU-311` →
@@ -365,7 +376,11 @@
       and the roster is empty until the seed runs. In `WORKSHOP.md`, beyond the `curl`: its
       Exercise 2 hint tells attendees to add `0003_unit_event.up.sql`, a prefix task 3.2 now
       takes, and its "Done looks like" section ends with `pnpm reset-db && pnpm start`, which
-      task 4.17 redefines. Four more files assert the old flow and are in no other task:
+      task 4.17 redefines. Two more Exercise 2 lines break: "The seed data includes a few
+      events for the seeded units, so the section is not empty on first boot" is unachievable
+      once units appear only on a dispatcher's first request, and the hint to copy
+      `0002_seed.up.sql`'s `ON CONFLICT … DO UPDATE` style points attendees at the pattern
+      this change removes and whose rows `0004` deletes. Four more files assert the old flow and are in no other task:
       `.devcontainer/post-create.sh` ("Postgres already runs as a sibling container" and the
       `localhost:5173` console URL), `apps/dispatch-web/README.md` (the `localhost:5173` open
       instruction, the `/` → `/units` redirect, and "**One container is required** … There is
@@ -376,11 +391,14 @@
       no login)", which is now false. The slides deck (`slides/slides.md`) also shows
       `pnpm start` and `http://localhost:5173`; update it or note explicitly that it is out of
       scope, rather than leaving it to be discovered on stage.
-- [ ] 4.16 Render the unseeded roster as an explicit state, not a bare empty list: "No units
-      yet. A dispatcher signing in will populate the roster." This is reachable whenever
-      someone signs in before a dispatcher has — the viewer account on a fresh stack, most
-      likely — and it is distinct from both the service-unreachable and permission-denied
-      states the console-auth mockup already draws.
+- [ ] 4.16 Render an empty roster as an explicit state, not a bare empty list — and make the
+      wording **seed-state-independent**: "No units in this tenant.", plus "Add one to get
+      started." for a dispatcher, who is the only one who can act on it. Do **not** write "a
+      dispatcher signing in will populate the roster": that is false for the other way a
+      roster goes empty — a dispatcher deleting every unit, which the console supports and
+      which the marker makes permanent — and nothing in the API distinguishes the two states.
+      This is distinct from both the service-unreachable and permission-denied states the
+      console-auth mockup already draws.
 - [ ] 4.17 Update the repo's start and reset tooling, which this change breaks. None of it
       is optional — `pnpm start` is what `README.md` and `SETUP.md` tell attendees to run:
       - `scripts/dev.mjs` brings up **only** `postgres`. With the auth layer restored, the

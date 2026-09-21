@@ -15,9 +15,10 @@
      The "map" below is an SVG stand-in for a Cesium 2D scene; it exists to
      show placement, panels and states, not to look like real tiles.
 
-     Units are the REAL seeded roster (scripts/seed-roster.mjs, design.md D12;
-     pairings unchanged from the baseline seed): FU-101 Alpha-1, FU-102 Alpha-2,
-     FU-204 Bravo-1, FU-205 Bravo-2, FU-311 Charlie-1. Bravo-1 is un-positioned.
+     Units are the REAL seeded roster — the rows dispatch-svc seeds on a tenant's
+     first dispatcher request (tasks.md 3.4, design.md D12; pairings unchanged from
+     the baseline seed): FU-101 Alpha-1, FU-102 Alpha-2, FU-204 Bravo-1,
+     FU-205 Bravo-2, FU-311 Charlie-1. Bravo-1 is un-positioned.
      ------------------------------------------------------------------ */
   :root {
     --zinc-50:#FAFAFA; --zinc-100:#F4F4F5; --zinc-200:#E4E4E7; --zinc-300:#D4D4D8;
@@ -208,6 +209,7 @@
     <button type="button" data-state="selectednopos" aria-pressed="false">Un-positioned unit selected</button>
     <button type="button" data-state="degraded"     aria-pressed="false">Live feed unavailable</button>
     <button type="button" data-state="unpositioned" aria-pressed="false">No positioned units</button>
+    <button type="button" data-state="unseeded"     aria-pressed="false">Unseeded tenant (viewer)</button>
     <button type="button" data-state="allpositioned" aria-pressed="false">Fully positioned roster</button>
     <button type="button" data-state="viewer"       aria-pressed="false">Viewer (read-only)</button>
     <span class="spacer"></span>
@@ -298,6 +300,14 @@
                 <p class="sub">Units appear here once they report one.</p>
               </div>
             </div>
+            <!-- Distinct from the above: there are no units at all, not units without a fix. -->
+            <div class="notice hidden" id="unseedednotice">
+              <span class="dot"></span>
+              <div>
+                <p>No units in this tenant.</p>
+                <p class="sub">Nothing to show on the map yet.</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -358,9 +368,11 @@
     const allPositioned = state === 'allpositioned';
     const selected      = state === 'selected';
     const selectedNoPos = state === 'selectednopos';
-    const viewer        = state === 'viewer';
+    const viewer        = state === 'viewer' || state === 'unseeded';
+    const unseeded      = state === 'unseeded';
 
-    markers.classList.toggle('hidden', unpositioned);
+    markers.classList.toggle('hidden', unpositioned || unseeded);
+    $('#unseedednotice').classList.toggle('hidden', !unseeded);
     $('#marker-b1').classList.toggle('hidden', !allPositioned);
     $('#degradednotice').classList.toggle('hidden', !degraded);
     $('#emptynotice').classList.toggle('hidden', !unpositioned);
@@ -371,7 +383,8 @@
 
     // Counts come from unit data, so they stay truthful in every map state.
     $('#rostersub').textContent =
-      unpositioned ? '0 of 5 units on the map.'
+      unseeded ? 'No units in this tenant.'
+      : unpositioned ? '0 of 5 units on the map.'
       : allPositioned ? '5 of 5 units on the map.'
       : '4 of 5 units on the map.';
     // "A fully positioned roster says so" — the row is absent, not zero.

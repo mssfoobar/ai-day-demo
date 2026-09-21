@@ -52,18 +52,26 @@ so explicitly rather than rendering an empty section.
 
 ### Requirement: An unseeded roster explains itself
 
-The console SHALL render an empty roster as an explicit state that says why, not as a bare
-empty list — the two are indistinguishable to an operator. This state is reachable because a
-tenant is seeded by its first dispatcher request, so anyone signing in before a dispatcher
-has — a viewer on a fresh stack, most likely — sees no units.
+The console SHALL render an empty roster as an explicit state, not as a bare empty list — the
+two are indistinguishable to an operator. Its wording SHALL hold for **both** ways a roster
+can be empty: a tenant no dispatcher has triggered the seed for yet, and one whose units a
+dispatcher deleted on purpose. It SHALL NOT promise that a roster will be populated, because
+for a deliberately emptied tenant that promise is false and the seed will never run again.
+What it MAY vary is by role, not by seed state: a dispatcher SHALL also be offered the action
+that is available to them.
 
-#### Scenario: A viewer on a fresh stack
-- **WHEN** a viewer opens the console against a tenant that has never been seeded
-- **THEN** the roster area states that there are no units yet and that a dispatcher signing in will populate it
+#### Scenario: A viewer sees an empty roster
+- **WHEN** a viewer opens the console and the roster is empty
+- **THEN** the roster area states that this tenant has no units
 - **AND** no error state is shown, because nothing has failed
+- **AND** it does not claim that signing in as a dispatcher will populate it
 
-#### Scenario: The state clears once seeding has happened
-- **WHEN** a dispatcher has since made a request and the viewer reloads
+#### Scenario: A dispatcher sees an empty roster
+- **WHEN** a dispatcher opens the console and the roster is empty — whether unseeded or emptied by deletion
+- **THEN** the same statement is shown, plus the action to add a unit
+
+#### Scenario: The state clears once units exist
+- **WHEN** units exist in the tenant and the operator reloads
 - **THEN** the roster renders normally
 
 ## MODIFIED Requirements

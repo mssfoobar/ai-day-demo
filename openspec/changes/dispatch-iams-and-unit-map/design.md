@@ -81,7 +81,7 @@ receives nothing.
 
 | Method | Path | Auth posture | Description | Fronting gateway route |
 |---|---|---|---|---|
-| GET | `/v1/units` | BearerAuth, role `dispatch-viewer` or `dispatch-dispatcher` | List the caller's tenant's units, each with `position` when it has one | n/a — see D5 |
+| GET | `/v1/units` | BearerAuth, role `dispatch-viewer` or `dispatch-dispatcher` | List the caller's tenant's units, each with `position` when it has one. **Not side-effect-free**: a dispatcher's first request against an unseeded tenant seeds it before answering (D12) | n/a — see D5 |
 | GET | `/v1/units/{unit_code}` | BearerAuth, role `dispatch-viewer` or `dispatch-dispatcher` | One unit in the caller's tenant; 404 for another tenant's | n/a — see D5 |
 | POST | `/v1/units` | BearerAuth, role `dispatch-dispatcher` | Create, now accepting `position`; `tenant_id` / `created_by` from the token | n/a — see D5 |
 | PUT | `/v1/units/{unit_code}` | BearerAuth, role `dispatch-dispatcher` | Replace, now accepting and clearing `position`; `occ_lock` unchanged | n/a — see D5 |
@@ -373,6 +373,12 @@ seed happens: **after `BearerAuth`, on the first request from a caller holding
 records it has done so, and before the triggering request is served. No seed endpoint, no
 second binary, no script, and nothing for an attendee to run.
 
+If the seed cannot commit, the triggering request fails with a `DISPATCH_*` 5xx and no marker
+row survives, so the next dispatcher request retries. The alternative — log it and serve an
+empty roster — would show a dispatcher an empty console with no error, which is
+indistinguishable from a tenant nobody has seeded yet and from one whose units were deleted
+on purpose.
+
 Two constraints make it safe rather than clever:
 
 - **A marker, not an emptiness check.** The tempting trigger is "this tenant has no units."
@@ -526,10 +532,11 @@ runs.
    command to run.
 5. Deploy `dispatch-web` with the restored auth layer and the map.
 
-**Rollback:** revert both apps and re-run the seed. The position and outbox migrations are
-additive, so a rolled-back binary ignores them without error. The pre-auth row deletion is
-not reversible in place — recover by tearing the stack (`compose down -v`) and re-running the
-seed, which is what the gate exercises. Note `pnpm reset-db` is **not** that command any
+**Rollback:** revert both apps. The position, outbox and marker migrations are additive, so a
+rolled-back binary ignores them without error. The pre-auth row deletion is not reversible in
+place — recover by tearing the stack (`compose down -v`), which discards the `tenant_seed`
+marker along with the volume, so the roster reseeds itself on the next dispatcher request.
+There is no seed command to run, here or anywhere. Note `pnpm reset-db` is **not** that command any
 more: once the dispatch database joins the generated compose project it tears the whole
 sixteen-service stack, so the root scripts have to be rewritten with this change. Orphaned geo-entities in `gis-service` are harmless and
 are cleared by tearing the GIS volume.

@@ -116,8 +116,13 @@ pending projection cannot make the roster look smaller than it is.
 - **THEN** no un-positioned count is shown
 
 #### Scenario: No positioned units at all
-- **WHEN** no unit in the tenant has a position
+- **WHEN** the tenant has units but none of them has a position
 - **THEN** the map renders its base layer with an explicit empty state rather than an apparently broken canvas
+
+#### Scenario: No units at all
+- **WHEN** the tenant has no units — never seeded, or emptied by deletion
+- **THEN** the map says so, rather than reporting that no unit has reported a position
+- **AND** the two states are distinguishable to the operator
 
 ### Requirement: The map degrades when the live feed is unavailable
 

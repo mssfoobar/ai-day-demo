@@ -140,6 +140,12 @@ enqueues. A migration SHALL remove the pre-auth seeded rows that predate this ch
 #### Scenario: Two simultaneous dispatchers seed once between them
 - **WHEN** two dispatcher requests against an unseeded tenant are served concurrently
 - **THEN** the tenant is seeded exactly once, with no duplicate units or crew members
+- **AND** exactly one set of projections is enqueued, and no seeded unit's `occ_lock` is bumped by a second write
+
+#### Scenario: A seed that cannot commit fails loudly
+- **WHEN** the seed transaction cannot commit
+- **THEN** the triggering request fails with a 5xx carrying a `DISPATCH_*` error code, rather than being answered with an empty roster
+- **AND** no marker row survives, so the next dispatcher request attempts the seed again
 
 #### Scenario: Seeded roster covers the status vocabulary
 - **WHEN** the seeded units are listed

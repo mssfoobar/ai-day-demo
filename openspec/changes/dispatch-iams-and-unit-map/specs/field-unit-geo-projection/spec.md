@@ -27,7 +27,8 @@ longitude in `[-180, 180]` and latitude in `[-90, 90]`.
 ### Requirement: Every unit write enqueues a GIS projection in the same transaction
 
 `dispatch-svc` SHALL mirror field units into `gis-service` through a transactional outbox:
-each create, replace and delete SHALL write an outbox row inside the **same database
+each create, replace and delete — **and the one-time tenant seed**, which is the largest
+batch the outbox will ever carry — SHALL write an outbox row inside the **same database
 transaction** as the unit change, so the unit row and the pending projection can never
 disagree. The service SHALL NOT call `gis-service` inline on the request path.
 

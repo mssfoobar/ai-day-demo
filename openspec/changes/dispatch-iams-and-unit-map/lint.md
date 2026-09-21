@@ -104,14 +104,15 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
 ## 4. UI surfaces
 
 - [x] **PASS** — Two mockups exist with state switchers covering every state their specs
-      name. `design/dispatch-map-mock.html` — 7 states: live feed · positioned unit selected ·
-      un-positioned unit selected · live feed unavailable · no positioned units · fully
-      positioned roster · viewer read-only. `design/dispatch-console-auth-mock.html` —
-      8 states: dispatcher · viewer · permission denied · service unreachable · **unseeded
-      (viewer on a fresh stack)** · unit with position · unit without position · **unit
-      unassigned with no capabilities**. The last covers the two scenarios the MODIFIED
-      "Detail pane is sectioned" requirement inherits — an unassigned unit and a unit with no
-      capability tags — which the mock had no way to show. Both carry a light/dark toggle. The un-positioned
+      name. `design/dispatch-map-mock.html` — 8 states: live feed · positioned unit selected ·
+      un-positioned unit selected · live feed unavailable · no positioned units · **no units
+      at all** · fully positioned roster · viewer read-only. `design/dispatch-console-auth-mock.html` —
+      9 states: dispatcher · viewer · permission denied · service unreachable · **empty roster
+      seen by a viewer** · **empty roster seen by a dispatcher** · unit with position · unit
+      without position · **unit unassigned with no capabilities**. The two empty-roster states
+      exist because the copy must hold whether the tenant was never seeded or a dispatcher
+      deleted every unit, and only the role-gated action differs; the unassigned state covers
+      the two scenarios the MODIFIED "Detail pane is sectioned" requirement inherits. Both carry a light/dark toggle. The un-positioned
       selection, fully-positioned-roster and service-unreachable states were added when the
       specs named states the mocks lacked; the unseeded state arrived with D12's lazy seed,
       which is what makes an empty roster reachable at all.
@@ -138,7 +139,7 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
 - [x] **PASS** — All six capabilities in `proposal.md` have a matching spec file, names
       identical: `dispatch-access-control`, `field-unit-geo-projection`, `dispatch-map`,
       `dispatch-console`, `dispatch-units-api`, `field-unit-roster`.
-- [x] **PASS** — 38 requirement blocks (37 ADDED/MODIFIED plus one REMOVED) and 129
+- [x] **PASS** — 38 requirement blocks (37 ADDED/MODIFIED plus one REMOVED) and 132
       scenarios; `grep -rn '^### Scenario' specs/` returns nothing, so every scenario header
       is exactly four hashes. The one scenario-less block is the REMOVED "The application has
       no authentication", which carries **Reason** and **Migration** instead — the shape
@@ -154,9 +155,11 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
       scoping; `GET /v1/units/{unit_code}` → units-api 404; `POST`/`PUT`/`DELETE` →
       access-control viewer/dispatcher + units-api position + geo-projection delete;
       `/livez`+`/readyz` → access-control health probes; the page routes → dispatch-console
-      and dispatch-map. Seeding adds **no** endpoint: it is behaviour on the existing
-      authenticated routes (design.md D12), specified by units-api's "A tenant is seeded once,
-      on its first dispatcher request" and exercised by `tasks.md` 5.1. Of the consumed `gis-service` endpoints, `PUT /geoentity` and
+      and dispatch-map. Seeding adds **no** endpoint: it is a side effect of the existing
+      authenticated routes (design.md D12, and the `GET /v1/units` row now records it),
+      specified by units-api's "A tenant is seeded once, on its first dispatcher request" and
+      exercised by `tasks.md` 5.1 — whose step order is load-bearing, since the stack has one
+      tenant and the viewer check is only reachable before any dispatcher call. Of the consumed `gis-service` endpoints, `PUT /geoentity` and
       `DELETE`/`GET /geoentity/entity_id/{id}` are exercised by geo-projection scenarios; the
       bare `GET /geoentity` collection is exercised by `tasks.md` 2.5 and by no scenario,
       which is acceptable because `design.md` marks that table "consumed, not exposed —
