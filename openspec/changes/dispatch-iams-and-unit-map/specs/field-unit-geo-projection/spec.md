@@ -62,9 +62,11 @@ whether it never had one, had it cleared by a replace, or was deleted — enqueu
 A background worker SHALL drain the outbox. For a unit that **has** a position it SHALL
 write a geo-entity with `entity_id` equal to the unit's `unit_code`, `entity_type` `track`,
 `geojson.geometry` a Point of `[lon, lat]`, and `geojson.properties` carrying `kind`
-`field-unit` plus the unit's call sign and status. Delivery SHALL be retried until it
-succeeds and SHALL be idempotent — replaying an outbox row SHALL NOT create a second
-entity.
+`field-unit` plus the unit's call sign and status. Delivery SHALL be retried, bounded by the
+remaining lifetime of the token it carries, and SHALL be idempotent — replaying an outbox row
+SHALL NOT create a second entity. A row still undelivered when that token expires SHALL
+remain pending and inspectable rather than being dropped or silently retried with another
+operator's credential.
 
 #### Scenario: A positioned unit appears in GIS
 - **WHEN** a unit with a position is created and the worker has drained the outbox
@@ -79,9 +81,14 @@ entity.
 - **WHEN** the same outbox row is delivered twice
 - **THEN** `gis-service` holds exactly one entity for that `unit_code`
 
-#### Scenario: Delivery resumes after an outage
-- **WHEN** `gis-service` is unavailable at the time of a write and becomes available afterwards
-- **THEN** the entity reflects the write without any operator action
+#### Scenario: Delivery resumes after a brief outage
+- **WHEN** `gis-service` is briefly unavailable at the time of a write and becomes available while the writing operator's token is still valid
+- **THEN** the entity reflects the write with no operator action
+
+#### Scenario: A longer outage leaves the row pending and visible
+- **WHEN** `gis-service` is unavailable for longer than the writing operator's token lifetime
+- **THEN** the outbox row is still present and marked undelivered, with its attempt count and last error recorded
+- **AND** re-running the seed/reconcile step delivers it
 
 #### Scenario: An un-positioned unit has no entity
 - **WHEN** a unit has no position and the outbox has drained

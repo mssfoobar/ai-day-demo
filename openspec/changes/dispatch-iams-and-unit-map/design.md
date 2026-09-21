@@ -92,8 +92,8 @@ receives nothing.
 | GET | `/livez` | Unauthenticated | Liveness — unchanged | n/a |
 | GET | `/readyz` | Unauthenticated | Readiness — unchanged; still fails when the database is unreachable | n/a |
 
-The four stub routes are listed because this change alters their posture even though it does
-not implement them: they are mounted today and answer 501 to anyone, and after this change an
+The stub rows cover four route/method pairs across three paths, and they are listed because
+this change alters their posture even though it does not implement them: they are mounted today and answer 501 to anyone, and after this change an
 unauthenticated caller gets 401 before ever reaching the 501. That is what breaks
 `WORKSHOP.md`'s `curl` (R2). Unchanged from `dispatch-units-crud`:
 `PATCH /v1/units/{unit_code}` and collection-level `PUT` / `DELETE` stay unmounted and
@@ -104,7 +104,7 @@ envelope (`data`, `message`, `sent_at`); errors remain the AOH error contract.
 
 | Route | Auth posture | Description |
 |---|---|---|
-| `/(public)/aoh/api/auth/login` · `/callback` · `/logout` · `/refresh` | PKCE (the flow itself) | The restored OIDC endpoints from the `aoh-web-init` scaffold |
+| `/(public)/aoh/api/auth/login` · `/callback` · `/refresh` · `/logout` · `/context` · `/context/[value]` | PKCE (the flow itself) | All six OIDC endpoints the `aoh-web-init` scaffold ships, restored together. `context` / `context/[value]` are the scaffold's tenant-switching routes; this change adds no second tenant to switch to, but they return with the layer rather than being selectively omitted |
 | `/(private)/aoh/dispatch/units` | Session required | The console, moved from `/units` |
 | `/(private)/aoh/dispatch/map` | Session required | The map, `ssr = false` |
 | `/livez` · `/readyz` | Unauthenticated | Unchanged |
@@ -210,16 +210,25 @@ wrong. Posture A is mandatory for any target that validates `active_tenant`, and
 platform's own GIS seeding script uses a password-grant **user** token for exactly this
 reason.
 
-So the outbox worker carries the operator's access token, captured **by value** before the
-post-commit goroutine detaches from the request context — the precise gotcha
-`integration-patterns.md` names. The token is never persisted: it lives in memory for the
-life of one delivery attempt. A row that outlives its token stays pending and is drained
-opportunistically by the next authenticated request from the same tenant, which supplies a
-live token. *Alternatives considered:* (a) storing the bearer in the outbox row — persists
+So the projection carries the access token of the operator **whose write produced it**,
+captured **by value** before the post-commit goroutine detaches from the request context —
+the precise gotcha `integration-patterns.md` names. The token is never persisted; it lives
+in memory for the life of that write's delivery attempts, and retry is bounded by its
+remaining lifetime (the shipped realm's `accessTokenLifespan` is 300s).
+
+A row that cannot be delivered inside that window stays **pending and visible** in the
+outbox table, and is flushed by re-running the seed/reconcile step (D12), which holds a
+fresh token. *Alternatives considered:* (a) storing the bearer in the outbox row — persists
 a credential in the database and still expires; (b) storing the refresh token — worse, it
-lets a background worker act as a user indefinitely. Both were rejected. The trade-off is
-that a tenant with no traffic can hold a pending projection indefinitely; R4 covers the
-resulting window.
+lets a background worker act as a user indefinitely; (c) draining the backlog
+opportunistically on the *next* authenticated request from the same tenant. (c) is the
+tempting one and is wrong twice over: the draining request is usually a different operator,
+so GIS would attribute the entity to whoever happened to make the next call rather than to
+its author; and nothing constrains that request to a dispatcher, so a `dispatch-viewer`
+merely *reading* the roster would be made to perform a GIS write — which the change's own
+role model forbids, and which `gis-service` may reject outright, stranding the row forever.
+A pending row is a visible, recoverable condition; a silently mis-attributed write is not.
+R4 covers the window.
 
 **D3 — Roles in AAS; permissions projected in-process.** `dispatch-viewer` and
 `dispatch-dispatcher` are AAS tenant roles declared in
@@ -344,10 +353,38 @@ make every edit look like a fresh GPS fix, and the map's "fix age" would become 
 closes what an earlier draft left as an open question — it is a change to shipped behaviour
 and so belongs in the task list, not in an apply-time decision.
 
+**D12 — Seeding moves out of the SQL migration and into an authenticated HTTP step.** The
+baseline seeds the roster from `0002_seed.up.sql` on service start. That stops working here,
+for two independent reasons:
+
+1. **A committed migration cannot know the tenant id.** `iams-init` creates the tenant by
+   `POST /admin/tenants` with only `{"name": "development"}`, so **AAS assigns the id** —
+   which is why `bootstrap.py` has to look it up by name. A hardcoded UUID in a checked-in
+   migration is stale after the first `down -v`.
+2. **Rows inserted by SQL never pass through the outbox**, and nothing at migration time
+   holds a token `gis-service` will accept. Seeded units would exist in the console and be
+   permanently absent from the map — and the reproducibility gate, whose whole job is to
+   prove a cold stack converges, would certify that broken state.
+
+So a one-shot seed step authenticates as `${DEV_USER}` with the password grant
+(`scope=openid`), reads `active_tenant.tenant_id` from its own token, and writes the roster
+through `POST` / `PUT /v1/units`. The service stamps tenant and audit columns from that
+token, and the ordinary outbox path projects the units into GIS carrying the same operator's
+bearer. One mechanism, no special case for seeded data, and the same step doubles as the
+reconcile path for a stranded projection (D2a). This is the platform's own pattern — the GIS
+skill ships `scripts/seed-geoentities.sh`, which seeds geo-entities with exactly this
+password-grant user token. *Alternative considered:* keeping the SQL seed and adding a
+separate GIS seeding script. Rejected: two seeding mechanisms that must agree, one of which
+still cannot name the tenant.
+
+Consequence: the repo's "migrations and seed data apply themselves when the service starts"
+story changes, and a migration must delete the pre-auth `'workshop'`-tenant rows that
+`0002_seed.up.sql` inserts, or they linger invisibly.
+
 ## Risks / Trade-offs
 
 **R1 — The workshop's "one container, no auth" promise ends.** The stack goes from one
-container to fifteen (fourteen platform services plus the dispatch PostgreSQL), several
+container to sixteen (fifteen platform services plus the dispatch PostgreSQL), several
 pulled from `ghcr.io/mssfoobar`, and every attendee now needs a working login before they
 see a unit. → The reproducibility gate in `tasks.md` proves a cold `down -v` / `up -d`
 converges, `SETUP.md` and `README.md` are rewritten in the same change rather than left
@@ -366,15 +403,17 @@ name the file each copy mirrors in a comment, and make the verification step dec
 token rather than asserting the map in isolation. If it grows past a handful of roles, that
 is the signal to move to AAS `/evaluate`.
 
-**R4 — A projection can stay pending longer than one request.** The worker carries the
-operator's token (D2a), so a delivery that outlives that token waits for the next
-authenticated request from the same tenant to supply a fresh one. A tenant with no traffic
-holds its backlog. → Acceptable here: the workshop has one tenant and an operator present by
-definition. The unit row remains the source of truth (D7), the map's not-shown count is
-computed from unit data rather than entity data so the page never under-reports the roster,
-and a pending row is visible in the outbox table. If this ever needs to hold without an
-operator, the answer is a scheduled job holding its own credential — a different design, not
-a patch to this one.
+**R4 — A projection can outlive the token that must deliver it.** The projection carries the
+writing operator's token (D2a), whose lifetime is 300s in the shipped realm. A `gis-service`
+outage longer than that strands the row: it stays pending rather than being delivered
+"eventually and without operator action". → The unit row remains the source of truth (D7),
+the map's not-shown count is computed from unit data rather than entity data so the page
+never under-reports the roster, a pending row is visible in `gis_outbox`, and re-running the
+seed/reconcile step (D12) flushes it with a fresh token. What this design deliberately does
+**not** do is make some later, unrelated operator's request perform the write — see D2a for
+why that is worse than a visible backlog. If the projection ever has to survive without any
+operator, the answer is a scheduled job holding its own credential against a tenant-aware
+target, which is a different design, not a patch to this one.
 
 **R5 — Cesium is a heavy dependency on a workshop laptop, and the skills disagree about the
 alternative.** `@cesium/engine` plus `@cesium/widgets` add a large install and a WebGL
@@ -425,21 +464,23 @@ python3 exists and commit the output — it writes files, it does not need the s
    stack up (`aoh-compose` output), let `iams-init` then `project-aas-init` complete, and
    confirm that tokens for both seeded accounts carry the expected `active_tenant.roles`
    (`dispatch-dispatcher` for one, `dispatch-viewer` only for the other).
-2. Apply the `dispatch-svc` migration: position columns, their constraints, the outbox
-   table. Additive only — every column is nullable or defaulted, so the existing rows and the
-   pre-change binary keep working.
-3. Re-seed. Seeded rows move from `tenant_id = 'workshop'` to the `development` tenant id and
-   gain positions. Because the seed is `ON CONFLICT … DO UPDATE` and keyed on
-   `(unit_code, tenant_id)`, the old-tenant rows are **not** rewritten in place — the reset
-   path (`pnpm reset-db`) is the supported route, and the gate exercises it.
-4. Deploy `dispatch-svc` with bearer auth on. Anything still calling it unauthenticated —
+2. Apply the `dispatch-svc` migrations: position columns, their constraints and the outbox
+   table (additive — every column is nullable or defaulted), then the removal of the pre-auth
+   seeded rows. That removal is the one destructive step, and it is deliberate: those rows
+   carry the placeholder tenant, so after this change no token can see them and they would
+   linger invisibly.
+3. Deploy `dispatch-svc` with bearer auth on. Anything still calling it unauthenticated —
    including a stale `pnpm dev` console — starts receiving 401, which is the intended signal.
+4. Seed the roster through the API (`scripts/seed-roster.mjs`, D12). This is the step that
+   also populates GIS, because seeded units reach the map only by travelling the ordinary
+   write path.
 5. Deploy `dispatch-web` with the restored auth layer and the map.
 
-**Rollback:** revert both apps and re-seed. The migration is additive, so a rolled-back
-binary ignores the new columns and the outbox table without error; the orphaned geo-entities
-in `gis-service` are harmless and are cleaned by tearing the GIS volume. There is no
-irreversible step.
+**Rollback:** revert both apps and re-run the seed. The position and outbox migrations are
+additive, so a rolled-back binary ignores them without error. The pre-auth row deletion is
+not reversible in place — recover by `pnpm reset-db` and re-seeding, which is the supported
+path and the one the gate exercises. Orphaned geo-entities in `gis-service` are harmless and
+are cleared by tearing the GIS volume.
 
 ## Open Questions
 

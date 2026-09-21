@@ -22,6 +22,11 @@ mapper. Its only addition to `realm-import.json` SHALL be one seed user (see bel
 - **WHEN** a visitor with no session opens `/`
 - **THEN** they end at the sign-in flow, not at an unauthenticated console page and not at a 404
 
+#### Scenario: The scaffold's auth routes are restored as a set
+- **WHEN** the app's `(public)/aoh/api/auth/` directory is listed
+- **THEN** it contains all six route handlers the scaffold ships — `login`, `callback`, `refresh`, `logout`, `context` and `context/[value]`
+- **AND** requesting the tenant-switching routes as a signed-in operator returns without a server error, even though this change adds no second tenant to switch to
+
 #### Scenario: The change adds no client, role or mapper
 - **WHEN** `compose/iams/keycloak/realm-import.json` is compared against the platform-shipped file
 - **THEN** the only difference is one added entry in the `users` array
@@ -65,10 +70,14 @@ outbox or anywhere else in the database.
 - **THEN** it carries the target unit, the intent and the payload
 - **AND** it carries no access token, refresh token, or client secret
 
-#### Scenario: A delivery that outlives its token waits rather than failing
-- **WHEN** a projection cannot be delivered before the operator's token expires
+#### Scenario: A delivery that outlives its token is left pending, not reassigned
+- **WHEN** a projection cannot be delivered before the writing operator's token expires
 - **THEN** the outbox row remains pending and is not marked delivered
-- **AND** it is delivered on a later authenticated request from the same tenant
+- **AND** no later request by a different operator is used to deliver it
+
+#### Scenario: A reader is never made to perform a write
+- **WHEN** an operator holding only `dispatch-viewer` reads the roster while a projection is pending
+- **THEN** no write to `gis-service` is made with that operator's token
 
 #### Scenario: Tokens are requested with the openid scope
 - **WHEN** any component of this change obtains a token for calling an AOH service
@@ -182,7 +191,7 @@ equivalent. This includes the not-yet-implemented workshop stub routes. `/livez`
 - **AND** no unit data is returned
 
 #### Scenario: A request with an invalid or expired token is rejected
-- **WHEN** a client issues `GET /v1/units` with a malformed, wrongly signed, or expired token
+- **WHEN** a client issues `GET /v1/units` with a malformed token, or with a token that has passed its expiry
 - **THEN** the response status is 401
 
 #### Scenario: A valid token is accepted
@@ -190,7 +199,7 @@ equivalent. This includes the not-yet-implemented workshop stub routes. `/livez`
 - **THEN** the response status is 200
 
 #### Scenario: The unimplemented stub routes are also protected
-- **WHEN** a client issues `POST /v1/units/{unit_code}/assignment`, `GET /v1/units/{unit_code}/events` or `PUT /v1/units/{unit_code}/crew` with no `Authorization` header
+- **WHEN** a client issues any of `POST /v1/units/{unit_code}/assignment`, `DELETE /v1/units/{unit_code}/assignment`, `GET /v1/units/{unit_code}/events` or `PUT /v1/units/{unit_code}/crew` with no `Authorization` header
 - **THEN** the response status is 401
 - **AND** the 501 body those routes return to an authorised caller is not disclosed
 

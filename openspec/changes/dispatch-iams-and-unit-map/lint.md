@@ -30,7 +30,7 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
       spec mention is the negative assertion in `specs/dispatch-access-control/spec.md`
       ("it references no `active_tenant.permissions` claim"). Permission-level gating is an
       in-service role→permission projection over `active_tenant.roles` (`design.md` D3,
-      `tasks.md` 3.5 / 4.6) — option (b) of the check.
+      `tasks.md` 3.6 / 4.6) — option (b) of the check.
 
 ## 2. Session storage
 
@@ -67,11 +67,12 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
 ## 3. API contract
 
 - [x] **PASS** — Every endpoint this change exposes uses `/v{N}/<resource>`: `/v1/units`,
-      `/v1/units/{unit_code}`, the three `/v1/units/{unit_code}/…` stub routes, plus
-      root-mounted `/livez` and `/readyz`. `grep -rn '/api' specs design.md proposal.md
-      tasks.md` returns **4 hits, not zero** — `design.md:99`, `proposal.md:22`,
-      `tasks.md` ×2 — every one of them the SvelteKit `(public)/aoh/api/auth/*` route group
-      or a reference to `aoh-conventions/references/api.md`. No REST endpoint carries an
+      `/v1/units/{unit_code}`, the four stub route/method pairs across three
+      `/v1/units/{unit_code}/…` paths, plus root-mounted `/livez` and `/readyz`.
+      `grep -rn '/api' specs design.md proposal.md tasks.md` returns **4 hits, not zero** —
+      one each in `design.md` and `proposal.md`, two in `tasks.md`, every one of them the
+      SvelteKit `(public)/aoh/api/auth/*` route group or a reference to
+      `aoh-conventions/references/api.md`. No REST endpoint carries an
       `/api` prefix, so the verdict holds; the first pass of this lint claimed the grep
       returned nothing, which was false, and a fabricated mechanical result is the one thing
       a reader of a mechanical lint cannot be expected to re-check.
@@ -83,16 +84,19 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
       restored by reflex. **This N/A was previously indefensible**: `proposal.md` said in
       three places that the gateway *was* restored, including its module name. Those three
       passages now match D5.
-- [x] **PASS** — No scenario asserts a forbidden shape. Success assertions use the AOH
-      envelope (`data` / `message` / `sent_at`), inherited from `dispatch-units-service`.
-      Failure assertions use the AOH error contract's `errorCode` / `details`, which
-      `aoh-conventions/api.md` designates for new and migrated paths and which this repo
-      already uses. No `{ error: "..." }`, `{ errors: { field: "msg" } }` or
-      `{ status: "..." }` appears.
+- [x] **PASS** — vacuously, and stated precisely rather than dressed up: this change's
+      scenarios assert **statuses and field presence**, not body envelopes. `grep -rn
+      'errorCode\|sent_at\|details' specs/` returns nothing, and the single envelope token
+      anywhere in `specs/` is one `data` (`specs/dispatch-units-api/spec.md`, "the response's
+      `data` carries that position"). So no scenario asserts a forbidden shape because none
+      asserts a shape at all; the envelope requirements it inherits from
+      `dispatch-units-service` ("Responses use the AOH success envelope") are unchanged and
+      not restated here. `design.md`'s API surface states the contract for both success and
+      error.
 - [x] **PASS** — `/livez` and `/readyz` appear in `design.md`'s API surface, mounted at root
       and marked Unauthenticated, and `specs/dispatch-access-control/spec.md`'s "Health probes
       stay outside the authenticated surface" covers **both** apps — the console's probes as
-      well as the service's. `tasks.md` 3.4 and 4.4 each implement their half; an earlier
+      well as the service's. `tasks.md` 3.5 and 4.4 each implement their half; an earlier
       draft specified both and implemented only one.
 
 ## 4. UI surfaces
@@ -128,7 +132,7 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
 - [x] **PASS** — All six capabilities in `proposal.md` have a matching spec file, names
       identical: `dispatch-access-control`, `field-unit-geo-projection`, `dispatch-map`,
       `dispatch-console`, `dispatch-units-api`, `field-unit-roster`.
-- [x] **PASS** — 37 requirement blocks (36 ADDED/MODIFIED plus one REMOVED) and 119
+- [x] **PASS** — 37 requirement blocks (36 ADDED/MODIFIED plus one REMOVED) and 122
       scenarios; `grep -rn '^### Scenario' specs/` returns nothing, so every scenario header
       is exactly four hashes. The one scenario-less block is the REMOVED "The application has
       no authentication", which carries **Reason** and **Migration** instead — the shape
@@ -144,7 +148,12 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
       scoping; `GET /v1/units/{unit_code}` → units-api 404; `POST`/`PUT`/`DELETE` →
       access-control viewer/dispatcher + units-api position + geo-projection delete;
       `/livez`+`/readyz` → access-control health probes; the page routes → dispatch-console
-      and dispatch-map; the consumed `/geoentity*` → geo-projection.
+      and dispatch-map; the consumed `/geoentity*` → geo-projection. Two further gaps closed
+      in this pass: `DELETE /v1/units/{unit_code}/assignment` was in the surface and in no
+      scenario (the stub-route scenario now names all four method/path pairs), and the
+      surface listed four auth routes where `tasks.md` restores the scaffold's six — it now
+      lists six, and "The scaffold's auth routes are restored as a set" covers `context` and
+      `context/[value]`.
 - [x] **PASS** — All 18 rows of `design.md`'s Runtime dependencies table carry an owner:
       fifteen `Platform — added by aoh-compose` (one noting `roles.yaml` is owned by this
       change) and three `Existing — modified by this change`. `iams-web` was added in this
@@ -158,13 +167,14 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
       reviewed", "the outbox row is inspected") assert statically checkable facts about
       checked-in files and each names the artifact to inspect.
 
-      Fixed in this pass: five cross-tenant scenarios whose **WHEN** clause nothing in the
-      change could reach, because the stack stands up exactly one tenant
-      (`development`). `specs/dispatch-units-api/spec.md` now expresses them against a unit
-      **row** inserted directly under a different `tenant_id` — which tests the
-      `WHERE tenant_id = $n` predicate without a second identity — and says so in a note.
-      The one that could not be salvaged, a cross-tenant *GIS* read, was removed rather than
-      left unprovable; `design.md`'s Open Question 3 records what that leaves untested.
+      The cross-tenant scenarios are reachable on a single-identity stack because
+      `tasks.md` **5.3** creates the other tenant's row itself, with an explicit
+      `compose exec … psql … INSERT` in both runtime forms, asserts all four scenarios
+      against it, and tears it down so the script stays re-runnable. An earlier pass claimed
+      this was fixed when only the spec wording had changed and no task inserted the row —
+      the scenarios were still unreachable. The one that could not be salvaged, a
+      cross-tenant *GIS* read, was removed rather than left unprovable; `design.md`'s Open
+      Question 3 records what that leaves untested.
 - [x] **PASS** — Token acquisition is named, never hand-minted: the password grant against
       the bundled `web` client for both operator accounts, **with `scope=openid`**.
       `tasks.md` 2.4 gives the exact `curl` and decode, and 5.1 makes the E2E script obtain
@@ -177,12 +187,13 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
 - [x] **PASS** — Every section ends with a concrete verification naming exact commands:
       1.8 (compose `up -d` / `ps`, naming the containers that must be healthy and the init
       containers that must exit 0), 2.4 + 2.5 (a runnable token fetch, claim decode, and a
-      `curl` to `gis-service` asserting `200`), 3.14 (`go build && go vet && go test -race`),
+      `curl` to `gis-service` asserting `200`), 3.15 (`go build && go vet && go test -race`),
       4.17 (`pnpm build && pnpm check-types && pnpm lint` plus a `grep` over the docs),
-      5.4 (the reproducibility gate). Section 2's last step previously ended in prose with no
+      5.6 (the reproducibility gate). Section 2's last step previously ended in prose with no
       command; it is now a `curl` with an asserted status.
-- [x] **PASS** — All 7 compose invocations carry both forms (`podman compose` ×7,
-      `docker compose` ×7), each pair on one line so a line-oriented reader sees both.
+- [x] **PASS** — All 8 compose invocations carry both forms (`podman compose` ×8,
+      `docker compose` ×8), each pair on a single line so a line-oriented reader sees both —
+      including the 2.3 teardown, whose pair was split across two lines in the previous pass.
 - [x] **PASS** — No task runs `compose up` for `dispatch-svc` or `dispatch-web`; both are
       exercised natively (`go run ./cmd/server`, `pnpm dev`).
 - [x] **PASS** — Section order is Compose (1) → Seed (2) → Implement `dispatch-svc` (3) →
@@ -209,7 +220,7 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
 ## 9. Native dev env documentation
 
 - [x] **PASS** — Each Implement section's last task before its verification is the env block:
-      `tasks.md` 3.13 for the Go service and 4.16 for the SvelteKit app. Corrected in this
+      `tasks.md` 3.14 for the Go service and 4.16 for the SvelteKit app. Corrected in this
       pass, because the first draft would not have booted either process: `IAM_REALM` and
       `DISPATCH_SVC_CLIENT_ID`/`_SECRET` were invented (the scaffold's keys are
       `IAMS_KEYCLOAK_REALM` / `IAMS_KEYCLOAK_CLIENT_ID`, and the client pair is now
@@ -224,18 +235,21 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
 
 ## 10. Reproducibility gate
 
-- [x] **PASS** — `tasks.md` 5.4 is the last task of section 5, inside the E2E section.
+- [x] **PASS** — `tasks.md` 5.6 is the last task of section 5, inside the E2E section.
 - [x] **PASS** — It runs a project-wide `down -v` then `up -d`, both in dual form. Note
       `tasks.md` 2.3 also now uses the project-wide form: the earlier `down -v iams-db` is
       not a per-service volume wipe in Compose and is not accepted at all by podman-compose,
       so it could have silently left the old realm in place — the exact failure that step
       exists to prevent (R8).
-- [x] **PASS** — It **kills** and restarts both native processes (`pkill` for the Go server
-      and `vite dev`, then `go run` and `pnpm dev`), referring to the env blocks from 3.13 and
-      4.16. The kill step was missing in the first pass, which would have left a stale process
-      holding 8081/5173 and hidden the rebuild.
-- [x] **PASS** — It re-runs `node scripts/e2e-smoke.mjs`, byte-identical to task 5.3's
-      command, annotated "SAME command as 5.3".
+- [x] **PASS** — It **kills** and restarts both native processes, referring to the env blocks
+      from 3.14 and 4.16. The Go server is killed by its listening port
+      (`lsof -ti :8081 | xargs -r kill`) rather than by a source-path `pkill`: `go run` execs
+      a compiled binary under `$TMPDIR`, so a pattern matching `cmd/server` misses the child
+      and leaves 8081 held — which is exactly the failure the kill step exists to prevent.
+- [x] **PASS** — It re-runs `node scripts/e2e-smoke.mjs`, byte-identical to task 5.5's
+      command, annotated "SAME command as 5.5". It also re-runs `scripts/seed-roster.mjs`
+      first, because the roster is now part of what must reconverge (D12) rather than
+      something a migration recreates.
 
 ## Resolution
 
