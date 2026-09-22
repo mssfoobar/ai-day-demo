@@ -606,11 +606,11 @@ named step, rather than carrying on and reporting at the end.
 # Setting up
 
 <Points>
-<NumStep :n="1">Install Podman</NumStep>
-<NumStep :n="2">Put your GitHub token in ~/.npmrc</NumStep>
-<NumStep :n="3" body="font-mono text-sm">podman compose -f compose/compose.yml -f compose/compose.devcontainer.yml up -d</NumStep>
-<NumStep :n="4" body="font-mono text-sm">podman compose exec workshop bash</NumStep>
-<NumStep :n="5" body="font-mono text-sm">pnpm start</NumStep>
+<NumStep :n="1">Install Node 24+, Go 1.25+ and Python 3</NumStep>
+<NumStep :n="2">Install Podman, and start its machine</NumStep>
+<NumStep :n="3" body="font-mono text-sm">npm install -g pnpm@10</NumStep>
+<NumStep :n="4" body="font-mono text-sm">curl -fsSL https://claude.ai/install.sh | bash</NumStep>
+<NumStep :n="5" body="font-mono text-sm">cd ai-day-demo && pnpm start</NumStep>
 <NumStep :n="6">Open http://localhost:5173</NumStep>
 </Points>
 
@@ -619,22 +619,32 @@ SETTING UP
 
 The only slide where falling behind costs someone the session, so walk it.
 
-Podman is the only install. Node, pnpm, Go, Claude Code and the Go caches are
-in the image.
+Everything runs natively. Only PostgreSQL is a container, which is what Podman
+is for.
 
-Step two before step three. ~/.npmrc has to exist as a file first, because a
-missing host file gets mounted as an empty directory and the install then fails
-confusingly. The container checks for that and says so.
+Step two matters on macOS and Windows: Podman Desktop needs its machine started
+before any container will run. Ask the room to open it now.
 
-Why a token: six dependencies, including our design system, come from GitHub
-Packages, which has no anonymous read. We cannot bake them into a public image
-without republishing them.
+Python is not used by the project. It is there for the scripts the agent writes
+during the exercises. macOS and Linux already have it; Windows people need the
+installer, and need to tick "Add python.exe to PATH".
 
-Step three pulls about 1.1 GB, once. Worth doing before they arrive if the wifi
-is shared.
+Steps three and four are the two that are typed rather than downloaded. Say the
+@10 out loud: unpinned gives pnpm 12, which our lockfile was not written for.
+Windows PowerShell runs step four as: irm https://claude.ai/install.ps1 | iex
 
-pnpm start installs, then runs. Twenty-five seconds the first time, under a
-second after. Safe to retype if anything goes wrong.
+After step four they need a fresh terminal before claude is on PATH. Tell them
+now, or a third of the room reports command not found.
+
+No token to set up. The GitHub Packages credential for our six dependencies,
+including the design system, is checked into .npmrc in the repo.
+
+pnpm start installs, pulls PostgreSQL, compiles the Go service, then runs. A
+few minutes the first time, under a second after. Safe to retype if anything
+goes wrong.
+
+That first run is the one that needs internet. It fills node_modules, the Go
+module cache and the Podman image store, and all three survive going offline.
 
 If someone already runs Postgres on 5432, the runner says so by name and they
 start again with POSTGRES_PORT set to a free port.

@@ -1,7 +1,7 @@
 # fleet-dispatch-console
 
 A workshop dispatch console on the AOH platform: a SvelteKit frontend (`apps/dispatch-web`)
-and a Go + PostgreSQL field-unit service (`apps/dispatch-svc`). **No authentication** —
+and a Go + PostgreSQL field-unit service (`apps/dispatch-svc`). **No authentication**,
 by design, for the workshop.
 
 **Attending the workshop? Start with [SETUP.md](SETUP.md).** The rest of this file
@@ -9,57 +9,35 @@ is for working on the repo itself.
 
 ## Prerequisites
 
+Everything runs natively. Only PostgreSQL runs in a container.
+`./scripts/install-prereqs.sh` (or `.\scripts\install-prereqs.ps1` on Windows)
+installs whatever is missing from this list; `--check` reports without
+installing.
+
 - **Node 24+**
-- **pnpm 10** — `npm i -g pnpm`, or `corepack enable` on Node 24 (Node 25+ dropped corepack)
+- **pnpm 10**: `npm install -g pnpm@10`, or `corepack enable` on Node 24 (Node 25+
+  dropped corepack). Take the `@10`: an unpinned install gives pnpm 12, and the
+  lockfile and `pnpm-workspace.yaml` here were written for 10.
 - **Go 1.25+**
-- **Podman** — only PostgreSQL runs in a container
+- **Podman**, with a compose provider. `podman compose` delegates to
+  `podman-compose` or `docker-compose`; check yours with `podman compose version`.
+- **Claude Code**, for the workshop exercises:
+  `curl -fsSL https://claude.ai/install.sh | bash`, or
+  `irm https://claude.ai/install.ps1 | iex` in Windows PowerShell
+- **Python 3.9+**, for the scripts the agent writes during the exercises. Not
+  `uv`: `uv run` fetches an interpreter at invocation time, which fails on the
+  offline workshop network.
+
+Nothing in this repo is written in Python. Both of its scripts are Node
+(`scripts/dev.mjs`, `scripts/doctor.mjs`), and `pnpm start`, `pnpm doctor` and
+`pnpm verify` never call an interpreter other than Node and Go.
 
 The one credential this needs is already here. A GitHub Packages token for the six
 `@mssfoobar` dependencies is checked in at `.npmrc`, so there is nothing to create; it
 expires shortly after the workshop. The Go shared library `aoh-golib` is checked in
 under `packages/aoh-golib`, so no access to the private `ops-hub` repo is required.
 
-## Run it in a container
-
-The devcontainer carries the whole toolchain, so the only thing you install is
-Podman. Node, pnpm, Go, Claude Code and an already warm Go build cache are all
-in the image, and none of them appear in the prerequisite list above.
-
-The six `@mssfoobar` packages stay out of the public image, so `pnpm install`
-runs on first open against the checked-in `.npmrc`.
-
-```sh
-podman compose -f compose/compose.yml -f compose/compose.devcontainer.yml up -d
-podman compose exec workshop bash
-pnpm start
-```
-
-Then open <http://localhost:5173>. `pnpm start` installs dependencies, notices
-PostgreSQL is already up as a sibling container, and starts the service and the
-console. It is idempotent, so running it again is a sub-second no-op.
-
-The image is not published to a registry. Load it from
-`ai-day-workshop-images.tar.gz`, which ships alongside the project download and
-also carries `postgres:16-alpine`. Failing that, compose builds it from
-`.devcontainer/Dockerfile`, which takes a few minutes and needs the network.
-
-VS Code's Dev Containers extension does the same thing with **Reopen in
-Container**. It assumes Docker, so point it at Podman first:
-
-```json
-"dev.containers.dockerPath": "podman",
-"dev.containers.dockerComposePath": "podman-compose"
-```
-
-The container keeps `node_modules` in a named volume rather than on the bind
-mount. Windows bind mounts cannot set file times, which fails pnpm with `EPERM
-futime`, and the host and the container need different native binaries anyway.
-A native run installs its own copy on the host; the two do not collide.
-
-The deck under `slides/` is its own pnpm workspace, so the install above does
-not reach it. `pnpm slides` installs it on demand.
-
-## Run it natively
+## Run it
 
 ```sh
 pnpm start
@@ -68,8 +46,8 @@ pnpm start
 Then open **http://localhost:5173**. `Ctrl+C` stops the two apps; the database keeps
 running (`pnpm stop` removes it, `pnpm reset-db` also wipes its data).
 
-`pnpm start` is a thin runner (`scripts/dev.mjs`) that does exactly these three things, in
-order, and nothing else — run them yourself if you prefer to see the parts:
+`pnpm start` is a thin runner (`scripts/dev.mjs`). It checks 8081 and 5173 are free,
+installs dependencies, then starts these three, in order:
 
 ```sh
 podman compose -f compose/compose.yml up -d postgres
@@ -77,7 +55,14 @@ podman compose -f compose/compose.yml up -d postgres
 (cd apps/dispatch-web && pnpm dev)                       # http://localhost:5173
 ```
 
-The two apps run natively (`go run`, `vite dev`) so edits reload instantly — that is the
+Run them yourself if you prefer to see the parts. On every run after the first,
+the install and the database are sub-second no-ops. Stop the stack with `Ctrl+C`
+before starting it again: the port check refuses to start a second copy.
+
+The deck under `slides/` is its own pnpm workspace, so the install above does
+not reach it. `pnpm slides` installs it on demand.
+
+The two apps run natively (`go run`, `vite dev`) so edits reload instantly. That is the
 AOH convention for local development. Migrations and seed data apply themselves when the
 service starts.
 
@@ -88,6 +73,7 @@ service starts.
 | `POSTGRES_PORT=5441 pnpm start` | same, when something else already holds 5432 |
 | `pnpm stop` / `pnpm reset-db` | stop the database / stop it **and delete its data** |
 | `pnpm verify` | lint, type-check and build across both apps |
+| `pnpm doctor` | check the stack is up and the workshop model is reachable |
 
 ## Workshop exercises
 
@@ -103,9 +89,10 @@ acceptance criteria and pointers to the code to copy are in **[WORKSHOP.md](WORK
 apps/dispatch-web      SvelteKit console            → apps/dispatch-web/README.md
 apps/dispatch-svc      Go field-unit service        → apps/dispatch-svc/README.md
 packages/aoh-golib     local copy of the AOH Go library (see LOCAL_COPY.md there)
-compose/               Postgres, plus the devcontainer overlay
-.devcontainer/         the preloaded toolchain image
+compose/               Postgres, the one container
+scripts/install-prereqs.sh  the toolchain installer (.ps1 for Windows)
 scripts/dev.mjs        `pnpm start`
+scripts/doctor.mjs     `pnpm doctor`, the offline readiness check
 SETUP.md               participant setup, the two stages
 WORKSHOP.md            the three stubbed features, as user stories
 openspec/              planning artifacts for each change
