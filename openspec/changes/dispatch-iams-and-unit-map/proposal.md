@@ -1,34 +1,18 @@
-> **Status: proposed, not next.** The map surface landed separately in
-> `dispatch-map-surface`, which adds a Cesium map to the console with no authentication and
-> no new container. This change is retained as the worked design for **adopting IAMS** — and
-> as the reference for the workshop exercise that puts field units on that map, which needs
-> IAMS, `gis-service` and RTUS together. Two consequences for anyone picking it up: its
-> `dispatch-map` delta assumes the map does not exist yet and needs rebasing onto whatever
-> `dispatch-map-surface` created, and its route moves (`/units` → `/aoh/dispatch/units`)
-> should be read alongside that change's `/map`. The auth, tenancy and seeding reasoning
-> below stands on its own and is what makes it worth keeping.
-
 ## Why
 
 The workshop console is the only AOH app in the repo that nobody logs into and that shows
 no map. Both gaps were deliberate — `baseline-dispatch-console` (design.md D1) stripped the
 scaffold's auth layer, and the same change recorded GIS as "the natural successor once units
-carry positions". Both come due together: a console with no caller has nowhere to put
-`created_by`, no tenant and no way to say who may write; and a C2 app without a map is
-missing the surface its operators reason on.
+carry positions". Those two deferrals have now come due together: a dispatcher
+who cannot see where a unit *is* cannot dispatch it well, and a console with no caller has
+nowhere to put `created_by`, no tenant, and no way to say who may write.
 
 They land as one change because they are not independent. GIS depends on IAMS **and** RTUS
 (`aoh-knowledge` → `service-catalogue.md` dependency graph); the map page cannot exist
 before the `(private)` route group and the SDS-backed session that IAMS restores; and the
-browser's SSE subscription to rtus-seh is authorised by the very session cookie IAMS mints.
-
-**The map arrives integrated but empty, on purpose.** This change mounts the GIS module,
-serves its Cesium assets, gates it behind a session and connects its live feed — and puts no
-dispatch data on it. Field units on the map becomes a **workshop exercise**, which is the
-point: integrating a platform module against a running stack is the skill the workshop
-teaches, and it is a far better exercise when the infrastructure underneath is already proven
-to work. `gis-service` and RTUS run from day one so the exercise has a live backend to
-integrate against rather than a compose file to write first.
+browser's SSE subscription to rtus-seh is authorised by the very session cookie IAMS
+mints. Splitting them would mean shipping an auth change whose only consumer
+arrives in the next PR.
 
 ## What Changes
 
@@ -44,8 +28,11 @@ integrate against rather than a compose file to write first.
   `/units` to `/aoh/dispatch/units` under the `(private)` group, per `aoh-conventions`
   `[project]/[module]` routing. `/` redirects to the login flow, not to the console.
 - `dispatch-svc` gains bearer-token auth on `/v1/units` via `aoh-golib`'s shipped
-  `aohhttp.BearerAuth` middleware. `/livez` and `/readyz` stay unauthenticated. It makes no
-  outbound calls to `gis-service` — that is the exercise.
+  `aohhttp.BearerAuth` middleware. `/livez` and `/readyz` stay unauthenticated. Its
+  *outbound* calls to `gis-service` carry the **operator's** bearer, captured by value before
+  the post-commit goroutine detaches — a service-account token would not work, because
+  client-credentials tokens carry no `active_tenant` claim and `gis-service` is tenant-aware
+  (design.md D2a).
 - The `aoh` realm gains exactly one thing: a **second seed user** in `realm-import.json`, so
   the viewer/dispatcher split has an account to test against. The shipped realm has only one
   interactive user, and `roles.yaml` cannot create one — `project-aas-init` requires the user
@@ -56,11 +43,11 @@ integrate against rather than a compose file to write first.
 - **BREAKING**: the roster seed moves out of the SQL migration and becomes service
   behaviour — `dispatch-svc` seeds a tenant once, on its first request from a dispatcher,
   before answering it. A committed migration cannot know the tenant id (AAS assigns it at
-  stack-up) and SQL cannot carry the caller's identity into `created_by` either; an
-  authenticated request is the only place the tenant, the identity, and the crew and
-  assignment shapes the write API withholds are all available at once. A marker row makes it
-  once-per-tenant, so deleting units does not resurrect them. A migration deletes the pre-auth
-  rows (design.md D7). There is no seed
+  stack-up) and rows written in SQL bypass the GIS projection, so they would never appear on
+  the map; an authenticated request is the only place the tenant, the identity, the crew and
+  assignment shapes the write API withholds, and the token that delivers the projection are
+  all available at once. A marker row makes it once-per-tenant, so deleting units does not
+  resurrect them. A migration deletes the pre-auth rows (design.md D12). There is no seed
   endpoint, binary or script — nothing for an attendee to run.
 - Two application roles — `dispatch-viewer` (read) and `dispatch-dispatcher` (write) — are
   declared as **AAS tenant roles** in `compose/iams/init/project-aas/roles.yaml`, not as
@@ -69,15 +56,20 @@ integrate against rather than a compose file to write first.
 
 **Map.**
 
+- The `unit` table and the wire model gain a position: `position_lon`, `position_lat`,
+  `position_at`, surfaced as an optional `position` object. A unit without a fix omits the
+  key, exactly as `assignment` does.
+- `dispatch-svc` mirrors every **positioned** field unit into `gis-service` as a
+  **geo-entity** (`entity_id` = `unit_code`, `entity_type` = `track`, `properties.kind` =
+  `field-unit`), written through a transactional outbox so the mirror can never disagree with
+  the unit row. A unit with no position — including one whose position is cleared — has its
+  entity removed instead, so the map never shows a stale marker (design.md D6a). GIS
+  republishes each change to the RTUS map `gis`.
 - `dispatch-web` gains a **Map** page at `/aoh/dispatch/map` mounting
-  `@mssfoobar/gis-web-sdk` (Cesium engine, 2D, OSM tiles), with its runtime assets served
-  from the app's own origin and its live feed subscribed to the `gis` RTUS map over SSE via
-  the session cookie. Connecting the feed now is deliberate: proving the session cookie
-  reaches `rtus-seh` across origins is the fiddliest part of the integration, and it should
-  not be discovered during the exercise.
-- **No dispatch data reaches the map.** No position on the unit model, no `geo-entity`
-  projection, no entity layer, no map↔console selection. The map draws base tiles and says
-  that nothing is published to it yet.
+  `@mssfoobar/gis-web-sdk` (Cesium engine, 2D, OSM tiles), subscribed to the `gis` RTUS map
+  over SSE via the session cookie. Selecting a unit on the map opens it in the console;
+  selecting one in the console flies the map to it.
+- The console's detail pane shows the selected unit's last known position and fix time.
 
 **Runtime.**
 
@@ -88,9 +80,9 @@ integrate against rather than a compose file to write first.
   PostgreSQL. `pnpm start`'s "only PostgreSQL runs in a container" promise
   ends with this change.
 
-Not in this pass: anything that puts dispatch data on the map (that is the new exercise),
-drawing/annotation tools, GIS bookmarks, geofences, replay (that is MSR), and the three
-existing stubbed exercises, which stay stubbed.
+Not in this pass: editing a unit's position from the console (positions are seeded and
+mirrored, not authored), drawing/annotation tools, GIS bookmarks, geofences, replay (that is
+MSR), and the three stubbed workshop exercises, which stay stubbed.
 
 ## Capabilities
 
@@ -99,21 +91,25 @@ existing stubbed exercises, which stay stubbed.
 - `dispatch-access-control`: who may reach the console and the service — sign-in, the
   server-side session, the role→permission projection that gates writes, sign-out, and the
   denied states (401 unauthenticated, 403 wrong role).
-- `dispatch-map`: the map surface — mounted, themed, auth-gated, assets served, live feed
-  connected, and explicitly carrying no dispatch data.
+- `field-unit-geo-projection`: the unit's position data and its mirroring into GIS as a
+  `geo-entity` — what is written, when, transactionally, and what happens on delete.
+- `dispatch-map`: the operator map surface — live rendering of field units, selection
+  cross-linked to the console, layers, and the states when the live feed is absent.
 
 ### Modified Capabilities
 
 - `dispatch-console`: moves under the `(private)` route group at `/aoh/dispatch/units`,
   requires a session, gates add / edit / delete on the `dispatch-dispatcher` role, shows the
-  signed-in user, and gains a nav entry alongside the map.
+  signed-in user, gains a nav entry and a link to the map, and renders position in the
+  detail pane.
 - `dispatch-units-api`: reads and writes are scoped to the caller's tenant; `tenant_id`,
-  `created_by` and `updated_by` derive from the token; the roster is seeded by the service on
-  a tenant's first dispatcher request. (The bearer requirement itself and its 401 / 403
-  behaviour are specified once, under `dispatch-access-control`.)
-
-The field unit's shape is **unchanged** — no position, no new fields — which is why
-`field-unit-roster` is not among these.
+  `created_by` and `updated_by` derive from the token; `position` joins the resource; and the
+  persisted model gains the position columns and the projection outbox table. (The bearer
+  requirement itself and its 401 / 403 behaviour are specified once, under
+  `dispatch-access-control`.)
+- `field-unit-roster`: a field unit's shape widens — units carry a last-known **position**
+  and its **fix time**, distinct from last contact. (Tenant scoping of what the roster
+  returns is specified once, under `dispatch-units-api`, rather than restated here.)
 
 ## Existing AOH services considered
 
@@ -126,12 +122,10 @@ The field unit's shape is **unchanged** — no position, no new fields — which
   `services/sds.md` makes SDS mandatory for every AOH web app, and rtus-seh reads the SDS
   session cookie to authorise the map's SSE stream. The cookie-only fallback in `auth.ts` is
   a diagnostic mode, not a posture to ship.
-- `gis` (Geospatial Information System): **selected, and integrated only as far as the map
-  surface.** The selection criteria say to use GIS when "a map display is a product
-  requirement" — it is. What this change does *not* do is populate it:
-  `UBIQUITOUS_LANGUAGE.md`'s *field unit* ↔ `geo-entity` mapping stays dormant, and realising
-  it is the workshop exercise. The service runs so the exercise has a backend to integrate
-  against. This is that mapping still waiting
+- `gis` (Geospatial Information System): **selected.** The selection criteria say to use GIS
+  when "a map display is a product requirement" and to skip it when coordinates are never
+  visualised — this change is precisely the former. `UBIQUITOUS_LANGUAGE.md` has mapped our
+  *field unit* onto a GIS `geo-entity` since the baseline; this is that mapping becoming real
   rather than a new dependency being invented.
 - `rtus` (Real-time Update Service): **selected, transitively.** GIS depends on it, and it is
   what makes a moving unit move on another dispatcher's screen. It was already recorded as
@@ -142,18 +136,17 @@ The field unit's shape is **unchanged** — no position, no new fields — which
 - `msr` (Multi-Session Replay): **ruled out.** Replaying a shift's movements is the obvious
   follow-on once positions exist, but nothing in this change requires time-travel, and MSR
   ships no renderer — it would need the map to land first anyway.
-- **A hand-rolled map instead of the GIS module**: **ruled out.** It would mean building a
-  tile client and an entity renderer that `@mssfoobar/gis-web-sdk` already provides, and it
-  would teach attendees the opposite of the lesson — the workshop is about integrating
-  platform modules, not replacing them.
+- **Building positions into `dispatch-svc` without GIS**: **ruled out.** It would mean
+  hand-rolling a tile/entity renderer and a live-position feed that GIS + RTUS already
+  provide, and it would strand the `geo-entity` mapping the project has documented since day
+  one.
 
 ## Impact
 
 - **`apps/dispatch-svc`**: bearer-auth middleware, tenant + identity threading through
-  service and repo, a migration adding the seed-marker table and removing the pre-auth rows,
-  the once-per-tenant seed, and config for the Keycloak host. Existing handlers keep their
-  shape; the `WHERE tenant_id = $n` predicate is new on every query. No GIS client, no
-  outbox, no worker — those belong to the exercise.
+  service and repo, a migration adding position columns and the GIS outbox table, an outbox
+  worker publishing to `gis-service`, config for the Keycloak and GIS hosts. Existing
+  handlers keep their shape; the `WHERE tenant_id = $n` predicate is new on every query.
 - **`apps/dispatch-web`**: the restored auth surface (hooks, auth routes, `(private)` group,
   `AuthProvider`, `nav.ts`, `Sidebar` + `Navbar` — but no gateway proxy), the map page and its
   `+page.ts` (`ssr = false`), the Cesium static-asset vite plugin, role-gated controls on the
@@ -177,12 +170,10 @@ The field unit's shape is **unchanged** — no position, no new fields — which
   and one-container claims, `apps/dispatch-svc/README.md`'s "no authentication" summary line,
   `apps/dispatch-web/README.md`'s "This app has no authentication" section, `SETUP.md`, and
   `UBIQUITOUS_LANGUAGE.md` (the *field unit* ↔
-  `geo-entity` mapping stays conditional and is corrected — `field-unit` would be the `kind`
-  and `track` the `entity_type` — with a note that realising it is the new exercise).
+  `geo-entity` mapping stops being conditional; *position* and *fix time* join the table).
 - **Workshop**: the three stubbed exercises keep their stubs, but their routes now sit behind
   a token — `WORKSHOP.md`'s bare `curl -i -X POST http://localhost:8081/v1/units/FU-101/assignment`
   stops working as written and needs a bearer. This is the change's biggest cost to the
   workshop and is carried as a risk in `design.md`.
-- **APIs**: no new `dispatch-svc` route and no new field. The only surface change is the auth
-  posture on the existing routes — and that `GET /v1/units` stops being side-effect-free,
-  because a dispatcher's first call seeds the tenant.
+- **APIs**: no new `dispatch-svc` route. The surface changes are the auth posture on existing
+  routes and the `position` field on the unit resource.

@@ -39,7 +39,7 @@
       only one interactive user, and `project-aas-init` cannot create one — it exits with
       "user not found in Keycloak". Add **no** OIDC client, **no** realm role and **no** claim
       mapper: application roles are AAS roles and belong in task 2.2, and nothing in this
-      change uses a client-credentials grant (design.md D7). Give the seed user
+      change uses a client-credentials grant (design.md D2a). Give the seed user
       `${DEV_PASSWORD}` as its credential: `iams-keycloak` forwards only `DEFAULT_REALM`,
       `DEV_DOMAIN`, `DEV_USER` and `DEV_PASSWORD` into the container, so a new
       `${VIEWER_PASSWORD}`-style placeholder would import **unresolved** and the viewer's
@@ -107,12 +107,11 @@
       the role set is unchanged — that is what "the role bootstrap is idempotent" asserts, and
       a single run cannot show it. `scope=openid` is mandatory — AOH services validate via Keycloak's
       userinfo endpoint, which 403s on a token issued without it, surfacing as an opaque 401.
-- [ ] 2.5 Verify (GIS is up and accepts an operator token): `curl -fsS -o /dev/null -w '%{http_code}\n'
+- [ ] 2.5 Verify (GIS accepts an operator token): `curl -fsS -o /dev/null -w '%{http_code}\n'
       -H "Authorization: Bearer $TOKEN" "http://gis.${DEV_DOMAIN}/geoentity"` prints `200`
-      using the dispatcher token from 2.4. Nothing in this change calls `gis-service` — this
-      check exists so the workshop exercise starts from a backend already known to be
-      reachable and correctly authorised, rather than debugging the stack and its own code at
-      the same time.
+      using the dispatcher token from 2.4. This is the token posture the outbox worker will
+      use (design.md D2a); proving it here means the worker's first delivery is not the place
+      it is discovered.
 
 ## 3. Implement `dispatch-svc`
 
@@ -120,20 +119,20 @@
       `BearerAuth`, `references/api.md` for the envelope and `/v{N}` paths,
       `references/database.md` for schema rules) and the `aoh-error-handling` skill for the
       new error codes, before writing code.
-- [ ] 3.2 Add `migrations/0003_seed_marker.up.sql`: a `{{SCHEMA}}.tenant_seed` table carrying
-      the AOH mandatory columns (so it records which dispatcher seeded the tenant and when)
-      with a UNIQUE constraint on `tenant_id`, which is the marker task 3.4 writes. In the
-      same migration drop the pre-auth defaults on `unit` and `unit_crew` —
-      `created_by`/`updated_by` `DEFAULT 'system'` and `tenant_id` `DEFAULT 'workshop'`. The
-      spec says those literals are no longer written; leaving the defaults in place means any
-      INSERT that forgets a column silently writes them again. Write against `{{SCHEMA}}`,
-      never a hardcoded `dispatch.`.
+- [ ] 3.2 Add `migrations/0003_position_and_outbox.up.sql`: `position_lon`, `position_lat`,
+      `position_at` on `{{SCHEMA}}.unit` with an all-or-nothing CHECK and range CHECKs
+      (`[-180,180]` / `[-90,90]`); and a `{{SCHEMA}}.gis_outbox` table carrying the AOH
+      mandatory columns plus `unit_code`, `intent` (`upsert` / `delete`), `payload jsonb`,
+      `attempts`, `last_error`, `delivered_at`; and a `{{SCHEMA}}.tenant_seed` table with
+      `tenant_id` as its primary key, which is the marker task 3.4 writes. Write against
+      `{{SCHEMA}}`, never a hardcoded `dispatch.`.
 - [ ] 3.3 Add `migrations/0004_drop_preauth_seed.up.sql`: delete the unit rows that
       `0002_seed.up.sql` inserted under the pre-auth placeholder tenant. Do **not** re-tenant
-      them — a committed migration cannot know the tenant id (AAS assigns it at stack-up;
-      `bootstrap.py` has to look it up by name) and cannot carry a caller's identity into
-      `created_by` (design.md D7). Seeding moves to task 3.4.
-- [ ] 3.4 Implement seeding as service behaviour, not as a command (design.md D7). After
+      them and do **not** add positions here — a committed migration cannot know the tenant
+      id (AAS assigns it at stack-up; `bootstrap.py` has to look it up by name), and rows
+      written in SQL bypass the outbox and would be permanently absent from the map
+      (design.md D12). Seeding moves to task 3.4.
+- [ ] 3.4 Implement seeding as service behaviour, not as a command (design.md D12). After
       `BearerAuth`, on a request whose claims carry `dispatch-dispatcher`, the service seeds
       that caller's tenant **if it has never been seeded**, in one transaction, and **before
       the triggering request is answered** — so the dispatcher's first `GET /v1/units` already
@@ -149,11 +148,12 @@
         `INSERT … ON CONFLICT DO NOTHING RETURNING tenant_id` — and a zero-row result MUST
         abort the seed before any roster row is written. `ON CONFLICT DO NOTHING` raises
         nothing and returns no error, so a guard that runs the insert and carries on lets
-        both racers write the whole roster and bump every `occ_lock`. Row counts would still
-        look correct, which is why this has to be spelled out.
+        both racers write the whole roster, bump every `occ_lock` and enqueue two full sets
+        of outbox rows on two different operators' tokens. Row counts would still look
+        correct, which is why this has to be spelled out.
       - Do **not** decide by counting units. Deleting units is a legitimate operator action
         and must not resurrect the roster — the console ships a working delete today.
-      - Do **not** let a `dispatch-viewer` trigger it. Seeding is a write, and D7 forbids a
+      - Do **not** let a `dispatch-viewer` trigger it. Seeding is a write, and D2a forbids a
         reader performing writes elsewhere in this service; the rule has to hold in both
         places.
       - Write the baseline rows in full, as **plain inserts** — no `ON CONFLICT` clause. The
@@ -164,14 +164,17 @@
         type, station, sector, radio channel, shift and capabilities (`FU-311` keeps its
         deliberately empty list), the two assignments (`FU-102` → `INC-2841`, `FU-311` →
         `INC-2839`) **with all five assignment columns set**, since the all-or-nothing CHECK
-        rejects a partial one, and the crew rows. No positions — the unit model has none.
+        rejects a partial one, and the crew rows. Give every unit but `FU-204` a position, so
+        the "not shown" count and the un-positioned detail state are both exercised.
       - Stamp `created_by` / `updated_by` from the caller's `sub` and `tenant_id` from their
-        claim.
+        claim, and enqueue the ordinary outbox rows so the projection travels the same path,
+        on the same token, as any other write.
 
       This lives in the service because everything it needs is only available on an
-      authenticated request: the AAS-assigned tenant id, the caller's identity, and the crew
-      and assignment shapes the write API withholds. There is no seed endpoint, no seed binary
-      and no seed script — nothing for an attendee to run.
+      authenticated request: the AAS-assigned tenant id, the caller's identity, the crew and
+      assignment shapes the write API withholds, the outbox, the constraints, and the token
+      that delivers the projection. There is no seed endpoint, no seed binary and no seed
+      script — nothing for an attendee to run.
 - [ ] 3.5 Add bearer authentication using `aoh-golib`'s shipped `aohhttp.BearerAuth`
       middleware — do not hand-roll offline JWKS validation. Mount it on `/v1/units` only, so
       `/livez` and `/readyz` stay unauthenticated. Put `sub`, `active_tenant.tenant_id` and
@@ -186,38 +189,67 @@
 - [ ] 3.7 Thread tenant and identity through service and repo: add
       `WHERE tenant_id = $n` to every query, set `created_by` / `updated_by` from `sub` and
       `tenant_id` from the claim, and ignore any of the three arriving in a request body.
-- [ ] 3.8 Extend `internal/config` using the scaffold's own key names:
-      `IAMS_KEYCLOAK_HOST` (a URL **including the scheme**), `IAMS_KEYCLOAK_PORT` and
-      `IAMS_KEYCLOAK_REALM`. No `GIS_URL`, no client id or secret: this service makes no
-      outbound calls at all, which is what the workshop exercise changes. Keep the existing
-      Viper defaults pattern.
-- [ ] 3.9 Go tests, following the consumer-declared-interface style the service already uses
+- [ ] 3.8 Add `position` to `domain.Unit` (a `*Position` so an un-positioned unit omits the
+      key, exactly as `Assignment` does) and to `domain.UnitInput`, with range validation
+      returning 400 and an `aoherr.FieldDetail` per bad field. Keep `last_contact` bumping on
+      every write as today, and do **not** let `position_at` follow it — `position_at` changes
+      only when a write supplies a position (design.md D11).
+- [ ] 3.9 Write the outbox row inside the same transaction as every create / replace /
+      delete, deriving the intent from the unit's position **after** the write, not from the
+      verb: has a position → `upsert`; no position, position cleared, or unit deleted →
+      `delete` (design.md D6a). The handler must not call `gis-service`; a GIS outage must
+      not fail a unit write.
+- [ ] 3.10 Add the outbox worker. It delivers `PUT /geoentity` (upsert, keyed on `entity_id` =
+      `unit_code`, `entity_type` `track`, `geojson.properties.kind` `field-unit`) or
+      `DELETE /geoentity/entity_id/{unit_code}`, with backoff and at-least-once retry; a
+      delete for an entity that is already gone counts as delivered. It authenticates with
+      **the operator's access token**, captured by value from the request before the
+      post-commit work detaches from the request context — a client-credentials token carries
+      no `active_tenant` claim and `gis-service` resolves the tenant from it. Never persist a
+      token, and bound retry by that token's **remaining lifetime**. A row still undelivered
+      when the token expires stays pending, with its attempt count and last error recorded;
+      recovery is an operator re-saving that unit, which enqueues a fresh row on a fresh
+      token. There is no reconcile step and no sweeper. Do **not** drain it on a later
+      request from another operator: that would attribute the entity to whoever happened to
+      call next, and would make a `dispatch-viewer`'s read perform a GIS write (design.md
+      D2a rejects this explicitly).
+- [ ] 3.11 Extend `internal/config` using the scaffold's own key names:
+      `IAMS_KEYCLOAK_HOST` (a URL **including the scheme**), `IAMS_KEYCLOAK_PORT`,
+      `IAMS_KEYCLOAK_REALM`, `GIS_URL`, and the projection's retry budget — attempts and
+      backoff, capped by the remaining lifetime of the token the delivery carries, which is
+      the real bound (design.md D2a). There is **no** poll interval: the projection is triggered by the write that
+      produced it and runs on the token that write carried, so a timer that woke with no
+      credential could deliver nothing (design.md D2a). No client id or secret either — there
+      is no confidential client. Keep the existing Viper defaults pattern.
+- [ ] 3.12 Go tests, following the consumer-declared-interface style the service already uses
       (`service.UnitReader`, `handler.UnitService`) with a fake repo and no mock framework —
       note these are the first tests in the repo, so establish the pattern rather than
-      matching an existing file. Cover: the role projection, tenant scoping, the seed's
-      contents and its once-per-tenant guard, and — against a real database, since
-      the guard is `ON CONFLICT DO NOTHING` on the marker — that two concurrent dispatcher
-      requests against an unseeded tenant seed it exactly once, with no duplicate units or
-      crew. Do **not** add a
+      matching an existing file. Cover: the role projection, tenant scoping, position
+      validation and clearing, the position-derived outbox intent, outbox-row-in-same-
+      transaction, worker idempotence against a stub `gis-service`, and — against a real
+      database, since the guard is `ON CONFLICT DO NOTHING` on the marker — that two
+      concurrent dispatcher requests against an unseeded tenant seed it exactly once, with no
+      duplicate units or crew. Do **not** add a
       frontend test framework — `apps/dispatch-web/AGENTS.md` records its absence as a
       decision to be raised, not reversed in passing.
-- [ ] 3.10 Update `apps/dispatch-svc/AGENTS.md` (the "**No authentication**" bullet is now
-      false — replace it with the bearer + tenant + role posture, and record that the roster is
-      now seeded by the service on a tenant's first dispatcher request) and `apps/dispatch-svc/README.md` (its summary line
+- [ ] 3.13 Update `apps/dispatch-svc/AGENTS.md` (the "**No authentication**" bullet is now
+      false — replace it with the bearer + tenant + role posture, and add the outbox worker to
+      the load-bearing architecture list) and `apps/dispatch-svc/README.md` (its summary line
       says "no authentication").
-- [ ] 3.11 Document the env block for a native run (`cd apps/dispatch-svc && go run ./cmd/server`):
+- [ ] 3.14 Document the env block for a native run (`cd apps/dispatch-svc && go run ./cmd/server`):
       ```sh
       SQL_HOST=localhost SQL_PORT=5432 SQL_USER=dispatch SQL_PASSWORD=dispatch \
       SQL_DATABASE_NAME=dispatch SQL_SCHEMA_NAME=dispatch SQL_SSL_MODE=disable \
       IAMS_KEYCLOAK_HOST=http://iams-keycloak.${DEV_DOMAIN} IAMS_KEYCLOAK_PORT=80 \
       IAMS_KEYCLOAK_REALM=aoh \
+      GIS_URL=http://gis.${DEV_DOMAIN} \
       HTTP_PORT=8081 HTTP_ALLOWED_ORIGINS=
       ```
       `IAMS_KEYCLOAK_HOST` carries the scheme (the scaffold's default is
       `http://iams-keycloak`); without it the composed Keycloak URL is unparseable.
       `HTTP_ALLOWED_ORIGINS` stays empty: the browser still never calls this service
       directly (design.md D5), so no CORS is required.
-- [ ] 3.12 Verify: `cd apps/dispatch-svc && go build ./... && go vet ./... && go test ./... -count=1 -race`
+- [ ] 3.15 Verify: `cd apps/dispatch-svc && go build ./... && go vet ./... && go test ./... -count=1 -race`
       all exit 0. `go vet` is this repo's configured Go lint (`apps/dispatch-svc/package.json`,
       what `pnpm lint` runs); there is no `.golangci.yml` and no `golangci-lint` in the
       toolchain or the devcontainer image, so do not introduce one here.
@@ -263,14 +295,19 @@
       "console identifies the signed-in operator" requirement real rather than implied by
       the layout.
 - [ ] 4.8 Make `units.server.ts` send `Authorization: Bearer <token from SDS>` on every
-      call, and map a 401 to a re-authentication redirect and a 403 to the permission-denied state
+      call, decode `position` at the wire boundary next to the existing status guard, and
+      map a 401 to a re-authentication redirect and a 403 to the permission-denied state
       rather than the generic service-unavailable state.
-- [ ] 4.9 Install the map dependencies as runtime `dependencies`:
+- [ ] 4.9 Add the position section to `UnitDetail.svelte` — coordinates, fix time via the
+      existing `sinceLabel`, a "No position reported." line when absent, and a **Show on
+      map** control that carries the selected unit to the map route — per the mockup's
+      "Unit with position" / "Unit without position" states.
+- [ ] 4.10 Install the map dependencies as runtime `dependencies`:
       `@mssfoobar/gis-web-sdk@^2.0.0`, `@mssfoobar/auth-sdk`, `@cesium/engine@^25`,
       `@cesium/widgets@^15`. `@mssfoobar/sse-client` and `@mssfoobar/logger@^1.0.5` are
-      already present at compatible versions. Pin the SDK at ≥ 1.1.0 even though nothing here
-      needs its map-interaction callbacks — the workshop exercise's marker click will.
-- [ ] 4.10 Add the Cesium asset-copy plugin to `vite.config.ts` (copy `Build/Workers`,
+      already present at compatible versions. The SDK must be ≥ 1.1.0 for map interaction
+      callbacks, which task 4.13's marker click depends on.
+- [ ] 4.11 Add the Cesium asset-copy plugin to `vite.config.ts` (copy `Build/Workers`,
       `Source/Assets`, `Source/ThirdParty` from `@cesium/engine` and `Source` from
       `@cesium/widgets` into `static/cesium/`, on both `buildStart` and `configureServer`),
       define `CESIUM_BASE_URL`, and set `ssr.noExternal` to `[/^@mssfoobar\//, '@lucide/svelte',
@@ -282,39 +319,29 @@
       and refused in both. Add `static/cesium/` to
       `apps/dispatch-web/.gitignore`; `eslint.config.js` already ignores it, so leave that
       alone.
-- [ ] 4.11 Mount `<GisProvider>` at the root `+layout.svelte`, fed by the app's existing
+- [ ] 4.12 Mount `<GisProvider>` at the root `+layout.svelte`, fed by the app's existing
       `ThemeProvider` dark-mode store so the map repaints with the theme.
-- [ ] 4.12 Build the map page: `+page.ts` exporting `ssr = false`; a `+page.server.ts` that
-      returns the user claims (and nothing from `dispatch-svc` — the map reads no dispatch
-      data); and `+page.svelte` composing `CesiumMapEngineProvider` → `Map` (with the
-      **required** `initial_camera_view`, plus `rtus_seh_url`, `rtus_map_name="gis"`,
-      `user_id` from the `sub` claim, `tenant_id` from `active_tenant.tenant_id` and
-      `batchUpdateInterval={500}`) → `MapBaseLayerProvider` + `MapXyzSourceProvider` (OSM) →
+- [ ] 4.13 Build the map page: `+page.ts` exporting `ssr = false`; a `+page.server.ts` whose
+      `load` returns the roster (for the counts in 4.14) and the user claims; and
+      `+page.svelte` composing `CesiumMapEngineProvider` → `Map` (with the **required**
+      `initial_camera_view`, plus `rtus_seh_url`, `rtus_map_name="gis"`, `user_id` from the
+      `sub` claim, `tenant_id` from `active_tenant.tenant_id`, `batchUpdateInterval={500}`,
+      and the `event_subscriptions` the marker-click handler needs) →
+      `MapBaseLayerProvider` + `MapXyzSourceProvider` (OSM) → `MapEntityLayerProvider` +
+      `MapEntityProvider kind="field-unit"` with a call-sign marker snippet →
       `MapLayerManager`. Take the user id from `data.user.sub` and the tenant from
       `data.user.active_tenant.tenant_id` — `data.user.id` / `data.user.tenantId` are
-      undefined on this base and silently disable the live feed, which is exactly the failure
-      this task exists to rule out before the exercise.
-      Add **no** `MapEntityLayerProvider` and **no** `MapEntityProvider`: rendering entities is
-      the workshop exercise, and shipping an empty provider now would only be a stub to
-      delete.
-- [ ] 4.13 Add the map's surrounding states from the mockup: the live / not-live badge, the
-      "Live updates are unavailable." notice, and the empty-canvas state that says nothing is
-      published to the `gis` map yet and names wiring field units as the next step. The last
-      one matters — without it an operator cannot tell a correctly-integrated empty map from a
-      broken one, and that is the state every attendee will see first.
-- [ ] 4.14 Write the new workshop exercise. The map arrives integrated and empty precisely so
-      that wiring field units onto it is something an attendee does, so `WORKSHOP.md` gains a
-      fourth exercise and `USER_STORIES.md` its paste-ready brief, in the same shape as the
-      existing three: a user story, acceptance criteria, "what already exists", a suggested
-      API, and an explicit out-of-scope list. What already exists is unusually strong here and
-      should be said: `gis-service` and RTUS are running and proven reachable (task 2.5), the
-      map is mounted with its live feed established, and `design.md` records the mapping the
-      exercise has to realise — `entity_id` = `unit_code`, `entity_type` `track`,
-      `properties.kind` `field-unit` under `geojson`. Flag the one thing an attendee cannot
-      guess and will otherwise lose an afternoon to: a client-credentials token carries **no**
-      `active_tenant` claim and `gis-service` resolves the tenant from it, so the projection
-      must ride an operator's bearer. How much of the rest to spell out is a teaching call —
-      see `design.md` Open Question 2.
+      undefined on this base and silently disable the live feed. Keep the marker snippet
+      render-pure (mutating state inside it triggers `state_unsafe_mutation`). Do not fetch
+      an entity list; the SDK's subscription is the only source of **entity** state
+      (design.md D9) — the roster load above is unit data, which is a different thing.
+- [ ] 4.14 Add the map's surrounding states from the mockup: the roster/not-shown counts
+      (computed from the unit data loaded in 4.13, not from entities), the live / not-live
+      badge, the "Live positions are unavailable." notice, the no-positioned-units empty
+      state, and the selection card with **Open in console**. Wire map→console selection as a
+      SvelteKit navigation, not a browser fetch; wire console→map by carrying the selected
+      unit into the map route and flying the camera to it on mount, leaving the camera put
+      when that unit has no position.
 - [ ] 4.15 Update the docs that now assert the opposite of reality:
       `apps/dispatch-web/AGENTS.md` (the "🛑 This app has NO authentication" table goes; the
       map, Cesium assets and role gating join the load-bearing list),
@@ -323,15 +350,17 @@
       accounts), `WORKSHOP.md` (its one `curl` example gains a `scope=openid` token fetch),
       and `UBIQUITOUS_LANGUAGE.md`. Do **not** try to edit `compose/compose.yml`'s header
       comment — task 1.1 regenerates that file and the comment is already gone. In
-      `UBIQUITOUS_LANGUAGE.md` the *field unit* ↔ `geo-entity` mapping **stays conditional** —
-      units still carry no position — but correct its guess (`field-unit` would be the `kind`,
-      `track` the `entity_type`) and note that realising the mapping is now a workshop
-      exercise. Add no *position* or *fix time* terms: this change introduces neither.
+      `UBIQUITOUS_LANGUAGE.md` there are **two** mappings to fix, not one: *position* and
+      *fix time* join the term table, the *field unit* ↔ `geo-entity` mapping stops being
+      conditional and is corrected (`field-unit` is the `kind`, `track` is the
+      `entity_type`), and the existing claim that our *status* is "closest to a GIS `kind`"
+      becomes false — `geojson.properties.kind` is now the fixed literal `field-unit`, so
+      status maps to a GeoJSON property, not to `kind`.
       Also sweep the inline comments that still assert no-auth in
       `apps/dispatch-web/{.env.template,.env.development,vite.config.ts,src/hooks.server.ts,src/app.d.ts}`
       `apps/dispatch-svc/internal/repo/unit_repo.go`, `apps/dispatch-web/Dockerfile` (its
       comment explains which scaffold env vars were removed *because* there is no auth) and
-      the console page's own header comment, which moves with the file in 4.5. Task 4.19's
+      the console page's own header comment, which moves with the file in 4.5. Task 4.18's
       grep is the check that this sweep was complete — run it while editing, not after.
       Four more places assert a seeding story this change ends, and one of them instructs
       future agents to preserve the mechanism being removed — fix all four: `README.md`
@@ -341,7 +370,7 @@
       ("**Migrations are embedded and run on start** … The seed is idempotent
       (`ON CONFLICT … DO UPDATE`); keep it that way"). The replacement is: migrations still
       apply on start; the roster is seeded by the service itself, once per tenant, on its
-      first dispatcher request (design.md D7). In `SETUP.md`, the checkpoint itself moves — it currently
+      first dispatcher request (design.md D12). In `SETUP.md`, the checkpoint itself moves — it currently
       says open `http://localhost:5173` and "if you see the dispatch console with a list of
       units, you are done"; after this change that is the wrong origin, sign-in comes first,
       and the roster is empty until the seed runs. In `WORKSHOP.md`, beyond the `curl`: its
@@ -357,7 +386,8 @@
       instruction, the `/` → `/units` redirect, and "**One container is required** … There is
       still no Keycloak, no Traefik, no IAMS and no SDS"), `apps/dispatch-svc/README.md` (the
       "only container in the workshop stack" line, the env table — which is no longer "all
-      optional" and omits every variable task 3.8 adds — and the writable-field list, which this change leaves alone), and `USER_STORIES.md` + `WORKSHOP.md`'s "who did it (there is
+      optional" and omits every variable task 3.11 adds — and the writable-field list task 3.8
+      widens with `position`), and `USER_STORIES.md` + `WORKSHOP.md`'s "who did it (there is
       no login)", which is now false. The slides deck (`slides/slides.md`) also shows
       `pnpm start` and `http://localhost:5173`; update it or note explicitly that it is out of
       scope, rather than leaving it to be discovered on stage.
@@ -453,21 +483,26 @@
          writes nothing — no unit rows, no `tenant_seed` row. Open the console as the viewer
          and confirm it shows the "No units yet" state rather than a bare empty list.
       2. **Then the dispatcher.** Their first `GET /v1/units` returns the five baseline units
-         — at least one with crew and one with an assignment — with no seed step having been
-         run.
+         — at least one with crew, one with an assignment, one without a position — with no
+         seed step having been run.
       3. Repeat the dispatcher call; the counts are unchanged.
       4. Delete `FU-205` (chosen because nothing below depends on it), call again, confirm it
          stays deleted, then re-create it through the API so the rest of the section runs
          against the full roster.
       5. Reload the console as the viewer; the roster now renders normally.
-      This is the whole seeding surface (design.md D7) and a prerequisite of everything below.
+      This is the whole seeding surface (design.md D12) and a prerequisite of everything below.
 - [ ] 5.2 Write `scripts/e2e-smoke.mjs` — Node, matching the repo's existing `scripts/*.mjs`
       convention and its Node 24 prerequisite. It SHALL, with no manual step: fetch a
       dispatcher token and a viewer token by password grant against the bundled `web` client
       **with `scope=openid`**; assert `GET /v1/units` is 401 with no token and 200 with the
-      dispatcher token, and that the seeded roster comes back with its crew and assignments;
-      assert `POST /v1/units` is 403 with the viewer token and 201 with the dispatcher token;
-      replace and delete that unit; assert that a replayed
+      dispatcher token, and that the seeded roster comes back with positions; assert
+      `POST /v1/units` is 403 with the viewer token and 201 with the dispatcher token; poll
+      `gis-service` `GET /geoentity/entity_id/{unit_code}` until the new unit's entity appears
+      and assert its `entity_type` is `track` and its `geojson.properties.kind` is `field-unit`;
+      assert every **seeded** positioned unit likewise has a geo-entity, which is what proves
+      the lazy seed's projections were delivered and not just enqueued; move
+      the unit with a `PUT` and assert the entity's coordinates follow; **clear** the position
+      with a `PUT` and assert the entity is removed; delete the unit; assert that a replayed
       session-id cookie captured before sign-out is refused, and that a malformed token and an
       expired token each answer 401 (not only a missing one); and exit non-zero with a named
       assertion on any failure.
@@ -499,18 +534,23 @@
       in as the dispatcher and land on `/aoh/dispatch/units`; open `/aoh/dispatch/map` and
       confirm the roster renders with **no 404 under `/cesium/`** in the network log; move a
       unit with `PUT` in another terminal and watch the marker move without a reload; click a
-      confirm in the network log that the SSE connection to `rtus-seh` is **established and
-      not 401** — that is the assertion this whole map task exists to make, and the one the
-      workshop exercise will build on; confirm the page says nothing is published to the map
-      yet rather than looking broken; leave the tab idle past the access-token lifetime and
-      confirm the next action succeeds without a return to sign-in; stop `rtus-seh`
+      marker and confirm it opens in the console; select an un-positioned unit and confirm the
+      camera stays put; leave the tab idle past the access-token lifetime and confirm the next
+      action succeeds without a return to sign-in; create a positioned unit and delete it in
+      another terminal and confirm the marker appears and disappears without a reload; give
+      `FU-204` a position and confirm the not-shown count disappears, then clear every
+      position and confirm the empty state; stop `rtus-seh`
       (`podman compose -f compose/compose.yml stop rtus-seh`, or `docker compose -f compose/compose.yml stop rtus-seh`)
-      and confirm the map still renders its base layer with the "live updates are unavailable"
-      notice, then restart it; sign out, sign in as the viewer, and confirm the add / edit /
-      delete controls are absent and the map still renders.
+      and confirm the map still renders its base layer with the "live positions are
+      unavailable" notice; stop `gis-service` the same way, write a unit, and confirm the
+      write succeeds and its outbox row is left pending with an attempt count; restart
+      `gis-service` **within the token's lifetime** and confirm the row is delivered with no
+      operator action, which is the brief-outage scenario; restart `rtus-seh`;
+      sign out, sign in as the viewer, and confirm the add / edit / delete controls are absent
+      and the map still renders.
 - [ ] 5.5 Native dev E2E: `node scripts/e2e-smoke.mjs` exits 0.
 - [ ] 5.6 **Reproducibility gate** — tear and rebuild infra, kill and restart the native dev
-      processes for both apps using the env blocks from 3.11 and 4.18, and re-run the SAME
+      processes for both apps using the env blocks from 3.14 and 4.18, and re-run the SAME
       E2E command from 5.5:
       ```bash
       # Kill natives first: a stale process holds 8081/5173 and hides the rebuild.
@@ -524,7 +564,7 @@
       podman compose -f compose/compose.yml up -d     # or: docker compose -f compose/compose.yml up -d
       # wait for healthy, and for iams-init + project-aas-init to exit 0:
       podman compose -f compose/compose.yml ps        # or: docker compose -f compose/compose.yml ps
-      cd apps/dispatch-svc && go run ./cmd/server &   # native, env block from 3.11
+      cd apps/dispatch-svc && go run ./cmd/server &   # native, env block from 3.14
       cd apps/dispatch-web && pnpm dev &              # native, env block from 4.18
       until curl -fsS http://localhost:8081/readyz >/dev/null; do sleep 1; done
       node scripts/e2e-smoke.mjs                      # SAME command as 5.5

@@ -4,16 +4,13 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
 `tasks.md` for `dispatch-iams-and-unit-map`. Every item below is **PASS**, **FAIL**, or
 **N/A** with a one-line reason.
 
-> **Re-derived after the scope reduction.** The change was narrowed to a *light* GIS
-> integration: the map module is mounted and connected, and putting dispatch data on it
-> became a workshop exercise. That removed two capabilities (`field-unit-geo-projection`,
-> `field-unit-roster`), the unit `position`, the outbox and its worker, and six design
-> decisions. Every count below is re-derived against the reduced artifacts.
->
-> Earlier passes of this lint were wrong more than once — it certified a claim
-> `proposal.md` contradicted, quoted `grep` results that were not the results, and passed
-> scenarios whose WHEN nothing could reach. Where a check previously hid a defect it still
-> says so.
+> **Second pass.** The first run of this lint marked every item PASS and was wrong to.
+> Four parallel agent reviews found, among other things, that it certified a claim
+> contradicted by `proposal.md` (§3), quoted a `grep` result that was not the result (§3),
+> waved through an endpoint no scenario exercised (§5), and passed scenarios whose WHEN
+> clause nothing in the change could reach (§6). Those artifacts have been fixed; the
+> verdicts below are re-derived from the corrected files, and the checks that previously
+> hid a defect say so.
 
 ## 1. Authorization model
 
@@ -27,10 +24,8 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
       `proposal.md`). The change now registers **no OIDC client at all**: an earlier draft
       added a confidential client for the projection worker, which `aoh-knowledge` →
       `integration-patterns.md` shows cannot work, because a client-credentials token carries
-      no `active_tenant` claim and `gis-service` resolves the tenant from it. The scope
-      reduction removed the projection entirely, so no client is needed at all — and that
-      finding is now recorded in `design.md`'s Open Question 2 as the trap the workshop
-      exercise has to warn attendees about.
+      no `active_tenant` claim and `gis-service` resolves the tenant from it. `design.md` D2a
+      records the reversal and the posture that replaces it.
 - [x] **PASS** — No scenario asserts the JWT carries `active_tenant.permissions`. The only
       spec mention is the negative assertion in `specs/dispatch-access-control/spec.md`
       ("it references no `active_tenant.permissions` claim"). Permission-level gating is an
@@ -61,11 +56,13 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
       `EventSource`: `specs/dispatch-map/spec.md` states the SDK's subscription "is the only
       live-update path", and `tasks.md` 4.13 composes SDK components rather than a
       subscription of its own.
-- [x] **PASS** — vacuously, and for a reason worth stating: the map page loads **no** list
-      at all. It reads nothing from `dispatch-svc` (`tasks.md` 4.12) and renders no entity
-      provider, so there is no keyed list for a fetch and an SSE prepend to race over and no
-      `each_key_duplicate` site to dedup. The subscription is established and empty, which
-      `specs/dispatch-map/spec.md` asserts directly.
+- [x] **PASS** — narrower than it first appears, so stated precisely: the map page **does**
+      load a unit list (`tasks.md` 4.13's `+page.server.ts`, for the counts in 4.14), but
+      that list is never merged with the live topic. Markers come only from the SDK's
+      subscription; counts come only from the roster load. There is therefore no keyed list
+      fed by both a fetch and an SSE prepend, and no `each_key_duplicate` site to dedup.
+      `design.md` D9 decides this explicitly and `specs/dispatch-map/spec.md` asserts it
+      observably ("the page issues no separate entity list request").
 
 ## 3. API contract
 
@@ -93,7 +90,7 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
       scenarios assert **statuses and field presence**, not body envelopes. `grep -rn
       'errorCode\|sent_at\|details' specs/` returns nothing, and the single envelope token
       anywhere in `specs/` is one `data` (`specs/dispatch-units-api/spec.md`, "the response's
-      `data` carries that assignment"). So no scenario asserts a forbidden shape because none
+      `data` carries that position"). So no scenario asserts a forbidden shape because none
       asserts a shape at all; the envelope requirements it inherits from
       `dispatch-units-service` ("Responses use the AOH success envelope") are unchanged and
       not restated here. `design.md`'s API surface states the contract for both success and
@@ -107,21 +104,18 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
 ## 4. UI surfaces
 
 - [x] **PASS** — Two mockups exist with state switchers covering every state their specs
-      name. `design/dispatch-map-mock.html` — 3 states: connected with nothing published ·
-      live feed unavailable · viewer. It draws no field units, because the change puts none
-      there; its states are about the integration itself, which is what a reviewer needs to
-      judge. `design/dispatch-console-auth-mock.html` —
-      8 states: dispatcher · viewer · permission denied · service unreachable · empty roster
-      seen by a viewer · empty roster seen by a dispatcher · **unassigned unit (Bravo-1)** ·
-      **no capabilities (Charlie-1)**. The two empty-roster states exist because the copy must
-      hold whether the tenant was never seeded or a dispatcher deleted every unit, and only
-      the role-gated action differs. The last two are separate because no seeded unit is both
-      unassigned and capability-less — Bravo-1 is unassigned but carries capabilities,
-      Charlie-1 has an assignment and an empty list — so one combined state would have
-      depicted a unit that does not exist. Both carry a light/dark toggle. States were added
-      whenever the specs named one the mocks lacked — the service-unreachable and empty-roster
-      states came that way, the latter with D7's lazy seed, which is what makes an empty
-      roster reachable at all.
+      name. `design/dispatch-map-mock.html` — 8 states: live feed · positioned unit selected ·
+      un-positioned unit selected · live feed unavailable · no positioned units · **no units
+      at all** · fully positioned roster · viewer read-only. `design/dispatch-console-auth-mock.html` —
+      9 states: dispatcher · viewer · permission denied · service unreachable · **empty roster
+      seen by a viewer** · **empty roster seen by a dispatcher** · unit with position · unit
+      without position · **unit unassigned with no capabilities**. The two empty-roster states
+      exist because the copy must hold whether the tenant was never seeded or a dispatcher
+      deleted every unit, and only the role-gated action differs; the unassigned state covers
+      the two scenarios the MODIFIED "Detail pane is sectioned" requirement inherits. Both carry a light/dark toggle. The un-positioned
+      selection, fully-positioned-roster and service-unreachable states were added when the
+      specs named states the mocks lacked; the unseeded state arrived with D12's lazy seed,
+      which is what makes an empty roster reachable at all.
 - [x] **PASS** — `design.md`'s UI / Design System section enumerates the `@mssfoobar/ui`
       primitives the surfaces compose from and the `@mssfoobar/gis-web-sdk` components the
       map composes from. `specs/dispatch-map/spec.md` additionally names the mockup path.
@@ -142,13 +136,10 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
 
 ## 5. Cross-artifact consistency
 
-- [x] **PASS** — All four capabilities in `proposal.md` have a matching spec file, names
-      identical: `dispatch-access-control` and `dispatch-map` (new), `dispatch-console` and
-      `dispatch-units-api` (modified). `field-unit-geo-projection` and `field-unit-roster`
-      were removed with the scope reduction — neither a stray spec dir nor a stray capability
-      bullet remains, and `proposal.md` says explicitly why the field unit's shape is
-      unchanged.
-- [x] **PASS** — 27 requirement blocks (26 ADDED/MODIFIED plus one REMOVED) and 83
+- [x] **PASS** — All six capabilities in `proposal.md` have a matching spec file, names
+      identical: `dispatch-access-control`, `field-unit-geo-projection`, `dispatch-map`,
+      `dispatch-console`, `dispatch-units-api`, `field-unit-roster`.
+- [x] **PASS** — 38 requirement blocks (37 ADDED/MODIFIED plus one REMOVED) and 132
       scenarios; `grep -rn '^### Scenario' specs/` returns nothing, so every scenario header
       is exactly four hashes. The one scenario-less block is the REMOVED "The application has
       no authentication", which carries **Reason** and **Migration** instead — the shape
@@ -162,17 +153,17 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
       posture changing — now listed, and covered by "The unimplemented stub routes are also
       protected". The rest: `GET /v1/units` → access-control 401/200 + units-api tenant
       scoping; `GET /v1/units/{unit_code}` → units-api 404; `POST`/`PUT`/`DELETE` →
-      access-control viewer/dispatcher + units-api tenant scoping;
+      access-control viewer/dispatcher + units-api position + geo-projection delete;
       `/livez`+`/readyz` → access-control health probes; the page routes → dispatch-console
       and dispatch-map. Seeding adds **no** endpoint: it is a side effect of the existing
-      authenticated routes (design.md D7, and the `GET /v1/units` row now records it),
+      authenticated routes (design.md D12, and the `GET /v1/units` row now records it),
       specified by units-api's "A tenant is seeded once, on its first dispatcher request" and
       exercised by `tasks.md` 5.1 — whose step order is load-bearing, since the stack has one
       tenant and the viewer check is only reachable before any dispatcher call. Of the consumed `gis-service` endpoints, `PUT /geoentity` and
-      `DELETE`/`GET /geoentity/entity_id/{id}` are called by nothing here and exercised by no
-      scenario, which is correct: `design.md` marks that table "consumed, not exposed" and
-      says this change calls none of them. `GET /geoentity` is reached once, by `tasks.md`
-      2.5, purely to prove the backend the exercise will integrate against is up. Two further gaps closed
+      `DELETE`/`GET /geoentity/entity_id/{id}` are exercised by geo-projection scenarios; the
+      bare `GET /geoentity` collection is exercised by `tasks.md` 2.5 and by no scenario,
+      which is acceptable because `design.md` marks that table "consumed, not exposed —
+      **not** part of this change's API surface". Two further gaps closed
       in this pass: `DELETE /v1/units/{unit_code}/assignment` was in the surface and in no
       scenario (the stub-route scenario now names all four method/path pairs), and the
       surface listed four auth routes where `tasks.md` restores the scaffold's six — it now
@@ -188,7 +179,7 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
 - [x] **PASS** — Every THEN asserts something observable: an HTTP status, a JWT claim, a DB
       row or constraint, a `gis-service` response body, a browser cookie, a network-log
       absence, or a DOM state. The inspection-style scenarios ("the map page source is
-      reviewed", "the app's auth route directory is listed") assert statically checkable facts about
+      reviewed", "the outbox row is inspected") assert statically checkable facts about
       checked-in files and each names the artifact to inspect.
 
       The cross-tenant scenarios are reachable on a single-identity stack because
@@ -279,7 +270,7 @@ Mechanical pre-apply lint over `proposal.md`, `design.md`, `specs/**/*.md` and
       `lsof -ti … | xargs -r`, neither of which is available in the documented environment.
 - [x] **PASS** — It re-runs `node scripts/e2e-smoke.mjs`, byte-identical to task 5.5's
       command, annotated "SAME command as 5.5". The gate needs **no** seed step: the roster
-      reconverges because the script's first dispatcher call triggers the seed (D7).
+      reconverges because the script's first dispatcher call triggers the seed (D12).
 
 ## Resolution
 

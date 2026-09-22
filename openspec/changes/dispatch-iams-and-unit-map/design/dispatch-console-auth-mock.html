@@ -12,7 +12,7 @@
 
      Scope of this mock: only what this change adds to the console —
      the signed-in identity, role-gated write controls, the
-     permission-denied, unreachable and empty-roster states.
+     permission-denied state, and the detail pane's position section.
      The two-pane layout itself is unchanged and already drawn in
      openspec/changes/baseline-dispatch-console/design/units-console-mock.html.
      ------------------------------------------------------------------ */
@@ -184,8 +184,9 @@
     <button type="button" data-state="unreachable" aria-pressed="false">Service unreachable</button>
     <button type="button" data-state="unseeded"    aria-pressed="false">Empty roster (viewer)</button>
     <button type="button" data-state="emptydisp"   aria-pressed="false">Empty roster (dispatcher)</button>
-    <button type="button" data-state="unassigned"  aria-pressed="false">Unassigned unit (Bravo-1)</button>
-    <button type="button" data-state="nocaps"      aria-pressed="false">No capabilities (Charlie-1)</button>
+    <button type="button" data-state="positioned"  aria-pressed="false">Unit with position</button>
+    <button type="button" data-state="nopos"       aria-pressed="false">Unit without position</button>
+    <button type="button" data-state="unassigned"  aria-pressed="false">Unit unassigned, no capabilities</button>
     <span class="spacer"></span>
     <button type="button" id="theme">Light / dark</button>
   </div>
@@ -259,6 +260,18 @@
           <div class="kv"><span class="k">Last contact</span><span class="v">4 min ago</span></div>
         </div>
 
+        <!-- NEW in this change -->
+        <div class="section">
+          <h3>Position</h3>
+          <div id="haspos">
+            <div class="kv"><span class="k">Coordinates</span><span class="v mono">1.2847, 103.8511</span></div>
+            <div class="kv"><span class="k">Fix</span><span class="v">2 min ago</span></div>
+            <div style="height:8px"></div>
+            <button class="btn" type="button">Show on map</button>
+          </div>
+          <p class="none hidden" id="nopos">No position reported.</p>
+        </div>
+
         <div class="section">
           <h3>Assignment</h3>
           <div id="hasassign">
@@ -317,11 +330,9 @@
     const unseeded    = state === 'unseeded' || state === 'emptydisp';
     const denied      = state === 'denied';
     const unreachable = state === 'unreachable';
-    // Drawn from the real seed: FU-204 Bravo-1 is Idle and unassigned but does carry
-    // capabilities; FU-311 Charlie-1 is En route with an assignment and an empty
-    // capability list. No seeded unit is both, so neither state invents one.
-    const unassigned = state === 'unassigned';
-    const noCaps     = state === 'nocaps';
+    const noPosition  = state === 'nopos';
+    // FU-311 Charlie-1 is the seeded unit with an empty capability list; FU-205 is unassigned.
+    const unassigned  = state === 'unassigned';
 
     // Role gating: a viewer never renders a write control (the service refuses
     // it independently — see specs/dispatch-access-control).
@@ -339,19 +350,15 @@
 
     $('#hasassign').classList.toggle('hidden', unassigned);
     $('#noassign').classList.toggle('hidden', !unassigned);
-    $('#hascaps').classList.toggle('hidden', noCaps);
-    $('#nocaps').classList.toggle('hidden', !noCaps);
-
-    const unit = unassigned
-      ? { cs: 'Bravo-1', code: 'FU-204', status: 'Idle',     cls: '',     station: 'Tanjong Pagar Station 2' }
-      : noCaps
-      ? { cs: 'Charlie-1', code: 'FU-311', status: 'En route', cls: 'info', station: 'Central Division' }
-      : { cs: 'Alpha-2',  code: 'FU-102', status: 'En route', cls: 'info', station: 'Marina Bay Station 4' };
-    $('#dcallsign').textContent = unit.cs;
-    $('#dcode').textContent     = unit.code;
-    $('#dstatus').textContent   = unit.status;
-    $('#dstatus').className     = 'badge ' + unit.cls;
-    $('#dstation').textContent  = unit.station;
+    $('#hascaps').classList.toggle('hidden', unassigned);
+    $('#nocaps').classList.toggle('hidden', !unassigned);
+    $('#haspos').classList.toggle('hidden', noPosition);
+    $('#nopos').classList.toggle('hidden', !noPosition);
+    $('#dcallsign').textContent = noPosition ? 'Bravo-1' : 'Alpha-2';
+    $('#dcode').textContent     = noPosition ? 'FU-204' : 'FU-102';
+    $('#dstatus').textContent   = noPosition ? 'Idle' : 'En route';
+    $('#dstatus').className     = 'badge ' + (noPosition ? '' : 'info');
+    $('#dstation').textContent  = noPosition ? 'Tanjong Pagar Station 2' : 'Marina Bay Station 4';
 
     $('#whoami').innerHTML  = viewer ? 'Signed in as <strong>viewer</strong>' : 'Signed in as <strong>admin</strong>';
     $('#rolebadge').textContent = viewer ? 'Viewer' : 'Dispatcher';
@@ -367,7 +374,7 @@
   $$('.unit').forEach((u) => {
     u.addEventListener('click', () => {
       $$('.unit').forEach((o) => o.setAttribute('aria-current', String(o === u)));
-      $('.mockbar button[data-state="' + (u.dataset.unit === 'FU-204' ? 'unassigned' : 'dispatcher') + '"]').click();
+      $('.mockbar button[data-state="' + (u.dataset.unit === 'FU-204' ? 'nopos' : 'positioned') + '"]').click();
     });
   });
 

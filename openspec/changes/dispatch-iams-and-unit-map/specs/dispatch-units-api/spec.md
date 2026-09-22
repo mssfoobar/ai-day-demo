@@ -49,15 +49,45 @@ written by the service on a caller-initiated write.
 - **WHEN** a write body includes `created_by`, `updated_by` or `tenant_id`
 - **THEN** those values are ignored and the token's values are stored
 
+### Requirement: The unit resource carries `position`
+
+A unit returned by the API SHALL include a `position` object — `lon`, `lat` and `at` —
+when it has one, and SHALL omit the key entirely when it does not. `position` SHALL be
+settable on create and replace by a caller with the dispatcher role.
+
+#### Scenario: Position on read
+- **WHEN** a client lists or fetches a unit that has a position
+- **THEN** that unit carries a `position` with numeric `lon` and `lat` and an ISO 8601 `at`
+
+#### Scenario: Position omitted on read
+- **WHEN** a client fetches a unit with no position
+- **THEN** the `position` key is absent
+
+#### Scenario: Setting a position
+- **WHEN** a dispatcher creates or replaces a unit with a valid `position`
+- **THEN** the response's `data` carries that position
+- **AND** a subsequent read returns it
+
+#### Scenario: Clearing a position
+- **WHEN** a dispatcher replaces a unit with no `position` in the body
+- **THEN** the stored unit has no position and subsequent reads omit the key
+
+#### Scenario: Position changes bump the version
+- **WHEN** a position is set or cleared through a replace
+- **THEN** the unit's `occ_lock` increments by one, exactly as any other replace
+
 ## MODIFIED Requirements
 
 ### Requirement: Persisted unit model
 
 A field unit SHALL be persisted in a `dispatch` schema carrying the AOH mandatory
 columns (`id`, `created_at`, `updated_at`, `created_by`, `updated_by`, `tenant_id`,
-`occ_lock`), plus a human-readable `unit_code` unique per tenant. Crew members SHALL be
-stored as rows related to their unit, not as an opaque blob. The schema SHALL additionally
-carry a marker table recording which tenants have been seeded.
+`occ_lock`), plus a human-readable `unit_code` unique per tenant, plus an optional
+position held as `position_lon`, `position_lat` and `position_at` constrained all-or-
+nothing and to valid coordinate ranges. Crew members SHALL be stored as rows related to
+their unit, not as an opaque blob. The schema SHALL additionally carry an outbox table
+holding pending GIS projections, written in the same transaction as the unit change it
+describes.
 
 #### Scenario: Human-readable code is unique per tenant
 - **WHEN** two units in the same tenant are given the same `unit_code`
@@ -67,9 +97,14 @@ carry a marker table recording which tenants have been seeded.
 - **WHEN** the `unit` table is inspected
 - **THEN** it has `id`, `created_at`, `updated_at`, `created_by`, `updated_by`, `tenant_id` and `occ_lock`, all NOT NULL
 
-#### Scenario: The seed marker table exists alongside the unit table
+#### Scenario: Position columns are all-or-nothing
+- **WHEN** the `unit` table is inspected
+- **THEN** a constraint requires `position_lon`, `position_lat` and `position_at` to be all null or all non-null
+- **AND** a constraint restricts `position_lon` to `[-180, 180]` and `position_lat` to `[-90, 90]`
+
+#### Scenario: The outbox table exists alongside the unit table
 - **WHEN** the schema is inspected
-- **THEN** a marker table is present, carrying the AOH mandatory columns and a UNIQUE constraint on `tenant_id`
+- **THEN** an outbox table is present carrying, per row, the target `unit_code`, the projection intent, the payload, and its delivery state
 
 ### Requirement: A tenant is seeded once, on its first dispatcher request
 
@@ -79,9 +114,9 @@ SHALL record in the same transaction that it has done so. It SHALL NOT seed agai
 tenant, and SHALL NOT decide whether to seed by checking whether the tenant currently has
 units — deleting units is a legitimate operator action and must not resurrect the roster.
 Seeding SHALL NOT be triggered by a caller who lacks the dispatcher role, because it is a
-write. Seeded rows SHALL carry the triggering caller's `sub` and tenant, and SHALL include
-crew and assignments. A migration SHALL remove the pre-auth seeded rows that predate this
-change.
+write. Seeded rows SHALL carry the triggering caller's `sub` and tenant, SHALL include
+positions, crew and assignments, and SHALL enqueue the same projections any other write
+enqueues. A migration SHALL remove the pre-auth seeded rows that predate this change.
 
 #### Scenario: The first dispatcher request seeds the tenant
 - **WHEN** a dispatcher makes their first authenticated request against a tenant that has never been seeded
@@ -105,7 +140,7 @@ change.
 #### Scenario: Two simultaneous dispatchers seed once between them
 - **WHEN** two dispatcher requests against an unseeded tenant are served concurrently
 - **THEN** the tenant is seeded exactly once, with no duplicate units or crew members
-- **AND** no seeded unit's `occ_lock` is bumped by a second write
+- **AND** exactly one set of projections is enqueued, and no seeded unit's `occ_lock` is bumped by a second write
 
 #### Scenario: A seed that cannot commit fails loudly
 - **WHEN** the seed transaction cannot commit
@@ -121,7 +156,14 @@ change.
 - **THEN** at least one carries crew members with their roles
 - **AND** at least one carries an assignment, so the console's assigned-unit state and workshop Exercise 1 have a starting point
 
+#### Scenario: Seeded units carry positions
+- **WHEN** the seeded units are listed
+- **THEN** at least one carries a `position`, one carries none, and every seeded position is within valid coordinate ranges
+
 #### Scenario: The pre-auth rows are gone
 - **WHEN** the database is inspected after migration
 - **THEN** no unit row remains under the pre-auth placeholder tenant
 
+#### Scenario: Seeded units reach the map
+- **WHEN** a dispatcher triggers seeding on a fresh stack and the outbox drains
+- **THEN** each seeded, positioned unit has a corresponding geo-entity in `gis-service`
