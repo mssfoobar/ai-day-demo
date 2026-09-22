@@ -6,6 +6,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,6 +26,8 @@ type UnitStore interface {
 	Create(ctx context.Context, caller repo.Caller, in domain.UnitInput) (domain.Unit, []projection.Row, error)
 	Update(ctx context.Context, caller repo.Caller, unitCode string, occLock int, in domain.UnitInput) (domain.Unit, []projection.Row, error)
 	Delete(ctx context.Context, caller repo.Caller, unitCode string, occLock int) ([]projection.Row, error)
+	Assign(ctx context.Context, caller repo.Caller, unitCode string, occLock int, in domain.AssignmentInput, status string) (domain.Unit, []projection.Row, error)
+	ClearAssignment(ctx context.Context, caller repo.Caller, unitCode string, occLock int, status string) (domain.Unit, []projection.Row, error)
 
 	IsSeeded(ctx context.Context, tenantID string) (bool, error)
 	SeedTenant(ctx context.Context, caller repo.Caller, roster []domain.SeedUnit) (bool, []projection.Row, error)
@@ -262,6 +265,111 @@ func normalise(in domain.UnitInput) domain.UnitInput {
 // validate returns one validation error naming every failing field, so a form can show
 // them all at once rather than one per round trip. The database CHECK constraints remain
 // the backstop (design.md D6).
+// Assign commits a unit to an incident and puts it En route.
+//
+// The status rule lives here, not in the handler or the database: dispatching means the
+// unit is on its way, whatever status it held before.
+func (s *UnitService) Assign(ctx context.Context, unitCode string, occLock int, in domain.AssignmentInput) (domain.Unit, error) {
+	caller, err := s.begin(ctx, PermissionWrite)
+	if err != nil {
+		return domain.Unit{}, err
+	}
+	if strings.TrimSpace(unitCode) == "" {
+		return domain.Unit{}, aoherr.New(aoherr.ClassValidation, CodeUnitCodeRequired,
+			"unit code must not be empty")
+	}
+	in = normaliseAssignment(in)
+	if err := validateAssignment(in); err != nil {
+		return domain.Unit{}, err
+	}
+	unit, rows, err := s.units.Assign(ctx, caller, unitCode, occLock, in, domain.StatusEnRoute)
+	if err != nil {
+		return domain.Unit{}, classifyWrite(err)
+	}
+	s.deliver(ctx, rows)
+	return unit, nil
+}
+
+// StandDown clears a unit's assignment and returns it to Available.
+//
+// Standing down a unit that is not assigned is refused rather than treated as a no-op:
+// it means the caller's view of the fleet disagrees with the service's.
+func (s *UnitService) StandDown(ctx context.Context, unitCode string, occLock int) (domain.Unit, error) {
+	caller, err := s.begin(ctx, PermissionWrite)
+	if err != nil {
+		return domain.Unit{}, err
+	}
+	if strings.TrimSpace(unitCode) == "" {
+		return domain.Unit{}, aoherr.New(aoherr.ClassValidation, CodeUnitCodeRequired,
+			"unit code must not be empty")
+	}
+	current, err := s.units.Get(ctx, caller, unitCode)
+	if err != nil {
+		return domain.Unit{}, classifyWrite(err)
+	}
+	if current.Assignment == nil {
+		return domain.Unit{}, aoherr.New(aoherr.ClassConflict, CodeUnitNotAssigned,
+			"unit "+unitCode+" is not assigned to an incident")
+	}
+	unit, rows, err := s.units.ClearAssignment(ctx, caller, unitCode, occLock, domain.StatusAvailable)
+	if err != nil {
+		return domain.Unit{}, classifyWrite(err)
+	}
+	s.deliver(ctx, rows)
+	return unit, nil
+}
+
+func normaliseAssignment(in domain.AssignmentInput) domain.AssignmentInput {
+	in.IncidentCode = strings.TrimSpace(in.IncidentCode)
+	in.Title = strings.TrimSpace(in.Title)
+	in.Description = strings.TrimSpace(in.Description)
+	in.Priority = strings.TrimSpace(in.Priority)
+	in.Location = strings.TrimSpace(in.Location)
+	return in
+}
+
+func validateAssignment(in domain.AssignmentInput) error {
+	var details []aoherr.Detail
+	require := func(field, value string, max int) {
+		if value == "" {
+			details = append(details, aoherr.FieldDetail(field, "must not be empty"))
+		} else if len(value) > max {
+			details = append(details, aoherr.FieldDetail(field,
+				"must be "+strconv.Itoa(max)+" characters or fewer"))
+		}
+	}
+	require("incident_code", in.IncidentCode, 32)
+	require("title", in.Title, 120)
+	require("description", in.Description, 500)
+	require("location", in.Location, 120)
+
+	if in.Priority == "" {
+		details = append(details, aoherr.FieldDetail("priority", "must not be empty"))
+	} else if !domain.ValidPriority(in.Priority) {
+		details = append(details, aoherr.FieldDetail("priority",
+			"must be one of "+strings.Join(domain.Priorities, ", ")))
+	}
+
+	// The point is all-or-nothing by shape — omit the object to say there is none — so
+	// only the ranges need checking here. The database CHECKs are the backstop.
+	if in.Point != nil {
+		if in.Point.Lon < -180 || in.Point.Lon > 180 {
+			details = append(details, aoherr.FieldDetail("point.lon",
+				"must be between -180 and 180"))
+		}
+		if in.Point.Lat < -90 || in.Point.Lat > 90 {
+			details = append(details, aoherr.FieldDetail("point.lat",
+				"must be between -90 and 90"))
+		}
+	}
+
+	if len(details) == 0 {
+		return nil
+	}
+	return aoherr.New(aoherr.ClassValidation, CodeUnitInvalid, "assignment failed validation").
+		WithDetails(details...)
+}
+
 func validate(in domain.UnitInput, requireCode bool) error {
 	var details []aoherr.Detail
 	require := func(field, value string) {

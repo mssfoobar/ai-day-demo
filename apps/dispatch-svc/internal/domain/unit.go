@@ -28,18 +28,50 @@ func ValidStatus(s string) bool {
 	return false
 }
 
+// Priority values an incident may hold. The authoritative constraint is the CHECK on
+// dispatch.unit.assignment_priority.
+const (
+	PriorityP1 = "P1"
+	PriorityP2 = "P2"
+	PriorityP3 = "P3"
+)
+
+// Priorities is the closed vocabulary, most urgent first.
+var Priorities = []string{PriorityP1, PriorityP2, PriorityP3}
+
+// ValidPriority reports whether p is in the vocabulary.
+func ValidPriority(p string) bool {
+	for _, v := range Priorities {
+		if v == p {
+			return true
+		}
+	}
+	return false
+}
+
 // Crew is one person aboard a unit.
 type Crew struct {
 	Name string `json:"name"`
 	Role string `json:"role"`
 }
 
+// Point is a longitude/latitude pair on the map.
+type Point struct {
+	Lon float64 `json:"lon"`
+	Lat float64 `json:"lat"`
+}
+
 // Assignment is the incident a unit is currently committed to.
+//
+// Location is the address a dispatcher reads out; Point is that address resolved to a
+// coordinate, and is a pointer because a call can be taken before it resolves to one.
 type Assignment struct {
 	IncidentCode string    `json:"incident_code"`
 	Title        string    `json:"title"`
+	Description  string    `json:"description"`
 	Priority     string    `json:"priority"`
 	Location     string    `json:"location"`
+	Point        *Point    `json:"point,omitempty"`
 	Since        time.Time `json:"since"`
 }
 
@@ -114,6 +146,19 @@ type UnitInput struct {
 	IgnoredTenantID  string `json:"tenant_id,omitempty"`
 	IgnoredCreatedBy string `json:"created_by,omitempty"`
 	IgnoredUpdatedBy string `json:"updated_by,omitempty"`
+}
+
+// AssignmentInput is an incident as a client supplies it when dispatching a unit.
+//
+// Since is not accepted: the service stamps it, so a client cannot backdate a commitment.
+// Point is optional, matching the schema's own split.
+type AssignmentInput struct {
+	IncidentCode string `json:"incident_code"`
+	Title        string `json:"title"`
+	Description  string `json:"description"`
+	Priority     string `json:"priority"`
+	Location     string `json:"location"`
+	Point        *Point `json:"point,omitempty"`
 }
 
 // SeedUnit is one unit of the baseline roster, with the crew and assignment the write

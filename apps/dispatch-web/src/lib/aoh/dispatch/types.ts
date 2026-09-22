@@ -23,9 +23,19 @@ export interface Crew {
 export interface Assignment {
 	incidentCode: string;
 	title: string;
+	/** What the incident is about, as the call was taken. */
+	description: string;
 	priority: string;
 	location: string;
+	/** Absent when the address has not been resolved to a coordinate. */
+	point?: IncidentPoint;
 	since: string;
+}
+
+/** An incident's location as a coordinate. */
+export interface IncidentPoint {
+	lon: number;
+	lat: number;
 }
 
 /**

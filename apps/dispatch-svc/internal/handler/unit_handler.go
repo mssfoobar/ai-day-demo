@@ -25,6 +25,8 @@ type UnitService interface {
 	Create(ctx context.Context, in domain.UnitInput) (domain.Unit, error)
 	Update(ctx context.Context, unitCode string, occLock int, in domain.UnitInput) (domain.Unit, error)
 	Delete(ctx context.Context, unitCode string, occLock int) error
+	Assign(ctx context.Context, unitCode string, occLock int, in domain.AssignmentInput) (domain.Unit, error)
+	StandDown(ctx context.Context, unitCode string, occLock int) (domain.Unit, error)
 }
 
 type UnitHandler struct {
@@ -48,12 +50,11 @@ func (h *UnitHandler) Routes(r chi.Router) {
 	r.Put("/{unit_code}", h.update)
 	r.Delete("/{unit_code}", h.delete)
 
-	// Workshop exercises (WORKSHOP.md at the repo root). Each answers 501 until it is built;
-	// replace the notImplemented call with a real handler and keep the path.
-	r.Post("/{unit_code}/assignment", notImplemented("exercise 1 (dispatch a unit)"))
-	r.Delete("/{unit_code}/assignment", notImplemented("exercise 1 (stand a unit down)"))
-	r.Get("/{unit_code}/events", notImplemented("exercise 2 (unit activity)"))
-	r.Put("/{unit_code}/crew", notImplemented("exercise 3 (manage crew)"))
+	// Dispatch a unit to an incident, and stand it down. Every workshop exercise
+	// (WORKSHOP.md at the repo root) is now console-side, so this service ships complete
+	// and has no placeholder routes.
+	r.Post("/{unit_code}/assignment", h.assign)
+	r.Delete("/{unit_code}/assignment", h.standDown)
 }
 
 func (h *UnitHandler) list(w http.ResponseWriter, r *http.Request) {
@@ -129,6 +130,49 @@ func (h *UnitHandler) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// assignBody is an AssignmentInput plus the caller's occ_lock, for the same reason
+// replaceBody carries one.
+type assignBody struct {
+	domain.AssignmentInput
+	OccLock *int `json:"occ_lock"`
+}
+
+func (h *UnitHandler) assign(w http.ResponseWriter, r *http.Request) {
+	var body assignBody
+	if err := decode(r, &body); err != nil {
+		aoherr.Render(w, r, err)
+		return
+	}
+	if body.OccLock == nil {
+		aoherr.Render(w, r, aoherr.New(aoherr.ClassValidation, service.CodeUnitInvalid,
+			"occ_lock is required").WithDetails(aoherr.FieldDetail("occ_lock", "must be provided")))
+		return
+	}
+	unit, err := h.units.Assign(r.Context(), chi.URLParam(r, "unit_code"), *body.OccLock, body.AssignmentInput)
+	if err != nil {
+		aoherr.Render(w, r, err)
+		return
+	}
+	render.Render(w, r, aohhttp.Response(http.StatusOK, "", unit)) //nolint:errcheck
+}
+
+func (h *UnitHandler) standDown(w http.ResponseWriter, r *http.Request) {
+	raw := r.URL.Query().Get("occ_lock")
+	occLock, err := strconv.Atoi(raw)
+	if raw == "" || err != nil {
+		aoherr.Render(w, r, aoherr.New(aoherr.ClassValidation, service.CodeUnitInvalid,
+			"occ_lock query parameter is required").
+			WithDetails(aoherr.FieldDetail("occ_lock", "must be an integer query parameter")))
+		return
+	}
+	unit, err := h.units.StandDown(r.Context(), chi.URLParam(r, "unit_code"), occLock)
+	if err != nil {
+		aoherr.Render(w, r, err)
+		return
+	}
+	render.Render(w, r, aohhttp.Response(http.StatusOK, "", unit)) //nolint:errcheck
 }
 
 // decode reads a JSON body strictly: unknown fields and trailing data are rejected, so a

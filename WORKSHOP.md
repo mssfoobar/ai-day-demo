@@ -1,14 +1,17 @@
 # Workshop exercises
 
-Three features are **stubbed but not built**. Each is visible in the running console and in
-the service's API, so you can see exactly where it lands before you write a line. Pick one,
-build it end to end, remove its placeholder.
+Three features are **stubbed but not built**. Each is visible in the running console, so
+you can see exactly where it lands before you write a line. Pick one, build it, remove its
+placeholder.
+
+All three are **frontend only**: everything they need already exists in the service,
+which ships complete and has no placeholder routes.
 
 | # | Feature | Where the placeholder is |
 |---|---|---|
-| 1 | Dispatch a unit to an incident / stand it down | a dashed **Dispatch** button sketched in the unit header; `POST` / `DELETE /v1/units/{unit_code}/assignment` answer 501 |
-| 2 | Unit activity timeline | dashed **Activity** section in the detail pane; `GET /v1/units/{unit_code}/events` answers 501 |
-| 3 | Manage crew | **Manage** button beside the **Crew** heading; `PUT /v1/units/{unit_code}/crew` answers 501 |
+| 1 | Show the incidents on the units page | a dashed **Incidents** panel sketched below the roster. Frontend only: the assignment routes ship built |
+| 2 | See a unit's location on the units page | a dashed **Location** box sketched under Position in the detail pane. Frontend only |
+| 3 | Put the incidents on the map | a dashed **Incidents** card sketched over the map canvas. Frontend only |
 
 In the console, everything workshop-related floats over the UI rather than being part of it:
 the floating button at the bottom right opens a dialog listing what is still to build, each
@@ -16,12 +19,11 @@ with its story. **Show me where** selects a unit and draws a dashed sketch of th
 control, outlined, exactly where it goes — one exercise at a time; choosing another swaps it.
 Clicking the sketch opens the same dialog on that exercise. When you finish one, flip its
 `complete` flag in `apps/dispatch-web/src/lib/aoh/dispatch/workshop.ts` and it drops off the
-list. The 501s carry the AOH error contract with `errorCode: DISPATCH_NOT_IMPLEMENTED`:
+list.
 
-These routes are behind a bearer token now, so an unauthenticated `curl` answers **401**
-before it ever reaches the 501. Fetch a token first — `scope=openid` is not optional, the
-service validates through Keycloak's userinfo endpoint which rejects a token issued without
-it:
+Every route is behind a bearer token, so an unauthenticated `curl` answers **401** before
+it reaches anything. Fetch a token first — `scope=openid` is not optional, the service
+validates through Keycloak's userinfo endpoint which rejects a token issued without it:
 
 ```sh
 TOKEN=$(curl -fsS -X POST \
@@ -30,15 +32,14 @@ TOKEN=$(curl -fsS -X POST \
   -d username=admin -d password='P@ssw0rd' \
   | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).access_token))")
 
-curl -i -X POST http://localhost:8081/v1/units/FU-101/assignment \
-  -H "Authorization: Bearer $TOKEN"
+curl -i http://localhost:8081/v1/units -H "Authorization: Bearer $TOKEN"
 ```
 
 ## Ground rules
 
 - **No new libraries.** Everything you need is already here: `@mssfoobar/ui` primitives,
   SvelteKit form actions with `use:enhance`, chi + sqlx + `aoh-golib` on the Go side, and a
-  PostgreSQL schema that already anticipates two of the three features.
+  PostgreSQL schema that already carries every column exercise 3 needs.
 - **Copy the existing slice.** Create / edit / delete is the worked example: a form
   component (`UnitForm.svelte`), a form action in `+page.server.ts`, a client call in
   `units.server.ts`, then handler → service → repo in `apps/dispatch-svc`. Follow that shape.
@@ -46,9 +47,8 @@ curl -i -X POST http://localhost:8081/v1/units/FU-101/assignment \
   is a 409 `DISPATCH_UNIT_STALE`, never a silent overwrite.
 - **Errors follow the contract.** Validation failures list every bad field in `details`
   via `aoherr.FieldDetail`; new error codes are `DISPATCH_*` in `internal/service/errors.go`.
-- **Placeholders go when the feature arrives.** Delete the `notImplemented` route and the
-  `Workshop exercise N` sketch for the exercise you built, and mark it `complete` in
-  `workshop.ts`. When all three are done, delete `workshop.ts` and `ExerciseDialog.svelte`.
+- **Placeholders go when the feature arrives.** Delete the `Workshop exercise N` sketch
+  for the exercise you built, and mark it `complete` in `workshop.ts`. When all three are done, delete `workshop.ts` and `ExerciseDialog.svelte`.
 - `pnpm verify` must stay green.
 
 Each exercise is written as a user story with acceptance criteria. Anything not listed is
@@ -56,160 +56,165 @@ out of scope — resist adding it.
 
 ---
 
-## Exercise 1 — Dispatch a unit
+## Exercise 1 — Show the incidents on the units page
 
-> **As a** dispatcher, **I want to** dispatch an available unit to an incident and stand it
-> down when the job is done, **so that** the console shows who is working what and the
-> fleet's status is real rather than seeded.
+> **As a** dispatcher, **I want to** see every incident the fleet is working on one panel,
+> **so that** I can tell what is happening across the shift without clicking each unit in
+> turn, and can send a unit to an incident from there.
 
-### Acceptance criteria
-
-1. With an unassigned unit selected, **Dispatch** opens a side Sheet with four fields:
-   incident code, title, priority (`P1` / `P2` / `P3`), location. All are required.
-2. Submitting sets the unit's assignment and changes its status to **En route**. The
-   detail pane's Assignment section, the unit's row, the status tiles and the header count
-   all update without a page reload.
-3. With an assigned unit selected, the same button reads **Stand down**. Confirming clears
-   the assignment and returns the status to **Available**.
-4. A stale `occ_lock` is refused with a 409 and the console shows the conflict message in
-   the form, exactly as edit does today.
-5. Both changes survive a service restart.
-
-### What already exists
-
-- The `unit` table already has `assignment_incident_code`, `assignment_title`,
-  `assignment_priority`, `assignment_location`, `assignment_since` and a CHECK constraint
-  that they are set all-or-nothing. **No migration needed.**
-- `domain.Assignment` and the `assignment` field in the wire model are already read and
-  rendered. You only need to write them.
-- `UnitForm.svelte` is a Sheet form with field errors, `use:enhance`, a hidden `occLock`
-  and an `onoutcome` callback. Copy it to `DispatchForm.svelte` and cut it down.
-- `+page.server.ts` shows how a form action parses, calls the service, maps a 400's
-  `details` onto field errors and returns `fail()`.
-- `repo.Update` shows the `WHERE ... AND occ_lock = $n` write with `occ_lock = occ_lock + 1`,
-  and `staleOrMissing` for telling 404 from 409.
-
-### Suggested API
-
-| Method | Path | Body | Success |
-|---|---|---|---|
-| POST | `/v1/units/{unit_code}/assignment` | `{ "incident_code", "title", "priority", "location", "occ_lock" }` | 200, the updated unit |
-| DELETE | `/v1/units/{unit_code}/assignment?occ_lock=N` | — | 200, the updated unit |
-
-The service layer owns the status rule: dispatch ⇒ `En route`, stand down ⇒ `Available`.
-Keep the handler thin.
-
-### Out of scope
-
-Choosing from a list of incidents, a map, more than one unit per incident, notifying anyone.
-
----
-
-## Exercise 2 — Unit activity timeline
-
-> **As a** dispatcher, **I want to** see a unit's recent status and assignment changes with
-> timestamps, **so that** I can tell what happened to it during the shift without asking
-> over the radio.
+**Frontend only.** The service side ships **built**: `POST` and
+`DELETE /v1/units/{unit_code}/assignment` are real handlers with validation, the
+`occ_lock` guard and the status rule. Nothing in `apps/dispatch-svc` needs touching. The
+exercise is the console.
 
 ### Acceptance criteria
 
-1. The **Activity** section lists the unit's most recent events, newest first, at most 20.
-   Each line shows when it happened (use the existing `sinceLabel`) and what changed, for
-   example `Status Available → En route`, `Dispatched to INC-2841`, `Details edited`.
-2. Every write to a unit records an event: create, edit, delete, and — if Exercise 1 is
-   built — dispatch and stand down. The event is written in the **same transaction** as
-   the unit change, so the two can never disagree.
-3. A unit with no history shows `No activity yet.`
-4. Events accumulate from the writes an operator makes; there is no seeded history, so a
-   freshly seeded tenant starts with none and the empty state carries the section until
-   the first write.
-5. Events survive a service restart.
+1. The units page carries an **Incidents** panel listing every active incident across the
+   roster, derived from the units that carry an assignment. Each row shows the priority
+   badge, incident code, title, description, location and the unit working it.
+2. The panel is ordered by priority, `P1` first, and its heading carries the count.
+3. Clicking a row selects that incident's unit, so the detail pane follows the panel.
+4. With an available unit selected, **Dispatch** opens a form with five required fields
+   (incident code, title, description, priority, location) and an optional longitude and
+   latitude. Submitting `POST`s to the assignment route; the unit turns **En route** and
+   appears in the panel without a page reload.
+5. On an assigned unit the same control reads **Stand down** and `DELETE`s the assignment.
+   The unit returns to **Available** and leaves the panel.
+6. A stale `occ_lock` comes back as a 409 and is shown in the form, exactly as edit does
+   today. Never re-read and retry silently.
+7. An empty fleet-wide incident list shows `No active incidents.` rather than an empty box.
 
 ### What already exists
 
-- `migrations/0001_init.up.sql` shows the mandatory columns every table carries (`id`,
-  `created_at`, `updated_at`, `created_by`, `updated_by`, `tenant_id`, `occ_lock`) and the
-  `set_updated_at` trigger; `0003_position_and_outbox.up.sql` shows a later migration in
-  the same style. Add **`0005_unit_event.up.sql`** — `0003` and `0004` are taken — and the
-  migrator picks it up by filename.
-  > Do **not** copy `0002_seed.up.sql`'s `ON CONFLICT … DO UPDATE` seeding: that seed is
-  > gone, and `0004_drop_preauth_seed.up.sql` deletes the rows it left. The roster is
-  > seeded by the service now, once per tenant, on its first dispatcher request
-  > (`internal/service/roster.go`). Write your table's DDL only.
-- **Scope every query to the caller's tenant** (`WHERE tenant_id = $n`) and stamp
-  `created_by` from the caller's `sub`, exactly as `unit_repo.go` does. `repo.Caller`
-  carries both.
-- **Write the event in the same transaction as the unit change.** `repo.enqueue` — which
-  writes the GIS outbox row — is the worked example of doing exactly that.
-- `repo.crewFor` shows how a child table is read per unit and folded into the domain
-  object. `eventsFor` is the same shape.
-- `UnitDetail.svelte` already has the section title snippet and the dashed placeholder box
-  to replace.
-
-### Suggested API
-
-Two acceptable designs. Pick the simpler one for you and delete the other's stub:
-
-- **Embed** the last 20 events on the unit, next to `crew`: `unit.events[]`. No new route,
-  no new client call, and the console gets them with the roster it already loads. Remove
-  the `GET .../events` stub.
-- **Separate resource**: `GET /v1/units/{unit_code}/events` returning the envelope
-  `{ "data": [ ... ] }`, fetched in the page `load` for the selected unit.
-
-Event shape: `{ "at", "kind", "summary" }` where `kind` is one of `created`, `updated`,
-`status_changed`, `dispatched`, `stood_down`, `deleted`.
+- **The whole service side.** `POST /v1/units/{unit_code}/assignment` takes
+  `{ incident_code, title, description, priority, location, point?: { lon, lat }, occ_lock }`
+  and returns the updated unit; `DELETE .../assignment?occ_lock=N` stands it down. Both
+  answer 400 with per-field `details`, 409 `DISPATCH_UNIT_STALE` on a stale lock and 409
+  `DISPATCH_UNIT_NOT_ASSIGNED` when standing down a unit that is not on an incident.
+- The status rule is the service's: dispatch means **En route**, stand down means
+  **Available**. Do not send a status.
+- `Assignment` in `types.ts` already carries `description` and the optional `point`, and
+  `UnitDetail.svelte` already renders them. Read from `unit.assignment`.
+- **Writes go through form actions, never a client fetch** (`apps/dispatch-web/AGENTS.md`).
+  `+page.server.ts` already has `create` / `update` / `delete`; add `dispatch` and
+  `standDown` beside them, and a client call in `units.server.ts` next to the existing
+  ones.
+- `UnitForm.svelte` is the Sheet form with field errors, `use:enhance` and a hidden
+  `occLock`. Copy it and cut it down.
+- `filters.ts` is where the deriving belongs: a pure `activeIncidents(units)` with no DOM,
+  rendered by a component. Put the behaviour in the pure module first.
 
 ### Out of scope
 
-Filtering, paging past 20, and a fleet-wide feed. **Who** did it is now knowable —
-every write carries the caller's `sub` — so recording it is a reasonable extension
-rather than an impossibility; it is simply not required here.
+Choosing from a list of incidents that exist independently of units, more than one unit
+per incident, incidents on the map, and notifying anyone.
 
 ---
 
-## Exercise 3 — Manage crew
+## Exercise 2 — See a unit's location without leaving the units page
 
-> **As a** dispatcher, **I want to** add and remove the crew on a unit, **so that** the
-> roster matches who is actually on the vehicle this shift.
+> **As a** dispatcher, **I want to** see where the selected unit is on a small map in the
+> detail pane, **so that** I can place it at a glance without losing the roster, my
+> filters and my selection to a trip to the map page.
+
+**Frontend only.** The coordinates are already in the pane; today they are two numbers and
+a link that navigates away. This exercise turns them into a map.
 
 ### Acceptance criteria
 
-1. **Manage** beside the Crew heading opens a side Sheet listing the current crew, each
-   with a remove control, and one empty row to add a member (name, role). Both fields are
-   required for an added row.
-2. Saving replaces the unit's crew with what is in the Sheet, in one request. The Crew
-   section and its `(n)` count update without a page reload.
-3. Two members with the same name on one unit is refused; the error appears beside the
-   offending row.
-4. A stale `occ_lock` is refused with a 409, as everywhere else.
-5. The change survives a service restart.
+1. With a positioned unit selected, the detail pane shows a small map centred on that
+   unit, under the Position section, with the unit marked.
+2. The existing coordinates and fix time stay. The map is an addition, not a replacement:
+   a dispatcher reads coordinates out loud over the radio.
+3. Selecting a different unit re-centres the map on it.
+4. A unit with no position keeps today's `No position reported.` and renders no map frame
+   at all. An empty map centred on null island is worse than no map.
+5. The **Show on map** link still works and still goes to the full map page.
+6. The units page still server-renders. If it starts failing with a `window`/`document`
+   error at startup, see the trap below.
 
 ### What already exists
 
-- The `unit_crew` table exists with `UNIQUE (unit_id, name)` and `ON DELETE CASCADE`.
-  **No migration needed.**
-- `repo.mapWriteError` already turns Postgres `23505` into `ErrConflict`; the service maps
-  that to a 409 today. For this exercise you may prefer to validate duplicates in the
-  service and return a 400 with a `FieldDetail` per duplicate — your call, state it.
-- `UnitForm.svelte` for the Sheet, `use:enhance` and error plumbing. The crew rows are a
-  small `{#each}` over `crew[]` with an index in each input's `name` (`crew[0].name`).
-  `parseUnitForm` in `forms.ts` shows how form data is parsed and validated server-side.
+- `unit.position` is `{ lon, lat, at }` and already typed in `types.ts`.
+- **`LocationMapDisplay`** (`@mssfoobar/gis-web-sdk/location-map-display`) is the component
+  for exactly this: one location, its own tiles, no RTUS. Props are
+  `position: [lon, lat]`, `zoom: number` and `map_xyz_url: string`.
+- The tile URL the map page uses is `https://tile.openstreetmap.org/{z}/{x}/{y}.png`
+  (`OSM_URL` in `map/+page.svelte`). Lift it somewhere both pages can read rather than
+  typing it twice.
+- `UnitDetail.svelte` already has the Position section and the dashed placeholder box to
+  replace.
 
-### Suggested API
+### The trap
 
-| Method | Path | Body | Success |
-|---|---|---|---|
-| PUT | `/v1/units/{unit_code}/crew` | `{ "occ_lock": N, "crew": [ { "name", "role" } ] }` | 200, the updated unit |
+`LocationMapDisplay` imports the **Cesium** engine, and Cesium touches browser globals at
+module init. The map page gets away with a plain import because its `+page.ts` sets
+`ssr = false`. The units page server-renders and must keep doing so, so a top-level
+`import` of this component will break every render of the roster.
 
-Replace-all is deliberate: one call, one transaction (`DELETE` then `INSERT`), and the
-unit's `occ_lock` bumps once so the concurrency story stays the same as edit.
+Load it in the browser only: import it dynamically inside the component that shows it, and
+render the frame once it has resolved. `{#await import('…')}` or an `onMount` import both
+work. Do **not** fix this by turning SSR off for the units page.
 
 ### Out of scope
 
-A people directory, roles as a fixed vocabulary, crew history, assigning one person to
-several units.
+Panning and zooming, a layer switcher, showing more than the selected unit, the incident's
+location (that is exercise 3, on the map page), and replacing the map page.
 
 ---
+
+## Exercise 3 — Put the incidents on the map
+
+> **As a** dispatcher, **I want to** see where the incidents actually are on the map,
+> **so that** I can judge which unit is closest to one without reading addresses off a
+> list.
+
+**Frontend only.** The incident's coordinates are already on the wire, and the map page
+already loads the roster. No service change, no new request.
+
+### Acceptance criteria
+
+1. Every incident whose assignment carries a `point` gets a marker on the map, alongside
+   the field-unit markers.
+2. Clicking a marker highlights it and opens a panel showing the incident: priority,
+   code, title, description, location, and the unit working it.
+3. The panel carries a **placeholder picture** where a photo of the scene would go. A
+   `Skeleton` or a captioned grey box is the right level of effort; do not add a binary
+   asset to the repo for it.
+4. Clicking the unit named in the panel selects it, exactly as clicking a unit marker does.
+5. An incident with no coordinates is counted somewhere ("2 not shown"), never silently
+   dropped, the same way the unit layer handles unpositioned units.
+6. Clicking empty space clears the panel.
+
+### What already exists
+
+- `unit.assignment.point` is `{ lon, lat }` and already on the wire, already typed in
+  `types.ts`, and the seeded incidents carry real coordinates.
+- **`MapSingleEntityProvider`** (`@mssfoobar/gis-web-sdk/single-entity-provider`) is the
+  component for this. It renders a host-supplied entity **with no RTUS feed**, which is
+  exactly what an incident is: the map's live entity stream carries field units only.
+  Import it from its subpath as a default export, like every other SDK component here.
+  - Give the entity a `geojson.properties.kind` or the engine cannot build a pick proxy
+    and the marker will not be clickable.
+  - Entities rendered this way are **not** part of a `MapEntityLayerProvider`, so they do
+    not appear in the **Layers** control. That is the documented trade-off, not a bug.
+- The unit-marker snippet in `map/+page.svelte` is the worked example of a clickable
+  marker, and of the render-purity rule that goes with it.
+- The `{#if units.length === 0}` / `{:else if positioned.length === 0}` block is the
+  worked example of the "counted, not dropped" empty states.
+
+### The rule not to break
+
+`apps/dispatch-web/AGENTS.md`: **entity state has one source, the SDK's RTUS
+subscription**, and the roster the map loads is for counts only. Incidents are a
+*separate* set of host-owned markers, so rendering them from the roster is fine. Merging
+them into the field-unit entity stream, or feeding unit positions from the roster, is the
+thing that rule forbids.
+
+### Out of scope
+
+Editing an incident from the map, clustering, routing a unit to an incident, drawing the
+unit-to-incident line, and a real photograph.
 
 ## Done looks like
 

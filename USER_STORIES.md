@@ -7,112 +7,92 @@ travel with it. The full brief, including hints on what already exists in the co
 
 ---
 
-## Exercise 1 — Dispatch a unit
+## Exercise 1 — Show the incidents on the units page
 
 **As a** dispatcher,
-**I want to** dispatch an available unit to an incident and stand it down when the job is done,
-**so that** the console shows who is working what and the fleet's status is real rather than seeded.
+**I want to** see every incident the fleet is working on one panel,
+**so that** I can tell what is happening across the shift without clicking each unit in
+turn, and can send a unit to an incident from there.
+
+**Frontend only.** The assignment routes ship built.
 
 ### Acceptance criteria
 
-1. With an unassigned unit selected, **Dispatch** opens a side Sheet with four fields:
-   incident code, title, priority (`P1` / `P2` / `P3`), location. All are required.
-2. Submitting sets the unit's assignment and changes its status to **En route**. The detail
-   pane's Assignment section, the unit's row, the status tiles and the header count all
-   update without a page reload.
-3. With an assigned unit selected, the same button reads **Stand down**. Confirming clears
-   the assignment and returns the status to **Available**.
-4. A stale `occ_lock` is refused with a 409 and the console shows the conflict message in
-   the form, exactly as edit does today.
-5. Both changes survive a service restart.
+1. The units page carries an **Incidents** panel listing every active incident across the
+   roster, derived from the units that carry an assignment: priority, incident code,
+   title, description, location and the unit working it.
+2. The panel is ordered by priority, `P1` first, and its heading carries the count.
+3. Clicking a row selects that incident's unit.
+4. With an available unit selected, **Dispatch** opens a form with five required fields
+   (incident code, title, description, priority, location) and an optional longitude and
+   latitude. The unit turns **En route** and joins the panel without a page reload.
+5. On an assigned unit the same control reads **Stand down**; the unit returns to
+   **Available** and leaves the panel.
+6. A stale `occ_lock` comes back as a 409 and is shown in the form.
+7. An empty list shows `No active incidents.`
 
 ### API
 
-| Method | Path | Body | Success |
-|---|---|---|---|
-| POST | `/v1/units/{unit_code}/assignment` | `{ "incident_code", "title", "priority", "location", "occ_lock" }` | 200, the updated unit |
-| DELETE | `/v1/units/{unit_code}/assignment?occ_lock=N` | — | 200, the updated unit |
+Already built, no service work:
 
-The service layer owns the status rule: dispatch ⇒ `En route`, stand down ⇒ `Available`.
+| Method | Path | Body |
+|---|---|---|
+| POST | `/v1/units/{unit_code}/assignment` | `{ incident_code, title, description, priority, location, point?, occ_lock }` |
+| DELETE | `/v1/units/{unit_code}/assignment?occ_lock=N` | none |
 
-### Out of scope
-
-Choosing from a list of incidents, a map, more than one unit per incident, notifying anyone.
-
----
-
-## Exercise 2 — Unit activity timeline
+## Exercise 2 — See a unit's location without leaving the units page
 
 **As a** dispatcher,
-**I want to** see a unit's recent status and assignment changes with timestamps,
-**so that** I can tell what happened to it during the shift without asking over the radio.
+**I want to** see where the selected unit is on a small map in the detail pane,
+**so that** I can place it at a glance without losing the roster, my filters and my
+selection to a trip to the map page.
+
+**Frontend only.** No service work.
 
 ### Acceptance criteria
 
-1. The **Activity** section lists the unit's most recent events, newest first, at most 20.
-   Each line shows when it happened (use the existing `sinceLabel`) and what changed, for
-   example `Status Available → En route`, `Dispatched to INC-2841`, `Details edited`.
-2. Every write to a unit records an event: create, edit, delete, and, if Exercise 1 is
-   built, dispatch and stand down. The event is written in the **same transaction** as the
-   unit change, so the two can never disagree.
-3. A unit with no history shows `No activity yet.`
-4. The seed data includes a few events for the seeded units, so the section is not empty
-   on first boot.
-5. Events survive a service restart.
+1. With a positioned unit selected, the detail pane shows a small map centred on that
+   unit, under the Position section, with the unit marked.
+2. The existing coordinates and fix time stay; the map is an addition, not a replacement.
+3. Selecting a different unit re-centres the map.
+4. A unit with no position keeps `No position reported.` and renders no map frame.
+5. **Show on map** still works and still goes to the full map page.
+6. The units page still server-renders.
 
 ### API
 
-Pick one design and delete the other's stub:
+None. `unit.position` is already on the wire. Render it with `LocationMapDisplay`
+(`@mssfoobar/gis-web-sdk/location-map-display`), which takes `position`, `zoom` and
+`map_xyz_url`.
 
-- **Embed** the last 20 events on the unit, next to `crew`, as `unit.events[]`. No new
-  route. Remove the `GET .../events` stub.
-- **Separate resource**: `GET /v1/units/{unit_code}/events` returning `{ "data": [ ... ] }`,
-  fetched in the page `load` for the selected unit.
+Note: that component pulls in Cesium, which touches browser globals at module init, so it
+must be imported dynamically in the browser. A top-level import breaks SSR of the units
+page.
 
-Event shape: `{ "at", "kind", "summary" }` where `kind` is one of `created`, `updated`,
-`status_changed`, `dispatched`, `stood_down`, `deleted`.
-
-### Out of scope
-
-Filtering, paging past 20, and a fleet-wide feed. **Who** did it is now knowable —
-every write carries the caller's `sub` — so recording it is a reasonable extension
-rather than an impossibility; it is simply not required here.
-
----
-
-## Exercise 3 — Manage crew
+## Exercise 3 — Put the incidents on the map
 
 **As a** dispatcher,
-**I want to** add and remove the crew on a unit,
-**so that** the roster matches who is actually on the vehicle this shift.
+**I want to** see where the incidents actually are on the map,
+**so that** I can judge which unit is closest to one without reading addresses off a list.
+
+**Frontend only.** No service work.
 
 ### Acceptance criteria
 
-1. **Manage** beside the Crew heading opens a side Sheet listing the current crew, each
-   with a remove control, and one empty row to add a member (name, role). Both fields are
-   required for an added row.
-2. Saving replaces the unit's crew with what is in the Sheet, in one request. The Crew
-   section and its `(n)` count update without a page reload.
-3. Two members with the same name on one unit is refused; the error appears beside the
-   offending row.
-4. A stale `occ_lock` is refused with a 409, as everywhere else.
-5. The change survives a service restart.
+1. Every incident whose assignment carries a `point` gets a marker on the map, alongside
+   the field-unit markers.
+2. Clicking a marker highlights it and opens a panel with the incident: priority, code,
+   title, description, location and the unit working it.
+3. The panel carries a placeholder picture where a photo of the scene would go.
+4. Clicking the unit named in the panel selects it.
+5. An incident with no coordinates is counted, never silently dropped.
+6. Clicking empty space clears the panel.
 
 ### API
 
-| Method | Path | Body | Success |
-|---|---|---|---|
-| PUT | `/v1/units/{unit_code}/crew` | `{ "occ_lock": N, "crew": [ { "name", "role" } ] }` | 200, the updated unit |
-
-Replace-all is deliberate: one call, one transaction (`DELETE` then `INSERT`), and the
-unit's `occ_lock` bumps once.
-
-### Out of scope
-
-A people directory, roles as a fixed vocabulary, crew history, assigning one person to
-several units.
-
----
+None. `unit.assignment.point` is already on the wire, and the map page already loads the
+roster. Render the markers with `MapSingleEntityProvider`, which takes a host-supplied
+entity and needs no RTUS feed.
 
 ## Ground rules that apply to every exercise
 

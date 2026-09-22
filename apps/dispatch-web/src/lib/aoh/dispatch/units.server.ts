@@ -91,8 +91,10 @@ interface WireCrew {
 interface WireAssignment {
 	incident_code?: unknown;
 	title?: unknown;
+	description?: unknown;
 	priority?: unknown;
 	location?: unknown;
+	point?: unknown;
 	since?: unknown;
 }
 
@@ -138,11 +140,18 @@ function toAssignment(value: unknown): Assignment | undefined {
 	// than manufacturing an empty object the UI would have to special-case.
 	if (value === null || typeof value !== 'object') return undefined;
 	const wire = value as WireAssignment;
+	const point = wire.point as { lon?: unknown; lat?: unknown } | null | undefined;
 	return {
 		incidentCode: str(wire.incident_code),
 		title: str(wire.title),
+		description: str(wire.description),
 		priority: str(wire.priority),
 		location: str(wire.location),
+		// Same rule as a unit position: absent, never {lon: 0, lat: 0}.
+		point:
+			point && typeof point.lon === 'number' && typeof point.lat === 'number'
+				? { lon: point.lon, lat: point.lat }
+				: undefined,
 		since: str(wire.since)
 	};
 }

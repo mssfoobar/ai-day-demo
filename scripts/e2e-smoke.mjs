@@ -265,12 +265,10 @@ async function authentication() {
 	eq('service /livez is open', (await fetch(`${SVC_URL}/livez`)).status, 200);
 	eq('service /readyz is open', (await fetch(`${SVC_URL}/readyz`)).status, 200);
 
-	// The workshop stubs answer 501 — but only to an authorised caller.
+	// Every write route is behind the bearer.
 	for (const [method, path] of [
 		['POST', `/v1/units/${SHARED_CODE}/assignment`],
-		['DELETE', `/v1/units/${SHARED_CODE}/assignment`],
-		['GET', `/v1/units/${SHARED_CODE}/events`],
-		['PUT', `/v1/units/${SHARED_CODE}/crew`]
+		['DELETE', `/v1/units/${SHARED_CODE}/assignment`]
 	]) {
 		eq(`${method} ${path} is 401 unauthenticated`, (await svc(path, { method })).status, 401);
 	}

@@ -24,6 +24,9 @@ var (
 	// CodeUnitWriteFailed — the unit store could not be written.
 	CodeUnitWriteFailed = aoherr.MustCode("DISPATCH_UNIT_WRITE_FAILED")
 
+	// CodeUnitNotAssigned — stand down was asked of a unit that is not on an incident.
+	CodeUnitNotAssigned = aoherr.MustCode("DISPATCH_UNIT_NOT_ASSIGNED")
+
 	// CodeUnitForbidden — the caller authenticated, but their active_tenant.roles do
 	// not project onto the permission this operation needs.
 	CodeUnitForbidden = aoherr.MustCode("DISPATCH_UNIT_FORBIDDEN")

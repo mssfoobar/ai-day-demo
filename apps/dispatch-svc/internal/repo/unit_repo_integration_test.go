@@ -347,3 +347,120 @@ func TestTenantScoping_AnotherTenantsUnitIsInvisibleAndUnwritable(t *testing.T) 
 	require.NoError(t, err)
 	assert.Zero(t, theirUnit.OccLock, "their row was never touched")
 }
+
+// --------------------------------------------------------------------------- //
+// Assignment
+// --------------------------------------------------------------------------- //
+
+func newAssignment() domain.AssignmentInput {
+	return domain.AssignmentInput{
+		IncidentCode: "INC-IT1",
+		Title:        "Cardiac arrest",
+		Description:  "Adult collapsed in the lobby, bystander CPR in progress.",
+		Priority:     domain.PriorityP1,
+		Location:     "12 Raffles Quay",
+		Point:        &domain.Point{Lon: 103.8515, Lat: 1.2803},
+	}
+}
+
+func TestAssign_StoresTheWholeIncidentAndBumpsTheLock(t *testing.T) {
+	pool := testDB(t)
+	r := repo.NewUnitRepo(pool, testSchema)
+	caller := testCaller(t)
+	ctx := context.Background()
+
+	unit, _, err := r.Create(ctx, caller, newInput("FU-IT20", &domain.PositionInput{Lon: 103.85, Lat: 1.29}))
+	require.NoError(t, err)
+
+	assigned, rows, err := r.Assign(ctx, caller, "FU-IT20", unit.OccLock, newAssignment(), domain.StatusEnRoute)
+	require.NoError(t, err)
+
+	require.NotNil(t, assigned.Assignment)
+	assert.Equal(t, "INC-IT1", assigned.Assignment.IncidentCode)
+	assert.Equal(t, "Adult collapsed in the lobby, bystander CPR in progress.", assigned.Assignment.Description)
+	require.NotNil(t, assigned.Assignment.Point, "the incident's coordinates must round-trip")
+	assert.InDelta(t, 103.8515, assigned.Assignment.Point.Lon, 1e-9)
+	assert.InDelta(t, 1.2803, assigned.Assignment.Point.Lat, 1e-9)
+	assert.False(t, assigned.Assignment.Since.IsZero(), "the service stamps since")
+	assert.Equal(t, domain.StatusEnRoute, assigned.Status)
+	assert.Equal(t, unit.OccLock+1, assigned.OccLock)
+	require.Len(t, rows, 1, "an assignment is a write like any other and projects")
+}
+
+func TestAssign_AnIncidentWithNoPointIsStored(t *testing.T) {
+	pool := testDB(t)
+	r := repo.NewUnitRepo(pool, testSchema)
+	caller := testCaller(t)
+	ctx := context.Background()
+
+	unit, _, err := r.Create(ctx, caller, newInput("FU-IT21", nil))
+	require.NoError(t, err)
+
+	in := newAssignment()
+	in.Point = nil
+
+	assigned, _, err := r.Assign(ctx, caller, "FU-IT21", unit.OccLock, in, domain.StatusEnRoute)
+	require.NoError(t, err)
+	require.NotNil(t, assigned.Assignment)
+	assert.Nil(t, assigned.Assignment.Point, "a call taken by address alone has no point")
+}
+
+func TestClearAssignment_RemovesEveryDescribedColumn(t *testing.T) {
+	pool := testDB(t)
+	r := repo.NewUnitRepo(pool, testSchema)
+	caller := testCaller(t)
+	ctx := context.Background()
+
+	unit, _, err := r.Create(ctx, caller, newInput("FU-IT22", &domain.PositionInput{Lon: 103.85, Lat: 1.29}))
+	require.NoError(t, err)
+	assigned, _, err := r.Assign(ctx, caller, "FU-IT22", unit.OccLock, newAssignment(), domain.StatusEnRoute)
+	require.NoError(t, err)
+
+	// The all-or-nothing CHECKs reject a partial clear, so this proves every column went.
+	stood, _, err := r.ClearAssignment(ctx, caller, "FU-IT22", assigned.OccLock, domain.StatusAvailable)
+	require.NoError(t, err)
+
+	assert.Nil(t, stood.Assignment, "an unassigned unit omits the key entirely")
+	assert.Equal(t, domain.StatusAvailable, stood.Status)
+	assert.Equal(t, assigned.OccLock+1, stood.OccLock)
+}
+
+func TestAssign_AStaleLockIsRefused(t *testing.T) {
+	pool := testDB(t)
+	r := repo.NewUnitRepo(pool, testSchema)
+	caller := testCaller(t)
+	ctx := context.Background()
+
+	unit, _, err := r.Create(ctx, caller, newInput("FU-IT23", nil))
+	require.NoError(t, err)
+
+	_, _, err = r.Assign(ctx, caller, "FU-IT23", unit.OccLock+7, newAssignment(), domain.StatusEnRoute)
+	assert.ErrorIs(t, err, repo.ErrStale, "someone else wrote first; never overwrite them")
+}
+
+func TestAssign_AnUnknownUnitIsNotFound(t *testing.T) {
+	pool := testDB(t)
+	r := repo.NewUnitRepo(pool, testSchema)
+	caller := testCaller(t)
+
+	_, _, err := r.Assign(context.Background(), caller, "FU-NOPE", 0, newAssignment(), domain.StatusEnRoute)
+	assert.ErrorIs(t, err, repo.ErrNotFound)
+}
+
+func TestAssign_AnUnknownPriorityIsRefusedByTheDatabase(t *testing.T) {
+	pool := testDB(t)
+	r := repo.NewUnitRepo(pool, testSchema)
+	caller := testCaller(t)
+	ctx := context.Background()
+
+	unit, _, err := r.Create(ctx, caller, newInput("FU-IT24", nil))
+	require.NoError(t, err)
+
+	in := newAssignment()
+	in.Priority = "P9"
+
+	// The service validates first; this asserts the database is the backstop, as it is
+	// for the status vocabulary.
+	_, _, err = r.Assign(ctx, caller, "FU-IT24", unit.OccLock, in, domain.StatusEnRoute)
+	assert.ErrorIs(t, err, repo.ErrInvalid)
+}

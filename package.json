@@ -14,7 +14,8 @@
     "reset": "podman compose -f compose/compose.yml down -v",
     "e2e": "node scripts/e2e-smoke.mjs",
     "slides": "pnpm -C slides install && pnpm -C slides dev",
-    "doctor": "node scripts/doctor.mjs"
+    "doctor": "node scripts/doctor.mjs",
+    "bundle:prereqs": "node scripts/bundle-prereqs.mjs"
   },
   "packageManager": "pnpm@10.16.1",
   "engines": {

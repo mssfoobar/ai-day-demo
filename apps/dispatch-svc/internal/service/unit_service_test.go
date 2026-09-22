@@ -39,6 +39,9 @@ type fakeStore struct {
 	created   []domain.UnitInput
 	updated   []domain.UnitInput
 	deleted   []string
+	assigned  []domain.AssignmentInput
+	statuses  []string
+	cleared   []string
 	seedCalls int
 
 	// Programmed responses.
@@ -80,6 +83,20 @@ func (f *fakeStore) Delete(_ context.Context, c repo.Caller, unitCode string, _ 
 	f.record(c)
 	f.deleted = append(f.deleted, unitCode)
 	return f.rows, f.err
+}
+
+func (f *fakeStore) Assign(_ context.Context, c repo.Caller, _ string, _ int, in domain.AssignmentInput, status string) (domain.Unit, []projection.Row, error) {
+	f.record(c)
+	f.assigned = append(f.assigned, in)
+	f.statuses = append(f.statuses, status)
+	return f.unit, f.rows, f.err
+}
+
+func (f *fakeStore) ClearAssignment(_ context.Context, c repo.Caller, unitCode string, _ int, status string) (domain.Unit, []projection.Row, error) {
+	f.record(c)
+	f.cleared = append(f.cleared, unitCode)
+	f.statuses = append(f.statuses, status)
+	return f.unit, f.rows, f.err
 }
 
 func (f *fakeStore) IsSeeded(_ context.Context, _ string) (bool, error) {
@@ -254,6 +271,14 @@ func TestWrites_RequireTheDispatcherRole(t *testing.T) {
 		}},
 		{"delete", func(s *service.UnitService, ctx context.Context) error {
 			return s.Delete(ctx, "FU-101", 0)
+		}},
+		{"assign", func(s *service.UnitService, ctx context.Context) error {
+			_, err := s.Assign(ctx, "FU-101", 0, validAssignment())
+			return err
+		}},
+		{"stand down", func(s *service.UnitService, ctx context.Context) error {
+			_, err := s.StandDown(ctx, "FU-101", 0)
+			return err
 		}},
 	} {
 		t.Run(tc.name+" refused for a viewer", func(t *testing.T) {
@@ -459,4 +484,117 @@ func TestCreate_SeedFailureIsReportedBeforeTheWriteIsAttempted(t *testing.T) {
 	_, err := svc.Create(dispatcherCtx(), validInput())
 	assertAOH(t, err, aoherr.ClassSystem, service.CodeTenantSeedFailed)
 	assert.Empty(t, store.created)
+}
+
+// --------------------------------------------------------------------------- //
+// Assignment
+// --------------------------------------------------------------------------- //
+
+func validAssignment() domain.AssignmentInput {
+	return domain.AssignmentInput{
+		IncidentCode: "INC-2841",
+		Title:        "Cardiac arrest",
+		Description:  "Adult collapsed in the lobby, bystander CPR in progress.",
+		Priority:     domain.PriorityP1,
+		Location:     "12 Raffles Quay",
+	}
+}
+
+func TestAssign_PutsTheUnitEnRoute(t *testing.T) {
+	store := seededStore()
+	svc := newService(store, newFakeProjector())
+
+	_, err := svc.Assign(dispatcherCtx(), "FU-101", 0, validAssignment())
+	require.NoError(t, err)
+
+	require.Len(t, store.assigned, 1)
+	assert.Equal(t, "INC-2841", store.assigned[0].IncidentCode)
+	assert.Equal(t, []string{domain.StatusEnRoute}, store.statuses,
+		"the status rule belongs to the service, not the caller")
+}
+
+func TestStandDown_ReturnsTheUnitToAvailable(t *testing.T) {
+	store := seededStore()
+	store.unit = domain.Unit{UnitCode: "FU-101", Assignment: &domain.Assignment{IncidentCode: "INC-2841"}}
+	svc := newService(store, newFakeProjector())
+
+	_, err := svc.StandDown(dispatcherCtx(), "FU-101", 0)
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"FU-101"}, store.cleared)
+	assert.Equal(t, []string{domain.StatusAvailable}, store.statuses)
+}
+
+func TestStandDown_AnUnassignedUnitIsAConflict(t *testing.T) {
+	store := seededStore()
+	store.unit = domain.Unit{UnitCode: "FU-101"} // no assignment
+	svc := newService(store, newFakeProjector())
+
+	_, err := svc.StandDown(dispatcherCtx(), "FU-101", 0)
+	assertAOH(t, err, aoherr.ClassConflict, service.CodeUnitNotAssigned)
+	assert.Empty(t, store.cleared, "nothing may be written")
+}
+
+func TestAssign_AnUnknownPriorityNamesTheField(t *testing.T) {
+	store := seededStore()
+	svc := newService(store, newFakeProjector())
+
+	in := validAssignment()
+	in.Priority = "P9"
+
+	_, err := svc.Assign(dispatcherCtx(), "FU-101", 0, in)
+	aohErr := assertAOH(t, err, aoherr.ClassValidation, service.CodeUnitInvalid)
+
+	fields := map[string]bool{}
+	for _, d := range aohErr.Details() {
+		fields[d.Field] = true
+	}
+	assert.True(t, fields["priority"], "details name priority: %+v", aohErr.Details())
+	assert.Empty(t, store.assigned, "an invalid write must not reach the store")
+}
+
+func TestAssign_EveryMissingFieldIsReportedAtOnce(t *testing.T) {
+	store := seededStore()
+	svc := newService(store, newFakeProjector())
+
+	_, err := svc.Assign(dispatcherCtx(), "FU-101", 0, domain.AssignmentInput{})
+	aohErr := assertAOH(t, err, aoherr.ClassValidation, service.CodeUnitInvalid)
+
+	fields := map[string]bool{}
+	for _, d := range aohErr.Details() {
+		fields[d.Field] = true
+	}
+	for _, want := range []string{"incident_code", "title", "description", "priority", "location"} {
+		assert.True(t, fields[want], "details name %s: %+v", want, aohErr.Details())
+	}
+}
+
+func TestAssign_OutOfRangeIncidentCoordinatesAreRefused(t *testing.T) {
+	store := seededStore()
+	svc := newService(store, newFakeProjector())
+
+	in := validAssignment()
+	in.Point = &domain.Point{Lon: -181, Lat: 91}
+
+	_, err := svc.Assign(dispatcherCtx(), "FU-101", 0, in)
+	aohErr := assertAOH(t, err, aoherr.ClassValidation, service.CodeUnitInvalid)
+
+	fields := map[string]bool{}
+	for _, d := range aohErr.Details() {
+		fields[d.Field] = true
+	}
+	assert.True(t, fields["point.lon"], "details name point.lon: %+v", aohErr.Details())
+	assert.True(t, fields["point.lat"], "details name point.lat: %+v", aohErr.Details())
+	assert.Empty(t, store.assigned)
+}
+
+func TestAssign_AnIncidentWithoutAPointIsAccepted(t *testing.T) {
+	store := seededStore()
+	svc := newService(store, newFakeProjector())
+
+	// A call is taken by address and may never resolve to a coordinate.
+	_, err := svc.Assign(dispatcherCtx(), "FU-101", 0, validAssignment())
+	require.NoError(t, err)
+	require.Len(t, store.assigned, 1)
+	assert.Nil(t, store.assigned[0].Point)
 }

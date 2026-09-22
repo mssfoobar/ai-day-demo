@@ -59,9 +59,13 @@ Agent context for `dispatch-svc`. Monorepo-wide conventions live in the repo-roo
   handler never sees a driver error. Add new constraint codes there, not in handlers.
 - **Every write bumps `last_contact`** (design decision, `dispatch-units-crud` D4). If that
   stops being wanted, change the UPDATE, not the frontend.
-- **Crew and assignment are not writable yet.** `UnitInput` deliberately omits them.
-  `PATCH` and collection-level `PUT`/`DELETE` are unmounted and return 405. Writes exist
-  now, so live fan-out to other sessions is the next gap — that is RTUS, not polling.
+- **Assignment is writable through its own resource, not through `UnitInput`.**
+  `POST` / `DELETE /v1/units/{unit_code}/assignment` own it, and the status rule lives in
+  the service: dispatch means `En route`, stand down means `Available`. `UnitInput` still
+  omits assignment and crew, so a replace can never clear an incident by accident. Crew is
+  not writable yet. `PATCH` and collection-level `PUT`/`DELETE` are unmounted and return
+  405. Writes exist now, so live fan-out to other sessions is the next gap — that is RTUS,
+  not polling.
 - **Migrations are embedded and run on start** (`internal/db`, `migrations/`), but the
   **roster is not a migration**. The service seeds a tenant once, on its first request
   from a caller holding `dispatch-dispatcher`, before answering it — a committed

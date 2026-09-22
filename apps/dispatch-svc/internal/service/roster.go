@@ -21,7 +21,8 @@ import (
 //   - FU-204 has NO position — the "no position reported" path, and the map's
 //     "not shown" count.
 //   - FU-102 and FU-311 carry assignments — the console's assigned-unit state, and the
-//     unit workshop Exercise 1 starts from.
+//     unit workshop Exercise 1 starts from. Both incidents carry a description and a
+//     point, so the detail pane's incident block has every field to render.
 //   - The statuses cover the whole vocabulary: Available, En route and Idle.
 //
 // Times are relative to the seed, so a roster seeded today never looks weeks stale.
@@ -78,9 +79,12 @@ func baselineRoster() []domain.SeedUnit {
 			Assignment: &domain.Assignment{
 				IncidentCode: "INC-2841",
 				Title:        "Cardiac arrest",
-				Priority:     "P1",
-				Location:     "12 Raffles Quay",
-				Since:        since(14),
+				Description: "Adult collapsed in the ground-floor lobby. Bystander CPR in " +
+					"progress, building security holding a lift for the crew.",
+				Priority: "P1",
+				Location: "12 Raffles Quay",
+				Point:    &domain.Point{Lon: 103.8515, Lat: 1.2803},
+				Since:    since(14),
 			},
 		},
 		{
@@ -144,9 +148,12 @@ func baselineRoster() []domain.SeedUnit {
 			Assignment: &domain.Assignment{
 				IncidentCode: "INC-2839",
 				Title:        "Traffic obstruction",
-				Priority:     "P3",
-				Location:     "Nicoll Highway / Republic Ave",
-				Since:        since(35),
+				Description: "Stalled lorry blocking the leftmost eastbound lane. No injuries " +
+					"reported, recovery vehicle requested and traffic backing up to the tunnel.",
+				Priority: "P3",
+				Location: "Nicoll Highway / Republic Ave",
+				Point:    &domain.Point{Lon: 103.8637, Lat: 1.2998},
+				Since:    since(35),
 			},
 		},
 	}

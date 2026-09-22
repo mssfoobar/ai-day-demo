@@ -24,58 +24,53 @@ export interface Exercise {
 	story: string;
 	/** "You're done when…" — abbreviated; WORKSHOP.md has the full list. */
 	done: string[];
-	/** The service routes that answer 501 until the exercise is built. */
-	routes: string[];
 }
 
 export const EXERCISES: Record<ExerciseNumber, Exercise> = {
 	1: {
 		number: 1,
-		title: 'Send a unit to an incident',
+		title: 'Show the incidents on the units page',
 		complete: false,
-		where: 'Look for the dashed Dispatch button next to Edit and Delete in the unit header.',
+		where: 'Look for the dashed Incidents panel below the roster and the detail pane.',
 		story:
-			'As a dispatcher, I want to send an available unit to an incident and bring it back when the job is done, so that the console shows who is working what instead of only what the seed data says.',
+			'As a dispatcher, I want to see every incident the fleet is working on one panel, so that I can tell what is happening across the shift without clicking each unit in turn, and can send a unit to an incident from there.',
 		done: [
-			'Dispatch opens a small form: incident code, title, priority (P1–P3) and location.',
-			'Saving it marks the unit En route, and the pane, the row and the tiles all catch up.',
-			'On an assigned unit the same button reads Stand down, and clears it.',
-			'If someone else changed the unit first, you see a conflict instead of overwriting them.',
-			'Restart the service and it is all still there.'
-		],
-		routes: ['POST /v1/units/{unit_code}/assignment', 'DELETE /v1/units/{unit_code}/assignment']
+			'A panel on the units page lists every incident the fleet is working, P1 first.',
+			'Each row shows the incident and the unit on it; clicking one selects that unit.',
+			'Dispatch sends an available unit to a new incident, and it turns En route.',
+			'Stand down clears it and the unit goes back to Available.',
+			'If someone else changed the unit first, you see a conflict instead of overwriting them.'
+		]
 	},
 	2: {
 		number: 2,
-		title: 'Show what happened to a unit',
+		title: "See a unit's location here, not on the map page",
 		complete: false,
-		where: 'Look for the sketched Activity section between Assignment and Crew.',
+		where: 'Look for the sketched Location box under Position in the detail pane.',
 		story:
-			'As a dispatcher, I want to see what a unit has been doing — its status and assignment changes, newest first — so that I know what happened on the shift without asking over the radio.',
+			'As a dispatcher, I want to see where the selected unit is on a small map in the detail pane, so that I can place it at a glance without losing the roster, my filters and my selection to a trip to the map page.',
 		done: [
-			'The unit detail shows its last 20 events, newest first: when, and what changed.',
-			'Every change to a unit leaves an event behind, written in the same transaction.',
-			'A quiet unit says “No activity yet” rather than showing nothing.',
-			'The seeded units come with a little history, so the section is not empty on day one.',
-			'Restart the service and the history is still there.'
-		],
-		routes: ['GET /v1/units/{unit_code}/events']
+			'Picking a positioned unit shows a small map of where it is, right in the pane.',
+			'The coordinates and the fix time stay: you still read those out over the radio.',
+			'Pick another unit and the map follows it.',
+			'A unit with no position says so, and shows no empty map frame.',
+			'Show on map still takes you to the full map page.'
+		]
 	},
 	3: {
 		number: 3,
-		title: 'Fix up who is on the crew',
+		title: 'Put the incidents on the map',
 		complete: false,
-		where: 'Look for the dashed Manage button beside the Crew heading.',
+		where: 'Open the map. Look for the dashed Incidents card over the canvas.',
 		story:
-			'As a dispatcher, I want to add and remove the people on a unit, so that the console matches who is actually on the vehicle this shift.',
+			'As a dispatcher, I want to see where the incidents actually are on the map, so that I can judge which unit is closest to one without reading addresses off a list.',
 		done: [
-			'Manage opens a list of the crew, each with a remove control, plus a row to add someone (name, role).',
-			'Saving replaces the crew in one go, and the heading count updates.',
-			'Two people with the same name on one unit is refused, with the error next to the row.',
-			'If someone else changed the unit first, you see a conflict instead of overwriting them.',
-			'Restart the service and the crew is still right.'
-		],
-		routes: ['PUT /v1/units/{unit_code}/crew']
+			'Every incident with coordinates gets a marker on the map, next to the unit markers.',
+			'Clicking a marker highlights it and opens a panel with the incident and a placeholder picture.',
+			'The panel names the unit working the incident, and clicking through selects it.',
+			'An incident with no coordinates is counted somewhere rather than silently dropped.',
+			'No new request and no service change: the map page already loads the roster.'
+		]
 	}
 };
 

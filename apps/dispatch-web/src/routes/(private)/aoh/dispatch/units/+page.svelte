@@ -15,7 +15,7 @@
 
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { fly } from 'svelte/transition';
+	import { fade, fly } from 'svelte/transition';
 	import {
 		AlertDialog,
 		AlertDialogCancel,
@@ -41,6 +41,8 @@
 	import SearchX from '@lucide/svelte/icons/search-x';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import X from '@lucide/svelte/icons/x';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 
 	import StatusFilter from '$lib/aoh/dispatch/components/StatusFilter.svelte';
@@ -59,7 +61,12 @@
 	import { sinceLabel } from '$lib/aoh/dispatch/format';
 	import type { FieldUnit, UnitStatus } from '$lib/aoh/dispatch/types';
 	import type { UnitFormErrors } from '$lib/aoh/dispatch/forms';
-	import { incompleteExercises, type ExerciseNumber } from '$lib/aoh/dispatch/workshop';
+	import {
+		FOCUS_BASE_CLASS,
+		FOCUS_ON_CLASS,
+		incompleteExercises,
+		type ExerciseNumber
+	} from '$lib/aoh/dispatch/workshop';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -81,6 +88,14 @@
 	// Workshop layer — see WORKSHOP.md.
 	let exerciseOpen = $state(false);
 	let focused = $state<ExerciseNumber | null>(null);
+	// Exercise 1's sketch is on the page, not in the detail pane: the incidents panel
+	// spans the roster and the pane rather than belonging to one unit.
+	let incidentsTarget = $state<HTMLElement | null>(null);
+	$effect(() => {
+		if (focused === 1 && incidentsTarget) {
+			incidentsTarget.scrollIntoView({ block: 'center', behavior: 'smooth' });
+		}
+	});
 	const incomplete = incompleteExercises();
 	let formMode = $state<'create' | 'edit'>('create');
 	let deleteOpen = $state(false);
@@ -148,6 +163,13 @@
 	 */
 	function focusExercise(n: ExerciseNumber) {
 		exerciseOpen = false;
+		// Exercise 3 is built on the map, not here. Carry the focus across in the URL.
+		if (n === 3) {
+			// The path is resolved; the rule does not account for a query appended to it.
+			// eslint-disable-next-line svelte/no-navigation-without-resolve
+			goto(`${resolve('/aoh/dispatch/map')}?focus=3`);
+			return;
+		}
 		if (!selected) {
 			const pick = n === 1 ? (units.find((u) => !u.assignment) ?? units[0]) : units[0];
 			if (pick) selectedId = pick.id;
@@ -396,6 +418,34 @@
 				</ScrollArea>
 			</Card>
 		</div>
+
+		{#if focused === 1}
+			<!-- Workshop exercise 1: a sketch of the Incidents panel, spanning the page. -->
+			<button
+				type="button"
+				bind:this={incidentsTarget}
+				onclick={() => openExercises()}
+				class="workshop-sketch mt-3 w-full rounded-md border border-dashed border-(--workshop) bg-(--workshop-muted) p-3 text-left text-(--workshop-text) transition-all duration-200 hover:bg-(--workshop-muted-hover) {FOCUS_BASE_CLASS} {focused ===
+				1
+					? FOCUS_ON_CLASS
+					: ''}"
+				in:fly={{ y: 6, duration: 250, delay: 80 }}
+				out:fade={{ duration: 150 }}
+			>
+				<span class="text-xs font-semibold tracking-wide uppercase">
+					Incidents ({units.filter((u) => u.assignment).length})
+				</span>
+				<span class="mt-2 block space-y-1.5">
+					{#each units.filter((u) => u.assignment).slice(0, 2) as unit (unit.id)}
+						<span class="block h-3 w-2/3 rounded-sm bg-(--workshop)/25"></span>
+					{/each}
+					<span class="block h-3 w-1/3 rounded-sm bg-(--workshop)/15"></span>
+				</span>
+				<span class="mt-2 block text-xs">
+					Every active incident across the fleet goes here. Exercise 1.
+				</span>
+			</button>
+		{/if}
 
 		<!-- Add / edit. Not mounted for a viewer: there is no path to open it. -->
 		{#if canWrite}

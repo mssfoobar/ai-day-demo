@@ -128,9 +128,8 @@ Every `/v1/units` route below requires a bearer token; writes additionally requi
 | POST | `/v1/units` | Create. 201. Body: the writable fields below. |
 | PUT | `/v1/units/{unit_code}` | Replace the writable fields. Body must carry the current `occ_lock`. 200. |
 | DELETE | `/v1/units/{unit_code}?occ_lock=N` | Delete the unit and its crew. 204. |
-| POST / DELETE | `/v1/units/{unit_code}/assignment` | **Workshop exercise 1** — 501 `DISPATCH_NOT_IMPLEMENTED` until built. |
-| GET | `/v1/units/{unit_code}/events` | **Workshop exercise 2** — 501 until built. |
-| PUT | `/v1/units/{unit_code}/crew` | **Workshop exercise 3** — 501 until built. |
+| POST | `/v1/units/{unit_code}/assignment` | Dispatch the unit to an incident. Body carries the incident and the current `occ_lock`. Sets status **En route**. 200. |
+| DELETE | `/v1/units/{unit_code}/assignment?occ_lock=N` | Stand the unit down. Clears the incident, sets status **Available**. 200. |
 | GET | `/livez` | Liveness. |
 | GET | `/readyz` | Readiness — fails when the database is unreachable. |
 
@@ -171,8 +170,8 @@ offending field in `details`. Other codes: `DISPATCH_UNIT_NOT_FOUND` (404),
 / `DISPATCH_UNIT_WRITE_FAILED` (500), `DISPATCH_UNIT_FORBIDDEN` (403, the caller's roles
 do not permit the operation), `DISPATCH_TENANT_SEED_FAILED` (500),
 `DISPATCH_TENANT_MISSING` / `DISPATCH_IDENTITY_MISSING` (401 / 500). A missing, malformed
-or expired bearer answers 401. The four workshop stub route/method pairs answer 501
-`DISPATCH_NOT_IMPLEMENTED` — but only to an authorised caller (see `WORKSHOP.md` at the
+or expired bearer answers 401. Every workshop exercise is console-side now, so this
+service ships complete and has no stub routes (see `WORKSHOP.md` at the
 repo root).
 
 `PATCH`, and `PUT`/`DELETE` on the collection, return 405.

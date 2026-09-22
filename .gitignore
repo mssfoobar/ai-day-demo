@@ -3,3 +3,7 @@ node_modules
 
 # Turborepo local cache and per-task logs — build artifacts, never committed.
 .turbo
+
+# The offline prerequisite bundle, built on demand by pnpm bundle:prereqs.
+prereq-bundle
+prereq-bundle-*.zip

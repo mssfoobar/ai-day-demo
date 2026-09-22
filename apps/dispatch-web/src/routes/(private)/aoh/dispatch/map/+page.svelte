@@ -48,6 +48,7 @@
 	} from '@mssfoobar/gis-web-sdk';
 
 	import { sinceLabel } from '$lib/aoh/dispatch/format';
+	import { FOCUS_BASE_CLASS, FOCUS_ON_CLASS } from '$lib/aoh/dispatch/workshop';
 	import type { FieldUnit } from '$lib/aoh/dispatch/types';
 	import type { PageData } from './$types';
 
@@ -112,6 +113,9 @@
 
 	// The console hands a selection over as `?unit=` — a SvelteKit navigation, not a fetch.
 	let selectedCode = $state<string | undefined>(page.url.searchParams.get('unit') ?? undefined);
+	// Workshop exercise 3 is built here; the units page points at it with ?focus=3.
+	const workshopFocus = $derived(page.url.searchParams.get('focus') === '3');
+	const incidents = $derived(units.filter((u) => u.assignment));
 	const selected = $derived(units.find((u) => u.id === selectedCode));
 
 	/*
@@ -280,6 +284,26 @@
 					</MapLayerManager>
 				</GisMapComponent>
 			</CesiumMapEngineProvider>
+
+			{#if workshopFocus}
+				<!-- Workshop exercise 3: a sketch of the incidents layer and its panel. -->
+				<div class="pointer-events-none absolute top-3 right-3 z-10 max-w-xs">
+					<div
+						class="workshop-sketch pointer-events-auto rounded-md border border-dashed border-(--workshop) bg-(--workshop-muted) p-3 text-(--workshop-text) {FOCUS_BASE_CLASS} {FOCUS_ON_CLASS}"
+					>
+						<p class="text-xs font-semibold tracking-wide uppercase">
+							Incidents ({incidents.length})
+						</p>
+						<div
+							class="mt-2 h-16 w-full rounded-sm border border-dashed border-(--workshop) bg-(--workshop)/10"
+						></div>
+						<p class="mt-2 text-xs leading-5">
+							Markers for each incident, and a panel with a placeholder picture when one is
+							highlighted. Exercise 3.
+						</p>
+					</div>
+				</div>
+			{/if}
 
 			{#if units.length === 0}
 				<!--

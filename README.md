@@ -1,8 +1,8 @@
 # fleet-dispatch-console
 
 A workshop dispatch console on the AOH platform: a SvelteKit frontend (`apps/dispatch-web`)
-and a Go + PostgreSQL field-unit service (`apps/dispatch-svc`). **No authentication**,
-by design, for the workshop.
+and a Go + PostgreSQL field-unit service (`apps/dispatch-svc`), behind Keycloak with
+per-tenant scoping and two application roles.
 
 **Attending the workshop? Start with [SETUP.md](SETUP.md).** The rest of this file
 is for working on the repo itself.
@@ -20,8 +20,9 @@ installing.
   dropped corepack). Take the `@10`: an unpinned install gives pnpm 12, and the
   lockfile and `pnpm-workspace.yaml` here were written for 10.
 - **Go 1.25+**
-- **Podman**, with a compose provider. `podman compose` delegates to
-  `podman-compose` or `docker-compose`; check yours with `podman compose version`.
+- **Podman**, with `podman-compose` as its provider; check yours with
+  `podman compose version`. Not `docker-compose`: the two resolve relative paths in an
+  included compose file differently, and `compose/` is written for `podman-compose`.
 - **Claude Code**, for the workshop exercises:
   `curl -fsSL https://claude.ai/install.sh | bash`, or
   `irm https://claude.ai/install.ps1 | iex` in Windows PowerShell
@@ -32,6 +33,12 @@ installing.
 Nothing in this repo is written in Python. Both of its scripts are Node
 (`scripts/dev.mjs`, `scripts/doctor.mjs`), and `pnpm start`, `pnpm doctor` and
 `pnpm verify` never call an interpreter other than Node and Go.
+
+For machines with no internet, `pnpm bundle:prereqs --zip` downloads that list
+minus Podman and packages it as one zip per platform, macOS arm64, Linux x64 and
+Windows x64, around 230 MB each. `scripts/install-prereqs-offline.sh` (`.ps1` on
+Windows) installs from an unzipped bundle and touches the network nowhere. See
+[SETUP.md](SETUP.md).
 
 The one credential this needs is already here. A GitHub Packages token for the six
 `@mssfoobar` dependencies is checked in at `.npmrc`, so there is nothing to create; it
@@ -80,14 +87,16 @@ service starts.
 | `pnpm stop` / `pnpm reset` | stop the stack / stop it **and delete its volumes** |
 | `pnpm verify` | lint, type-check and build across both apps |
 | `pnpm doctor` | check the stack is up and the workshop model is reachable |
+| `pnpm bundle:prereqs --zip` | build the offline prerequisite bundle, needs internet |
 
 ## Workshop exercises
 
-Three features are deliberately **stubbed, not built**: dispatching a unit to an incident,
-a per-unit activity timeline, and crew management. A floating button lists them and, one at a time,
-sketches the missing control where it goes in the console; the service answers `501`
-on their routes. Their user stories,
-acceptance criteria and pointers to the code to copy are in **[WORKSHOP.md](WORKSHOP.md)**.
+Three features are deliberately **sketched, not built**, and all three are console-side:
+an incidents panel on the units page, a unit's location shown in the detail pane, and the
+incidents on the map. A floating button lists them and, one at a time, sketches the missing control
+where it goes. The service ships complete, so nothing in `apps/dispatch-svc` needs
+touching. Their user stories, acceptance criteria and pointers to the code to copy are in
+**[WORKSHOP.md](WORKSHOP.md)**.
 
 ## Layout
 
@@ -95,12 +104,14 @@ acceptance criteria and pointers to the code to copy are in **[WORKSHOP.md](WORK
 apps/dispatch-web      SvelteKit console            → apps/dispatch-web/README.md
 apps/dispatch-svc      Go field-unit service        → apps/dispatch-svc/README.md
 packages/aoh-golib     local copy of the AOH Go library (see LOCAL_COPY.md there)
-compose/               Postgres, the one container
+compose/               the sixteen-container stack, from compose.yml
 scripts/install-prereqs.sh  the toolchain installer (.ps1 for Windows)
+scripts/bundle-prereqs.mjs  builds the offline prerequisite bundle
+scripts/install-prereqs-offline.sh  installs from it (.ps1 for Windows)
 scripts/dev.mjs        `pnpm start`
 scripts/doctor.mjs     `pnpm doctor`, the offline readiness check
 SETUP.md               participant setup, the two stages
-WORKSHOP.md            the three stubbed features, as user stories
+WORKSHOP.md            the three console-side exercises, as user stories
 openspec/              planning artifacts for each change
 ```
 

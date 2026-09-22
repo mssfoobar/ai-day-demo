@@ -35,6 +35,51 @@ Open a new terminal afterwards, so every PATH change takes effect. Then skip to
 If the installer cannot do something on your machine, it says which tool and
 where to get it, and the rest of this section covers each one by hand.
 
+## The offline bundle
+
+The installer above downloads as it goes, so it needs internet. If you are
+already on the workshop network, or the machine never had internet, use the
+bundle instead: a folder carrying Node, Go, pnpm, Claude Code and, on Windows,
+Python, with nothing left to fetch.
+
+Unzip `prereq-bundle-<your platform>.zip`, then run the installer inside it:
+
+```sh
+./install-prereqs-offline.sh            # macOS and Linux
+```
+
+```powershell
+.\install-prereqs-offline.ps1           # Windows, from PowerShell
+```
+
+`--check` (`-Check` on Windows) reports what is missing without installing
+anything, same as above. Windows needs no Administrator: Node and Go go under
+`%LOCALAPPDATA%\ai-day-demo`. macOS and Linux put them in `/usr/local` and ask
+for `sudo` once, falling back to `~/.local` where there is no `sudo`.
+
+Podman is not in the bundle. Install Podman Desktop from
+<https://podman-desktop.io> while you still have internet.
+
+Whoever hands the bundle out builds it on a connected machine, once:
+
+```sh
+pnpm bundle:prereqs --zip
+```
+
+That writes `prereq-bundle/` and one zip per platform beside it, each carrying
+only what that machine needs:
+
+| Zip | Size |
+| --- | --- |
+| `prereq-bundle-darwin-arm64.zip` | 215 MB |
+| `prereq-bundle-linux-x64.zip` | 233 MB |
+| `prereq-bundle-win32-x64.zip` | 253 MB |
+
+Add `--platform darwin-arm64` to build one of the three. Every file is checked
+against the sha256 its publisher ships, and written to a `SHA256SUMS` the
+offline installers re-check after the copy across, so a truncated USB transfer
+is caught before anything is installed.
+
 ## What you need
 
 Six things. Install them in this order.

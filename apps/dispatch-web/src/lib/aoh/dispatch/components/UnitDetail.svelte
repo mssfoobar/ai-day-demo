@@ -65,6 +65,7 @@
 	const sketch =
 		'border border-dashed border-(--workshop) bg-(--workshop-muted) text-(--workshop-text) hover:bg-(--workshop-muted-hover) transition-all duration-200 hover:-translate-y-0.5 active:scale-95';
 	// Workshop focus: the sketch being pointed at scrolls into view and gets a highlighted border.
+	// Only exercise 2's sketch lives in this pane; 1 is on the units page, 3 is on the map.
 	let targets = $state<Record<ExerciseNumber, HTMLElement | null>>({ 1: null, 2: null, 3: null });
 	$effect(() => {
 		const el = focus === null ? null : targets[focus];
@@ -115,28 +116,6 @@
 		<div class="flex shrink-0 flex-col items-end gap-1.5">
 			{#if onexercise || onedit || ondelete}
 				<div class="flex gap-1">
-					<!-- Keyed on the unit so the sketches replay their entrance when the selection changes. -->
-					{#key unit.id}
-						{#if onexercise && focus === 1}
-							<!-- Workshop exercise 1: a sketch of the Dispatch / Stand down button. -->
-							<span
-								bind:this={targets[1]}
-								class="workshop-sketch inline-flex {focusClass(1)}"
-								in:fly={{ y: -6, duration: 250, delay: 80 }}
-								out:fade={{ duration: 150 }}
-							>
-								<Button
-									variant="ghost"
-									size="sm"
-									class="h-7 gap-1.5 px-2 text-xs {sketch}"
-									onclick={() => onexercise?.(1)}
-								>
-									{@render marker(1)}
-									{unit.assignment ? 'Stand down' : 'Dispatch'}
-								</Button>
-							</span>
-						{/if}
-					{/key}
 					{#if onedit}
 						<Button variant="ghost" size="sm" onclick={onedit} class="h-7 gap-1 px-2 text-xs">
 							<Pencil class="size-3.5" aria-hidden="true" />
@@ -225,9 +204,17 @@
 							{sinceLabel(unit.assignment.since, now)}
 						</span>
 					</div>
+					<p class="mt-2 text-xs leading-relaxed text-foreground/80">
+						{unit.assignment.description}
+					</p>
 					<p class="mt-1.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
 						<MapPin class="size-3" aria-hidden="true" />
 						{unit.assignment.location}
+						{#if unit.assignment.point}
+							<span class="font-mono tabular-nums">
+								{unit.assignment.point.lat.toFixed(4)}, {unit.assignment.point.lon.toFixed(4)}
+							</span>
+						{/if}
 					</p>
 				</div>
 			{:else}
@@ -238,7 +225,7 @@
 		<!-- Keyed on the unit so the sketches replay their entrance when the selection changes. -->
 		{#key unit.id}
 			{#if onexercise && focus === 2}
-				<!-- Workshop exercise 2: a sketch of the Activity section — a title and three timeline rows. -->
+				<!-- Workshop exercise 2: a sketch of the inline location map, under Position. -->
 				<section
 					bind:this={targets[2]}
 					class="workshop-sketch {focusClass(2)}"
@@ -246,7 +233,7 @@
 					out:fade={{ duration: 150 }}
 				>
 					<div class="flex items-center gap-2">
-						{@render sectionTitle('Activity')}
+						{@render sectionTitle('Location')}
 						<span class="mb-2">{@render marker(2)}</span>
 					</div>
 					<Button
@@ -255,19 +242,10 @@
 						class="h-auto w-full flex-col items-stretch gap-2 rounded-md p-3 text-left {sketch}"
 						onclick={() => onexercise?.(2)}
 					>
-						{#each [72, 52, 64] as width, i (width)}
-							<span
-								class="flex items-center gap-2"
-								in:fly={{ x: -8, duration: 250, delay: 240 + i * 70 }}
-							>
-								<span class="size-2 shrink-0 rounded-full bg-(--workshop)/50"></span>
-								<Skeleton
-									class="h-2.5 animate-none rounded-sm bg-(--workshop)/25"
-									style="width: {width}%"
-								/>
-								<Skeleton class="ml-auto h-2.5 w-10 animate-none rounded-sm bg-(--workshop)/25" />
-							</span>
-						{/each}
+						<Skeleton class="h-24 w-full animate-none rounded-sm bg-(--workshop)/25" />
+						<span class="text-xs">
+							{unit.position ? 'The unit, on a map, right here.' : 'No position to show yet.'}
+						</span>
 					</Button>
 				</section>
 			{/if}
@@ -277,28 +255,6 @@
 			<section>
 				<div class="flex items-start justify-between gap-2">
 					{@render sectionTitle('Crew', unit.crew.length)}
-					<!-- Keyed on the unit so the sketches replay their entrance when the selection changes. -->
-					{#key unit.id}
-						{#if onexercise && focus === 3}
-							<!-- Workshop exercise 3: a sketch of the Manage button. -->
-							<span
-								bind:this={targets[3]}
-								class="workshop-sketch -mt-1 inline-flex {focusClass(3)}"
-								in:fly={{ y: -6, duration: 250, delay: 240 }}
-								out:fade={{ duration: 150 }}
-							>
-								<Button
-									variant="ghost"
-									size="sm"
-									class="h-6 gap-1.5 px-2 text-xs {sketch}"
-									onclick={() => onexercise?.(3)}
-								>
-									{@render marker(3)}
-									Manage
-								</Button>
-							</span>
-						{/if}
-					{/key}
 				</div>
 				{#if unit.crew.length > 0}
 					<ul class="divide-y divide-border">

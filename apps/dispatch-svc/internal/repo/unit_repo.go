@@ -64,11 +64,14 @@ type unitRow struct {
 	LastContact  time.Time      `db:"last_contact"`
 	OccLock      int            `db:"occ_lock"`
 
-	AssignmentIncidentCode sql.NullString `db:"assignment_incident_code"`
-	AssignmentTitle        sql.NullString `db:"assignment_title"`
-	AssignmentPriority     sql.NullString `db:"assignment_priority"`
-	AssignmentLocation     sql.NullString `db:"assignment_location"`
-	AssignmentSince        sql.NullTime   `db:"assignment_since"`
+	AssignmentIncidentCode sql.NullString  `db:"assignment_incident_code"`
+	AssignmentTitle        sql.NullString  `db:"assignment_title"`
+	AssignmentDescription  sql.NullString  `db:"assignment_description"`
+	AssignmentPriority     sql.NullString  `db:"assignment_priority"`
+	AssignmentLocation     sql.NullString  `db:"assignment_location"`
+	AssignmentLon          sql.NullFloat64 `db:"assignment_lon"`
+	AssignmentLat          sql.NullFloat64 `db:"assignment_lat"`
+	AssignmentSince        sql.NullTime    `db:"assignment_since"`
 
 	PositionLon sql.NullFloat64 `db:"position_lon"`
 	PositionLat sql.NullFloat64 `db:"position_lat"`
@@ -83,8 +86,9 @@ type crewRow struct {
 
 const unitColumns = `id, unit_code, call_sign, status, unit_type, station, sector,
 	radio_channel, shift, capabilities, last_contact, occ_lock,
-	assignment_incident_code, assignment_title, assignment_priority,
-	assignment_location, assignment_since,
+	assignment_incident_code, assignment_title, assignment_description,
+	assignment_priority, assignment_location, assignment_lon, assignment_lat,
+	assignment_since,
 	position_lon, position_lat, position_at`
 
 // --------------------------------------------------------------------------- //
@@ -348,21 +352,27 @@ func (r *UnitRepo) seedOne(ctx context.Context, tx *sqlx.Tx, caller Caller, seed
 		INSERT INTO %s.unit
 			(unit_code, call_sign, status, unit_type, station, sector, radio_channel, shift,
 			 capabilities, last_contact, position_lon, position_lat, position_at,
-			 assignment_incident_code, assignment_title, assignment_priority,
-			 assignment_location, assignment_since,
+			 assignment_incident_code, assignment_title, assignment_description,
+			 assignment_priority, assignment_location, assignment_lon, assignment_lat,
+			 assignment_since,
 			 created_by, updated_by, tenant_id)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
 		        now() - make_interval(secs => $10), $11, $12, $13,
-		        $14, $15, $16, $17, $18, $19, $19, $20)
+		        $14, $15, $16, $17, $18, $19, $20, $21, $22, $22, $23)
 		RETURNING %s`, r.schema, unitColumns)
 
 	lon, lat, at := positionArgs(seed.Position)
-	// All five assignment columns move together: the all-or-nothing CHECK rejects a
-	// partial one.
-	var incident, title, priority, location, since any
+	// The described columns move together: the all-or-nothing CHECK rejects a partial
+	// assignment. The point is its own pair and stays null when unresolved.
+	var incident, title, description, priority, location, since any
+	var incidentLon, incidentLat any
 	if seed.Assignment != nil {
-		incident, title, priority = seed.Assignment.IncidentCode, seed.Assignment.Title, seed.Assignment.Priority
+		incident, title = seed.Assignment.IncidentCode, seed.Assignment.Title
+		description, priority = seed.Assignment.Description, seed.Assignment.Priority
 		location, since = seed.Assignment.Location, seed.Assignment.Since
+		if seed.Assignment.Point != nil {
+			incidentLon, incidentLat = seed.Assignment.Point.Lon, seed.Assignment.Point.Lat
+		}
 	}
 
 	var row unitRow
@@ -370,7 +380,7 @@ func (r *UnitRepo) seedOne(ctx context.Context, tx *sqlx.Tx, caller Caller, seed
 		seed.UnitCode, seed.CallSign, seed.Status, seed.UnitType, seed.Station, seed.Sector,
 		seed.RadioChannel, seed.Shift, pq.Array(capsOrEmpty(seed.Capabilities)),
 		seed.LastContactAgo.Seconds(), lon, lat, at,
-		incident, title, priority, location, since,
+		incident, title, description, priority, location, incidentLon, incidentLat, since,
 		caller.Subject, caller.TenantID); err != nil {
 		return projection.Row{}, mapWriteError("seed unit "+seed.UnitCode, err)
 	}
@@ -481,6 +491,103 @@ func (r *UnitRepo) getRow(ctx context.Context, q queryer, caller Caller, unitCod
 // staleOrMissing tells a guarded write that matched nothing apart: does the unit exist in
 // this tenant with a different occ_lock (stale), or not at all (not found)? Another
 // tenant's row answers "not at all", which is the point.
+// Assign commits a unit to an incident and moves it to status.
+//
+// The whole described group is written in one statement, so the all-or-nothing CHECK
+// cannot see a partial assignment. `assignment_since` is stamped here rather than taken
+// from the client: re-dispatching to a different incident starts a new commitment.
+func (r *UnitRepo) Assign(ctx context.Context, caller Caller, unitCode string, occLock int, in domain.AssignmentInput, status string) (domain.Unit, []projection.Row, error) {
+	var (
+		unit domain.Unit
+		rows []projection.Row
+	)
+	err := r.inTx(ctx, func(tx *sqlx.Tx) error {
+		query := fmt.Sprintf(`
+			UPDATE %s.unit SET
+				assignment_incident_code = $3, assignment_title = $4,
+				assignment_description = $5, assignment_priority = $6,
+				assignment_location = $7, assignment_lon = $8, assignment_lat = $9,
+				assignment_since = now(), status = $10,
+				last_contact = now(), updated_by = $11, occ_lock = occ_lock + 1
+			WHERE unit_code = $1 AND tenant_id = $12 AND occ_lock = $2
+			RETURNING %s`, r.schema, unitColumns)
+
+		var lon, lat any
+		if in.Point != nil {
+			lon, lat = in.Point.Lon, in.Point.Lat
+		}
+
+		var row unitRow
+		err := tx.GetContext(ctx, &row, query,
+			unitCode, occLock, in.IncidentCode, in.Title, in.Description, in.Priority,
+			in.Location, lon, lat, status, caller.Subject, caller.TenantID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return r.staleOrMissing(ctx, tx, caller, unitCode)
+			}
+			return mapWriteError("assign unit "+unitCode, err)
+		}
+		return r.finishWrite(ctx, tx, caller, row, &unit, &rows)
+	})
+	if err != nil {
+		return domain.Unit{}, nil, err
+	}
+	return unit, rows, nil
+}
+
+// ClearAssignment stands a unit down and moves it to status.
+//
+// Every described column and the point go to NULL together, which is the only shape the
+// all-or-nothing CHECKs accept for an unassigned unit.
+func (r *UnitRepo) ClearAssignment(ctx context.Context, caller Caller, unitCode string, occLock int, status string) (domain.Unit, []projection.Row, error) {
+	var (
+		unit domain.Unit
+		rows []projection.Row
+	)
+	err := r.inTx(ctx, func(tx *sqlx.Tx) error {
+		query := fmt.Sprintf(`
+			UPDATE %s.unit SET
+				assignment_incident_code = NULL, assignment_title = NULL,
+				assignment_description = NULL, assignment_priority = NULL,
+				assignment_location = NULL, assignment_lon = NULL, assignment_lat = NULL,
+				assignment_since = NULL, status = $3,
+				last_contact = now(), updated_by = $4, occ_lock = occ_lock + 1
+			WHERE unit_code = $1 AND tenant_id = $5 AND occ_lock = $2
+			RETURNING %s`, r.schema, unitColumns)
+
+		var row unitRow
+		err := tx.GetContext(ctx, &row, query,
+			unitCode, occLock, status, caller.Subject, caller.TenantID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return r.staleOrMissing(ctx, tx, caller, unitCode)
+			}
+			return mapWriteError("stand down unit "+unitCode, err)
+		}
+		return r.finishWrite(ctx, tx, caller, row, &unit, &rows)
+	})
+	if err != nil {
+		return domain.Unit{}, nil, err
+	}
+	return unit, rows, nil
+}
+
+// finishWrite loads the written unit's crew and enqueues its projection.
+func (r *UnitRepo) finishWrite(ctx context.Context, tx *sqlx.Tx, caller Caller, row unitRow, unit *domain.Unit, rows *[]projection.Row) error {
+	crewByUnit, err := r.crewFor(ctx, tx, []string{row.ID})
+	if err != nil {
+		return err
+	}
+	*unit = toDomain(row, crewByUnit[row.ID])
+
+	out, err := r.enqueue(ctx, tx, caller, *unit)
+	if err != nil {
+		return err
+	}
+	*rows = append(*rows, out)
+	return nil
+}
+
 func (r *UnitRepo) staleOrMissing(ctx context.Context, q queryer, caller Caller, unitCode string) error {
 	var exists bool
 	query := fmt.Sprintf(
@@ -578,9 +685,17 @@ func toDomain(row unitRow, crew []domain.Crew) domain.Unit {
 		unit.Assignment = &domain.Assignment{
 			IncidentCode: row.AssignmentIncidentCode.String,
 			Title:        row.AssignmentTitle.String,
+			Description:  row.AssignmentDescription.String,
 			Priority:     row.AssignmentPriority.String,
 			Location:     row.AssignmentLocation.String,
 			Since:        row.AssignmentSince.Time,
+		}
+		// The point is its own pair, optional within an assignment.
+		if row.AssignmentLon.Valid {
+			unit.Assignment.Point = &domain.Point{
+				Lon: row.AssignmentLon.Float64,
+				Lat: row.AssignmentLat.Float64,
+			}
 		}
 	}
 	if row.PositionLon.Valid {
