@@ -6,10 +6,6 @@
 
 name: aoh
 
-include:
-    - ../traefik/compose.yml
-    - ../iams/compose.yml
-
 services:
     dispatch-svc:
         # `profiles: [apps]` matches the Turborepo `apps/dispatch-svc/` convention.

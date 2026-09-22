@@ -611,7 +611,7 @@ named step, rather than carrying on and reporting at the end.
 <NumStep :n="3" body="font-mono text-sm">npm install -g pnpm@10</NumStep>
 <NumStep :n="4" body="font-mono text-sm">curl -fsSL https://claude.ai/install.sh | bash</NumStep>
 <NumStep :n="5" body="font-mono text-sm">cd ai-day-demo && pnpm start</NumStep>
-<NumStep :n="6">Open http://localhost:5173</NumStep>
+<NumStep :n="6">Open http://127.0.0.1.nip.io:5173/aoh/dispatch/units</NumStep>
 </Points>
 
 <!--

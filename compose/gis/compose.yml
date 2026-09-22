@@ -1,10 +1,5 @@
 name: aoh
 
-include:
-    - ../traefik/compose.yml
-    - ../iams/compose.yml
-    - ../rtus/compose.yml
-
 # Compose wiring for the GIS service. For what GIS is and how it works, see the
 # aoh-knowledge skill (references/services/gis.md).
 
@@ -25,7 +20,7 @@ services:
             - gis-db-volume:/var/lib/postgresql/data
             # gis-service migrates its tables on boot but does not CREATE SCHEMA;
             # this seeds the schema namespace (see ./db-init/schema.sql).
-            - ../gis/db-init:/docker-entrypoint-initdb.d/
+            - ./gis/db-init:/docker-entrypoint-initdb.d/
         healthcheck:
             test: ["CMD-SHELL", "pg_isready -U ${DEV_USER} -d gis"]
             interval: 5s
@@ -38,6 +33,8 @@ services:
     # skill), so no gis web service runs here.
     gis-service:
         image: ghcr.io/mssfoobar/ops-hub/gis-service:${GIS_SERVICE_TAG}
+        # Published for linux/amd64 only; runs under emulation on arm64.
+        platform: linux/amd64
         restart: on-failure
         deploy:
             restart_policy:

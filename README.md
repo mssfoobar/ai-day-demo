@@ -9,7 +9,8 @@ is for working on the repo itself.
 
 ## Prerequisites
 
-Everything runs natively. Only PostgreSQL runs in a container.
+The two apps run natively. Everything they depend on, sixteen containers from the
+dispatch database to IAMS, SDS, RTUS, GIS and Traefik, runs in compose.
 `./scripts/install-prereqs.sh` (or `.\scripts\install-prereqs.ps1` on Windows)
 installs whatever is missing from this list; `--check` reports without
 installing.
@@ -43,21 +44,26 @@ under `packages/aoh-golib`, so no access to the private `ops-hub` repo is requir
 pnpm start
 ```
 
-Then open **http://localhost:5173**. `Ctrl+C` stops the two apps; the database keeps
-running (`pnpm stop` removes it, `pnpm reset-db` also wipes its data).
+Then open **http://127.0.0.1.nip.io:5173/aoh/dispatch/units**. `Ctrl+C` stops the two
+apps; the stack keeps running (`pnpm stop` removes it, `pnpm reset` also wipes its
+volumes).
 
 `pnpm start` is a thin runner (`scripts/dev.mjs`). It checks 8081 and 5173 are free,
 installs dependencies, then starts these three, in order:
 
 ```sh
-podman compose -f compose/compose.yml up -d postgres
+podman compose -f compose/compose.yml up -d
 (cd apps/dispatch-svc && go run ./cmd/server)            # http://localhost:8081
-(cd apps/dispatch-web && pnpm dev)                       # http://localhost:5173
+(cd apps/dispatch-web && pnpm dev)                       # http://127.0.0.1.nip.io:5173
 ```
 
 Run them yourself if you prefer to see the parts. On every run after the first,
-the install and the database are sub-second no-ops. Stop the stack with `Ctrl+C`
+the install and the stack are sub-second no-ops. Stop the stack with `Ctrl+C`
 before starting it again: the port check refuses to start a second copy.
+
+The console is served on `127.0.0.1.nip.io` rather than `localhost` so the session
+cookie is issued on a parent of `rtus-seh.127.0.0.1.nip.io`, which is what lets the
+map receive updates.
 
 The deck under `slides/` is its own pnpm workspace, so the install above does
 not reach it. `pnpm slides` installs it on demand.
@@ -68,10 +74,10 @@ service starts.
 
 | Command | Does |
 |---|---|
-| `pnpm start` | install → db → service → console, with a port preflight |
-| `pnpm start --no-db` | same, assuming Postgres is already up |
+| `pnpm start` | install → stack → service → console, with a port preflight |
+| `pnpm start --no-infra` | same, assuming the stack is already up |
 | `POSTGRES_PORT=5441 pnpm start` | same, when something else already holds 5432 |
-| `pnpm stop` / `pnpm reset-db` | stop the database / stop it **and delete its data** |
+| `pnpm stop` / `pnpm reset` | stop the stack / stop it **and delete its volumes** |
 | `pnpm verify` | lint, type-check and build across both apps |
 | `pnpm doctor` | check the stack is up and the workshop model is reachable |
 

@@ -1,5 +1,12 @@
 name: aoh
 
+# The single entry point for the stack. The files below no longer include one another:
+# podman-compose concatenates list fields when a file is included twice, which corrupts
+# any healthcheck or ports block it reaches. Run a subset from here instead, and
+# depends_on pulls in the rest:
+#
+#     podman compose up -d gis-service
+#
 include:
     - ./traefik/compose.yml
     - ./iams/compose.yml

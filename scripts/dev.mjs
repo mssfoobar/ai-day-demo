@@ -84,6 +84,44 @@ function composeRunner() {
 	return null;
 }
 
+/**
+ * Warns when the podman VM will copy its proxy settings into every container.
+ *
+ * `podman machine init` inherits the host's HTTP_PROXY. Containers then address each
+ * other by compose name (iams-keycloak:8080), which no proxy can route, and the init
+ * containers fail on a connect timeout naming the proxy rather than the cause.
+ */
+function warnOnContainerProxy(runner) {
+	if (runner !== 'podman') return;
+	const machines = spawnSync('podman', ['machine', 'list', '--format', '{{.Running}}'], {
+		encoding: 'utf8'
+	});
+	if (!machines.stdout?.includes('true')) return;
+
+	const probe = spawnSync(
+		'podman',
+		[
+			'machine',
+			'ssh',
+			"systemctl --user show-environment 2>/dev/null | grep -i '^HTTP_PROXY=.'; " +
+				"grep -rhE '^[[:space:]]*http_proxy[[:space:]]*=' /etc/containers/containers.conf " +
+				'/etc/containers/containers.conf.d/ 2>/dev/null'
+		],
+		{ encoding: 'utf8' }
+	);
+	const out = probe.stdout ?? '';
+	// Absent any http_proxy setting, podman defaults to passing the proxy through.
+	if (!/HTTP_PROXY=\S/i.test(out) || /http_proxy\s*=\s*false/i.test(out)) return;
+
+	log('infra', 'this podman machine passes its HTTP_PROXY into every container');
+	log('infra', 'container-to-container calls cannot route through it, so the init containers will fail');
+	log('infra', 'disable it with:');
+	log(
+		'infra',
+		'  podman machine ssh \'sudo mkdir -p /etc/containers/containers.conf.d && printf "[containers]\\nhttp_proxy = false\\n" | sudo tee /etc/containers/containers.conf.d/99-no-container-proxy.conf\''
+	);
+}
+
 /** pnpm invocation: the binary on PATH, falling back to corepack. */
 function pnpmCommand() {
 	for (const candidate of ['pnpm', 'corepack pnpm']) {
@@ -119,24 +157,54 @@ function startInfra(runner) {
 	}
 }
 
-/** One row per service, from `compose ps`. */
+/** Compose project name, which labels every container in the stack. */
+function composeProject() {
+	try {
+		const body = readFileSync(join(COMPOSE_DIR, 'compose.yml'), 'utf8');
+		return body.match(/^name:\s*(\S+)/m)?.[1] ?? 'aoh';
+	} catch {
+		return 'aoh';
+	}
+}
+
+const PROJECT = composeProject();
+
+/**
+ * One row per container in the project, read from the engine rather than from compose.
+ *
+ * `podman-compose ps` rejects `-a` and prints nothing for `--format json`, so asking
+ * compose yields an empty list and every readiness check below silently passes.
+ */
 function composePs(runner) {
-	const probe = spawnSync(runner, ['compose', 'ps', '-a', '--format', 'json'], {
-		cwd: COMPOSE_DIR,
-		encoding: 'utf8'
-	});
+	const probe = spawnSync(
+		runner,
+		[
+			'ps',
+			'-a',
+			'--filter',
+			`label=com.docker.compose.project=${PROJECT}`,
+			'--format',
+			'{{.Label "com.docker.compose.service"}}\t{{.State}}\t{{.Status}}'
+		],
+		{ encoding: 'utf8' }
+	);
 	return (probe.stdout ?? '')
 		.split('\n')
 		.map((line) => line.trim())
-		.filter((line) => line.startsWith('{'))
+		.filter(Boolean)
 		.map((line) => {
-			try {
-				return JSON.parse(line);
-			} catch {
-				return null;
-			}
-		})
-		.filter(Boolean);
+			const [Service, State, Status = ''] = line.split('\t');
+			// Both engines spell health and exit code into Status: "Up 3 minutes (healthy)",
+			// "Exited (1) 2 minutes ago". Neither exposes them as template fields on both.
+			const exited = Status.match(/^Exited \((\d+)\)/);
+			return {
+				Service,
+				State,
+				Status,
+				Health: Status.match(/\((healthy|unhealthy|starting)\)/)?.[1],
+				ExitCode: exited ? Number(exited[1]) : 0
+			};
+		});
 }
 
 /**
@@ -152,7 +220,10 @@ async function waitForInfra(runner) {
 	const INIT_SERVICES = ['iams-init', 'project-aas-init'];
 	for (let i = 0; i < 180; i++) {
 		const rows = composePs(runner);
-		if (rows.length > 0) {
+		if (rows.length === 0) {
+			// Silence here reads exactly like a slow start, so name it.
+			if (i % 10 === 0) log('infra', `no containers labelled ${PROJECT} yet`);
+		} else {
 			const unhealthy = rows.filter((r) => r.Health && r.Health !== 'healthy');
 			const initsPending = INIT_SERVICES.filter((name) => {
 				const row = rows.find((r) => r.Service === name);
@@ -301,6 +372,7 @@ if (skipInfra) {
 		log('infra', 'no podman or docker found. The stack is required — see SETUP.md');
 		process.exit(1);
 	}
+	warnOnContainerProxy(runner);
 	startInfra(runner);
 	await waitForInfra(runner);
 }

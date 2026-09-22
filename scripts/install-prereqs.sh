@@ -301,6 +301,11 @@ install_podman() {
 		else
 			info "podman machine running"
 		fi
+
+		# Stops podman copying the host's HTTP_PROXY into every container it creates.
+		# Container-to-container names such as iams-keycloak have no route through a proxy.
+		info "disabling proxy inheritance inside containers"
+		run podman machine ssh 'sudo mkdir -p /etc/containers/containers.conf.d && printf "[containers]\nhttp_proxy = false\n" | sudo tee /etc/containers/containers.conf.d/99-no-container-proxy.conf >/dev/null'
 	fi
 
 	if have podman && podman compose version >/dev/null 2>&1; then

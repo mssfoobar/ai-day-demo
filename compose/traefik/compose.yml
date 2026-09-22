@@ -29,7 +29,7 @@ services:
             - traefik.http.middlewares.permissive-headers.headers.addvaryheader=true
             - traefik.entrypoints.web.forwardedHeaders.insecure=true
         volumes:
-            - /run/podman/podman.sock:/var/run/docker.sock
+            - ${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
         ports:
             - ${TRAEFIK_HTTP_PORT:-80}:80
             - ${SDS_TCP_PORT:-5333}:5333

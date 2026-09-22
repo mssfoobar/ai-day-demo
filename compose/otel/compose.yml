@@ -19,7 +19,7 @@ services:
                 delay: 3s
         command: ["--config=/etc/otelcol-contrib/config.yaml"]
         volumes:
-            - ../otel/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+            - ./otel/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
         ports:
             # OTLP gRPC + HTTP — exposed so apps run natively (go run / pnpm dev)
             # against the composed infra can reach the collector on localhost.

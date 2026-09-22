@@ -7,7 +7,9 @@ downloaded or installed once you are on it.
 Budget 30 minutes for stage 1, mostly waiting on installers and a first
 `pnpm install`.
 
-Everything runs natively on your machine. Only PostgreSQL runs in a container.
+The two apps run natively on your machine. Everything they depend on runs in
+containers: the dispatch database, plus IAMS (Keycloak and AAS), SDS, RTUS, GIS
+and a Traefik router, sixteen in all.
 
 ## The short way
 
@@ -59,16 +61,20 @@ On macOS and Windows, Podman Desktop needs a machine running before any
 container starts. Open it once and start the machine it offers.
 
 `podman compose` delegates to a compose provider, so you need `podman-compose`
-or `docker-compose` on your PATH as well. Podman Desktop offers to install one
-during onboarding. Check what you have with:
+on your PATH as well. Podman Desktop offers to install one during onboarding.
+Check what you have with:
 
 ```sh
 podman compose version
 ```
 
-If that prints a version, you are set. If it reports no provider, install
-`podman-compose` (`brew install podman-compose`, or
-`pip install podman-compose`).
+If that prints `podman-compose`, you are set. If it reports no provider,
+install it (`brew install podman-compose`, or `pip install podman-compose`).
+
+Take `podman-compose`, not `docker-compose`. The two resolve relative paths
+inside an included compose file differently, and `compose/` is written for
+`podman-compose`. Podman prefers `docker-compose` when both are on your PATH,
+and the stack then starts with empty config mounts.
 
 ### Python
 
@@ -174,14 +180,20 @@ pnpm start
 That single command does the whole of stage 1:
 
 1. `pnpm install` pulls the Node dependencies into `node_modules`.
-2. `podman compose up -d postgres` pulls `postgres:16-alpine` and starts it.
+2. `podman compose up -d` pulls the sixteen stack images and starts them.
 3. `go run ./cmd/server` downloads the Go modules and compiles the service.
 4. `vite dev` starts the console.
 
 Steps 1 to 3 are the ones that need the network. Each writes into a cache on
 your disk that survives going offline.
 
-Then open **<http://localhost:5173>**.
+Step 2 takes the longest on a first run: Keycloak imports the realm before
+anything that depends on it can start.
+
+Then open **<http://127.0.0.1.nip.io:5173/aoh/dispatch/units>**. The console is
+served on that domain rather than `localhost`, because the session cookie has
+to be issued on a parent of `rtus-seh.127.0.0.1.nip.io` for the map to receive
+updates.
 
 **This is the checkpoint.** If you see the dispatch console with a list of
 units, you are done and everything you need is now on your machine. If you do
@@ -194,13 +206,36 @@ running either way.
 ### If the container images came as a tarball
 
 Some downloads ship `ai-day-workshop-images.tar.gz` alongside the project. It
-carries `postgres:16-alpine`, so loading it skips the pull in step 2:
+carries the stack images, so loading it skips the pulls in step 2:
 
 ```sh
 podman load -i ai-day-workshop-images.tar.gz
 ```
 
 Run that before `pnpm start`. It needs no network.
+
+### If an init container times out on a proxy
+
+`podman machine init` copies whatever proxy your machine was using at the time
+into the VM, and Podman then sets it inside every container it starts. The
+containers address each other by compose name, which no proxy can route, so the
+run stops with something like:
+
+```text
+requests.exceptions.ProxyError: HTTPConnectionPool(host='192.168.88.2', port=3128):
+Max retries exceeded with url: http://iams-keycloak:8080/realms/aoh/...
+```
+
+`pnpm start` names this before it starts the stack. Turn the inheritance off
+once, then start again:
+
+```sh
+podman machine ssh 'sudo mkdir -p /etc/containers/containers.conf.d && printf "[containers]\nhttp_proxy = false\n" | sudo tee /etc/containers/containers.conf.d/99-no-container-proxy.conf'
+```
+
+This affects only what containers inherit. Podman still uses your proxy for its
+own image pulls. `./scripts/install-prereqs.sh` applies it for you, so you hit
+this only on a machine created before you ran the installer.
 
 ### If something already holds port 5432
 
@@ -239,6 +274,9 @@ Claude Code at the workshop's model server. That only works when you run
 
 | Command | Does |
 | --- | --- |
-| `Ctrl+C` | stops the console and the service; the database keeps running |
-| `pnpm stop` | stops and removes the database container |
-| `pnpm reset-db` | the same, and deletes the seeded data with it |
+| `Ctrl+C` | stops the console and the service; the stack keeps running |
+| `pnpm stop` | stops and removes the stack containers |
+| `pnpm reset` | the same, and deletes the seeded volumes with it |
+
+After `pnpm reset`, the next `pnpm start` re-imports the Keycloak realm and
+re-seeds each database, so it takes as long as a first run.
