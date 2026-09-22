@@ -8,12 +8,12 @@
 > the author's machine lacks python3, run it anywhere python3 exists and commit the result —
 > it writes files and does not need the stack.
 
-- [ ] 1.1 Generate the platform stack using the `aoh-compose` skill:
+- [x] 1.1 Generate the platform stack using the `aoh-compose` skill:
       `python3 .claude/skills/aoh-compose/scripts/bootstrap.py --repo-root . --services rtus,gis --custom-service name=dispatch-svc,type=go --custom-service name=dispatch-web,type=web`.
       `iams` (with `iams-aas`, `iams-web`, `iams-init`, `project-aas-init`), `sds` (with
       `valkey`), `traefik` and the `otel-collector` gateway come in automatically; `gis`
       pulls `rtus` transitively. Do not hand-write these files.
-- [ ] 1.2 Fold the existing dispatch PostgreSQL into the generated layout. **Copy the
+- [x] 1.2 Fold the existing dispatch PostgreSQL into the generated layout. **Copy the
       `postgres` service block out of `compose/compose.yml` before running 1.1** —
       `bootstrap.py` regenerates that file from scratch as a `name:` + `include:` list and
       keeps only include entries, so both the service definition and the file's header
@@ -23,17 +23,17 @@
       `./dispatch/compose.yml` to the regenerated include list. Keep the service name
       `postgres`: `compose exec` and `compose up` take the service name, and 5.3 depends on
       it.
-- [ ] 1.3 Confirm `rtus-pms` and `rtus-seh` both set the same `rtus.clustername`
+- [x] 1.3 Confirm `rtus-pms` and `rtus-seh` both set the same `rtus.clustername`
       (`aoh_rtus` in the shipped template). A mismatch makes rtus-seh form its own one-node
       Hazelcast cluster and every SSE subscription silently receives nothing.
-- [ ] 1.4 Leave `compose/rtus/compose.yml` **unedited**, and verify why that is safe:
+- [x] 1.4 Leave `compose/rtus/compose.yml` **unedited**, and verify why that is safe:
       `rtus.session-id.cookienames` already carries `web_auth_session_id` (which
       `PUBLIC_COOKIE_PREFIX=web` produces), and rtus-seh's Traefik CORS middleware already
       lists `http://${DEV_DOMAIN}:5173` — the origin task 4.18 serves the console on. Serving
       it anywhere else (e.g. `dispatch.${DEV_DOMAIN}:5173`) would require adding that origin
       to `accesscontrolalloworiginlist` here, and the credentialed SSE request would be
       blocked until you did.
-- [ ] 1.5 Add **one seed user** to `compose/iams/keycloak/realm-import.json`'s `users` array
+- [x] 1.5 Add **one seed user** to `compose/iams/keycloak/realm-import.json`'s `users` array
       to serve as the viewer account, following the `aoh-knowledge` skill
       (`references/keycloak-realm-guide.md`) for the required shape. The shipped realm has
       only one interactive user, and `project-aas-init` cannot create one — it exits with
@@ -45,18 +45,18 @@
       `${VIEWER_PASSWORD}`-style placeholder would import **unresolved** and the viewer's
       password grant in 2.4 would fail. Reusing `DEV_PASSWORD` needs no compose edit; adding
       a variable would mean editing `compose/iams/compose.yml`'s `environment:` as well.
-- [ ] 1.6 Record the native-dev port contract in `compose/compose.override.sample.yml`: the
+- [x] 1.6 Record the native-dev port contract in `compose/compose.override.sample.yml`: the
       dispatch PostgreSQL stays on host **5432** (unchanged from today, and `SQL_PORT`'s
       default), so do **not** also publish `iams-db` there — the shipped sample allocates
       5432 to `iams-db`, and that collision is the one to avoid. `sds-server`'s TCP **5333**
       needs no entry at all: Traefik already publishes it. The real `compose.override.yml`
       stays gitignored; the contract does not.
-- [ ] 1.7 Fill `compose/.env` from the template. Keep the shipped default
+- [x] 1.7 Fill `compose/.env` from the template. Keep the shipped default
       `DEV_DOMAIN=127.0.0.1.nip.io` — nip.io wildcard-resolves to the loopback on every OS
       including Windows, and it is the domain the rtus-seh CORS list and every skill example
       already assume. Set `DEV_USER` / `DEV_PASSWORD`; the viewer account from 1.5 shares
       `DEV_PASSWORD`, so there is no second credential to fill in and no client secret.
-- [ ] 1.8 Verify: run `podman compose -f compose/compose.yml up -d` (or `docker compose -f compose/compose.yml up -d`),
+- [x] 1.8 Verify: run `podman compose -f compose/compose.yml up -d` (or `docker compose -f compose/compose.yml up -d`),
       then `podman compose -f compose/compose.yml ps` (or `docker compose -f compose/compose.yml ps`)
       shows `traefik`, `iams-keycloak`, `iams-aas`, `iams-web`, `sds-server`, `valkey`,
       `iams-db`, `rtus-db`, `rtus-pms`, `rtus-seh`, `gis-db`, `gis-service`, `otel-collector`
@@ -65,11 +65,11 @@
 
 ## 2. Seed / resource creation
 
-- [ ] 2.1 Consult the `aoh-knowledge` skill (`references/services/iams.md` →
+- [x] 2.1 Consult the `aoh-knowledge` skill (`references/services/iams.md` →
       "Project-level AAS bootstrap") before editing any seed artifact. Edit only
       `roles.yaml`: never `bootstrap.py`, never the Dockerfile, never
       `iams-aas-init.postman_collection.json`.
-- [ ] 2.2 In `compose/iams/init/project-aas/roles.yaml`, under `tenant: development`, add the
+- [x] 2.2 In `compose/iams/init/project-aas/roles.yaml`, under `tenant: development`, add the
       two application roles `dispatch-viewer` and `dispatch-dispatcher`, and under
       `assignments` give the dispatcher account both roles and the viewer account from 1.5
       `dispatch-viewer` only. Write **literal usernames** (`admin` is the shipped `DEV_USER`
@@ -79,7 +79,7 @@
       `assignments`, `tenant_admins`, `groups`, `resources`, `scopes`, `resource_scopes`,
       `permissions`. There is no membership key: membership follows from `assignments`.
       Keep the file idempotent; `bootstrap.py` is GET-then-create per section.
-- [ ] 2.3 Re-run the stack so `project-aas-init` picks up 2.2's `roles.yaml` edit. Task 1.5
+- [x] 2.3 Re-run the stack so `project-aas-init` picks up 2.2's `roles.yaml` edit. Task 1.5
       edits `realm-import.json` *before* 1.8's first `up -d`, so the viewer user is already in
       the initial import — but if you reordered, or edited the realm after a stack was up,
       the import is skip-if-exists and only a volume teardown re-applies it (R8). Use a
@@ -89,7 +89,7 @@
       wipe when a service is named, and podman-compose's `down` takes no service argument at
       all, so the per-service form can silently leave the old realm in place — the exact
       failure this step exists to prevent.
-- [ ] 2.4 Verify (roles present, both accounts): for each of the two accounts, obtain a token
+- [x] 2.4 Verify (roles present, both accounts): for each of the two accounts, obtain a token
       and decode its payload —
       ```sh
       TOKEN=$(curl -fsS -X POST "http://iams-keycloak.${DEV_DOMAIN}/realms/aoh/protocol/openid-connect/token" \
@@ -107,7 +107,7 @@
       the role set is unchanged — that is what "the role bootstrap is idempotent" asserts, and
       a single run cannot show it. `scope=openid` is mandatory — AOH services validate via Keycloak's
       userinfo endpoint, which 403s on a token issued without it, surfacing as an opaque 401.
-- [ ] 2.5 Verify (GIS accepts an operator token): `curl -fsS -o /dev/null -w '%{http_code}\n'
+- [x] 2.5 Verify (GIS accepts an operator token): `curl -fsS -o /dev/null -w '%{http_code}\n'
       -H "Authorization: Bearer $TOKEN" "http://gis.${DEV_DOMAIN}/geoentity"` prints `200`
       using the dispatcher token from 2.4. This is the token posture the outbox worker will
       use (design.md D2a); proving it here means the worker's first delivery is not the place
@@ -115,24 +115,24 @@
 
 ## 3. Implement `dispatch-svc`
 
-- [ ] 3.1 Consult the `aoh-conventions` skill (`references/go.md` for layering, `aohhttp` and
+- [x] 3.1 Consult the `aoh-conventions` skill (`references/go.md` for layering, `aohhttp` and
       `BearerAuth`, `references/api.md` for the envelope and `/v{N}` paths,
       `references/database.md` for schema rules) and the `aoh-error-handling` skill for the
       new error codes, before writing code.
-- [ ] 3.2 Add `migrations/0003_position_and_outbox.up.sql`: `position_lon`, `position_lat`,
+- [x] 3.2 Add `migrations/0003_position_and_outbox.up.sql`: `position_lon`, `position_lat`,
       `position_at` on `{{SCHEMA}}.unit` with an all-or-nothing CHECK and range CHECKs
       (`[-180,180]` / `[-90,90]`); and a `{{SCHEMA}}.gis_outbox` table carrying the AOH
       mandatory columns plus `unit_code`, `intent` (`upsert` / `delete`), `payload jsonb`,
       `attempts`, `last_error`, `delivered_at`; and a `{{SCHEMA}}.tenant_seed` table with
       `tenant_id` as its primary key, which is the marker task 3.4 writes. Write against
       `{{SCHEMA}}`, never a hardcoded `dispatch.`.
-- [ ] 3.3 Add `migrations/0004_drop_preauth_seed.up.sql`: delete the unit rows that
+- [x] 3.3 Add `migrations/0004_drop_preauth_seed.up.sql`: delete the unit rows that
       `0002_seed.up.sql` inserted under the pre-auth placeholder tenant. Do **not** re-tenant
       them and do **not** add positions here — a committed migration cannot know the tenant
       id (AAS assigns it at stack-up; `bootstrap.py` has to look it up by name), and rows
       written in SQL bypass the outbox and would be permanently absent from the map
       (design.md D12). Seeding moves to task 3.4.
-- [ ] 3.4 Implement seeding as service behaviour, not as a command (design.md D12). After
+- [x] 3.4 Implement seeding as service behaviour, not as a command (design.md D12). After
       `BearerAuth`, on a request whose claims carry `dispatch-dispatcher`, the service seeds
       that caller's tenant **if it has never been seeded**, in one transaction, and **before
       the triggering request is answered** — so the dispatcher's first `GET /v1/units` already
@@ -175,31 +175,31 @@
       assignment shapes the write API withholds, the outbox, the constraints, and the token
       that delivers the projection. There is no seed endpoint, no seed binary and no seed
       script — nothing for an attendee to run.
-- [ ] 3.5 Add bearer authentication using `aoh-golib`'s shipped `aohhttp.BearerAuth`
+- [x] 3.5 Add bearer authentication using `aoh-golib`'s shipped `aohhttp.BearerAuth`
       middleware — do not hand-roll offline JWKS validation. Mount it on `/v1/units` only, so
       `/livez` and `/readyz` stay unauthenticated. Put `sub`, `active_tenant.tenant_id` and
       `active_tenant.roles` on the request context. The middleware covers the four workshop
       stub routes too: they keep answering 501, but only to an authorised caller.
-- [ ] 3.6 Add the role→permission projection in `internal/service`: a static map from role
+- [x] 3.6 Add the role→permission projection in `internal/service`: a static map from role
       name to read/write permission that mirrors `roles.yaml`, with a comment naming that
       file as its source. Read `active_tenant.roles` only — **never**
       `active_tenant.permissions`; AAS does not emit it and code that expects it 403s every
       legitimate user. Gate writes on `dispatch-dispatcher`, reads on either role, and
       return 403 with a `DISPATCH_*` code otherwise.
-- [ ] 3.7 Thread tenant and identity through service and repo: add
+- [x] 3.7 Thread tenant and identity through service and repo: add
       `WHERE tenant_id = $n` to every query, set `created_by` / `updated_by` from `sub` and
       `tenant_id` from the claim, and ignore any of the three arriving in a request body.
-- [ ] 3.8 Add `position` to `domain.Unit` (a `*Position` so an un-positioned unit omits the
+- [x] 3.8 Add `position` to `domain.Unit` (a `*Position` so an un-positioned unit omits the
       key, exactly as `Assignment` does) and to `domain.UnitInput`, with range validation
       returning 400 and an `aoherr.FieldDetail` per bad field. Keep `last_contact` bumping on
       every write as today, and do **not** let `position_at` follow it — `position_at` changes
       only when a write supplies a position (design.md D11).
-- [ ] 3.9 Write the outbox row inside the same transaction as every create / replace /
+- [x] 3.9 Write the outbox row inside the same transaction as every create / replace /
       delete, deriving the intent from the unit's position **after** the write, not from the
       verb: has a position → `upsert`; no position, position cleared, or unit deleted →
       `delete` (design.md D6a). The handler must not call `gis-service`; a GIS outage must
       not fail a unit write.
-- [ ] 3.10 Add the outbox worker. It delivers `PUT /geoentity` (upsert, keyed on `entity_id` =
+- [x] 3.10 Add the outbox worker. It delivers `PUT /geoentity` (upsert, keyed on `entity_id` =
       `unit_code`, `entity_type` `track`, `geojson.properties.kind` `field-unit`) or
       `DELETE /geoentity/entity_id/{unit_code}`, with backoff and at-least-once retry; a
       delete for an entity that is already gone counts as delivered. It authenticates with
@@ -213,7 +213,7 @@
       request from another operator: that would attribute the entity to whoever happened to
       call next, and would make a `dispatch-viewer`'s read perform a GIS write (design.md
       D2a rejects this explicitly).
-- [ ] 3.11 Extend `internal/config` using the scaffold's own key names:
+- [x] 3.11 Extend `internal/config` using the scaffold's own key names:
       `IAMS_KEYCLOAK_HOST` (a URL **including the scheme**), `IAMS_KEYCLOAK_PORT`,
       `IAMS_KEYCLOAK_REALM`, `GIS_URL`, and the projection's retry budget — attempts and
       backoff, capped by the remaining lifetime of the token the delivery carries, which is
@@ -221,7 +221,7 @@
       produced it and runs on the token that write carried, so a timer that woke with no
       credential could deliver nothing (design.md D2a). No client id or secret either — there
       is no confidential client. Keep the existing Viper defaults pattern.
-- [ ] 3.12 Go tests, following the consumer-declared-interface style the service already uses
+- [x] 3.12 Go tests, following the consumer-declared-interface style the service already uses
       (`service.UnitReader`, `handler.UnitService`) with a fake repo and no mock framework —
       note these are the first tests in the repo, so establish the pattern rather than
       matching an existing file. Cover: the role projection, tenant scoping, position
@@ -232,11 +232,11 @@
       duplicate units or crew. Do **not** add a
       frontend test framework — `apps/dispatch-web/AGENTS.md` records its absence as a
       decision to be raised, not reversed in passing.
-- [ ] 3.13 Update `apps/dispatch-svc/AGENTS.md` (the "**No authentication**" bullet is now
+- [x] 3.13 Update `apps/dispatch-svc/AGENTS.md` (the "**No authentication**" bullet is now
       false — replace it with the bearer + tenant + role posture, and add the outbox worker to
       the load-bearing architecture list) and `apps/dispatch-svc/README.md` (its summary line
       says "no authentication").
-- [ ] 3.14 Document the env block for a native run (`cd apps/dispatch-svc && go run ./cmd/server`):
+- [x] 3.14 Document the env block for a native run (`cd apps/dispatch-svc && go run ./cmd/server`):
       ```sh
       SQL_HOST=localhost SQL_PORT=5432 SQL_USER=dispatch SQL_PASSWORD=dispatch \
       SQL_DATABASE_NAME=dispatch SQL_SCHEMA_NAME=dispatch SQL_SSL_MODE=disable \
@@ -249,25 +249,25 @@
       `http://iams-keycloak`); without it the composed Keycloak URL is unparseable.
       `HTTP_ALLOWED_ORIGINS` stays empty: the browser still never calls this service
       directly (design.md D5), so no CORS is required.
-- [ ] 3.15 Verify: `cd apps/dispatch-svc && go build ./... && go vet ./... && go test ./... -count=1 -race`
+- [x] 3.15 Verify: `cd apps/dispatch-svc && go build ./... && go vet ./... && go test ./... -count=1 -race`
       all exit 0. `go vet` is this repo's configured Go lint (`apps/dispatch-svc/package.json`,
       what `pnpm lint` runs); there is no `.golangci.yml` and no `golangci-lint` in the
       toolchain or the devcontainer image, so do not introduce one here.
 
 ## 4. Implement `dispatch-web`
 
-- [ ] 4.1 Consult the `aoh-conventions` skill (`references/web.md`) and the `aoh-design`
+- [x] 4.1 Consult the `aoh-conventions` skill (`references/web.md`) and the `aoh-design`
       skill before writing any `.svelte` file. Open both mockups in a browser as visual
       reference: `openspec/changes/dispatch-iams-and-unit-map/design/dispatch-console-auth-mock.html`
       and `openspec/changes/dispatch-iams-and-unit-map/design/dispatch-map-mock.html`.
       Visual primitives come from `@mssfoobar/ui` subpaths — no raw `<button>` /
       `<input>` / hand-rolled `div` equivalents.
-- [ ] 4.2 The map surface is built by a platform SDK, so ALSO consult the
+- [x] 4.2 The map surface is built by a platform SDK, so ALSO consult the
       `aoh-gis-integration` skill and compose the map from `@mssfoobar/gis-web-sdk`. Do NOT
       hand-roll a map renderer, tile client, entity layer or marker from raw
       `@mssfoobar/ui` primitives. (The UI-builder list in the tasks template registers
       `aoh-dashboard` only; GIS is the same category for a map surface.)
-- [ ] 4.3 Restore the auth layer as one piece, per the `aoh-web-init` scaffold: OIDC
+- [x] 4.3 Restore the auth layer as one piece, per the `aoh-web-init` scaffold: OIDC
       discovery and the auth handle in `src/hooks.server.ts`,
       `src/lib/aoh/core/provider/auth/`, the SDS client, the `(public)/aoh/api/auth/*` routes
       — all six the scaffold ships (`login`, `callback`, `refresh`, `logout`, `context`,
@@ -275,39 +275,39 @@
       layout, and `App.Locals` regaining `authResult` in `src/app.d.ts`. Tokens go to SDS;
       the browser gets only `web_auth_session_id`. Do **not** restore `gateway.config.ts` or
       the gateway proxy — design.md D5.
-- [ ] 4.4 Keep `/livez` and `/readyz` **outside** the authenticated surface. They live at
+- [x] 4.4 Keep `/livez` and `/readyz` **outside** the authenticated surface. They live at
       `src/routes/{livez,readyz}/+server.ts` today, outside any group; restoring the auth
       handle must not sweep them behind the sign-in redirect.
-- [ ] 4.5 Move the console from `src/routes/units/` to
+- [x] 4.5 Move the console from `src/routes/units/` to
       `src/routes/(private)/aoh/dispatch/units/`, add `src/routes/(private)/aoh/dispatch/map/`,
       and add `nav.ts` with a `NavItem` for each, both gated on holding either application
       role. Point `LOGIN_DESTINATION` at the console's new path. Replace — do not merely
       delete — the baseline's `/` → `/units` redirect in `+layout.server.ts`: the scaffold
       ships no root `+page.svelte`, so dropping it without a replacement leaves `/` a 404
       rather than the sign-in flow the spec requires.
-- [ ] 4.6 Add the role→permission projection mirroring `roles.yaml` (the TypeScript half of
+- [x] 4.6 Add the role→permission projection mirroring `roles.yaml` (the TypeScript half of
       task 3.6, same two roles, same source-of-truth comment), read from
       `locals.authResult.claims.active_tenant.roles`. Hide add / edit / delete for a viewer
       and render the permission-denied card on a 403 from the service, exactly as the
       console-auth mockup's "Viewer" and "Permission denied" states show.
-- [ ] 4.7 Add the signed-in operator to the restored `Navbar` — display name or username —
+- [x] 4.7 Add the signed-in operator to the restored `Navbar` — display name or username —
       with a sign-out control, as the mockup's header shows. This is what makes the
       "console identifies the signed-in operator" requirement real rather than implied by
       the layout.
-- [ ] 4.8 Make `units.server.ts` send `Authorization: Bearer <token from SDS>` on every
+- [x] 4.8 Make `units.server.ts` send `Authorization: Bearer <token from SDS>` on every
       call, decode `position` at the wire boundary next to the existing status guard, and
       map a 401 to a re-authentication redirect and a 403 to the permission-denied state
       rather than the generic service-unavailable state.
-- [ ] 4.9 Add the position section to `UnitDetail.svelte` — coordinates, fix time via the
+- [x] 4.9 Add the position section to `UnitDetail.svelte` — coordinates, fix time via the
       existing `sinceLabel`, a "No position reported." line when absent, and a **Show on
       map** control that carries the selected unit to the map route — per the mockup's
       "Unit with position" / "Unit without position" states.
-- [ ] 4.10 Install the map dependencies as runtime `dependencies`:
+- [x] 4.10 Install the map dependencies as runtime `dependencies`:
       `@mssfoobar/gis-web-sdk@^2.0.0`, `@mssfoobar/auth-sdk`, `@cesium/engine@^25`,
       `@cesium/widgets@^15`. `@mssfoobar/sse-client` and `@mssfoobar/logger@^1.0.5` are
       already present at compatible versions. The SDK must be ≥ 1.1.0 for map interaction
       callbacks, which task 4.13's marker click depends on.
-- [ ] 4.11 Add the Cesium asset-copy plugin to `vite.config.ts` (copy `Build/Workers`,
+- [x] 4.11 Add the Cesium asset-copy plugin to `vite.config.ts` (copy `Build/Workers`,
       `Source/Assets`, `Source/ThirdParty` from `@cesium/engine` and `Source` from
       `@cesium/widgets` into `static/cesium/`, on both `buildStart` and `configureServer`),
       define `CESIUM_BASE_URL`, and set `ssr.noExternal` to `[/^@mssfoobar\//, '@lucide/svelte',
@@ -319,9 +319,9 @@
       and refused in both. Add `static/cesium/` to
       `apps/dispatch-web/.gitignore`; `eslint.config.js` already ignores it, so leave that
       alone.
-- [ ] 4.12 Mount `<GisProvider>` at the root `+layout.svelte`, fed by the app's existing
+- [x] 4.12 Mount `<GisProvider>` at the root `+layout.svelte`, fed by the app's existing
       `ThemeProvider` dark-mode store so the map repaints with the theme.
-- [ ] 4.13 Build the map page: `+page.ts` exporting `ssr = false`; a `+page.server.ts` whose
+- [x] 4.13 Build the map page: `+page.ts` exporting `ssr = false`; a `+page.server.ts` whose
       `load` returns the roster (for the counts in 4.14) and the user claims; and
       `+page.svelte` composing `CesiumMapEngineProvider` → `Map` (with the **required**
       `initial_camera_view`, plus `rtus_seh_url`, `rtus_map_name="gis"`, `user_id` from the
@@ -335,14 +335,14 @@
       render-pure (mutating state inside it triggers `state_unsafe_mutation`). Do not fetch
       an entity list; the SDK's subscription is the only source of **entity** state
       (design.md D9) — the roster load above is unit data, which is a different thing.
-- [ ] 4.14 Add the map's surrounding states from the mockup: the roster/not-shown counts
+- [x] 4.14 Add the map's surrounding states from the mockup: the roster/not-shown counts
       (computed from the unit data loaded in 4.13, not from entities), the live / not-live
       badge, the "Live positions are unavailable." notice, the no-positioned-units empty
       state, and the selection card with **Open in console**. Wire map→console selection as a
       SvelteKit navigation, not a browser fetch; wire console→map by carrying the selected
       unit into the map route and flying the camera to it on mount, leaving the camera put
       when that unit has no position.
-- [ ] 4.15 Update the docs that now assert the opposite of reality:
+- [x] 4.15 Update the docs that now assert the opposite of reality:
       `apps/dispatch-web/AGENTS.md` (the "🛑 This app has NO authentication" table goes; the
       map, Cesium assets and role gating join the load-bearing list),
       `apps/dispatch-web/README.md` ("This app has no authentication"), the root `README.md`
@@ -391,7 +391,7 @@
       no login)", which is now false. The slides deck (`slides/slides.md`) also shows
       `pnpm start` and `http://localhost:5173`; update it or note explicitly that it is out of
       scope, rather than leaving it to be discovered on stage.
-- [ ] 4.16 Render an empty roster as an explicit state, not a bare empty list — and make the
+- [x] 4.16 Render an empty roster as an explicit state, not a bare empty list — and make the
       wording **seed-state-independent**: "No units in this tenant.", plus "Add one to get
       started." for a dispatcher, who is the only one who can act on it. Do **not** write "a
       dispatcher signing in will populate the roster": that is false for the other way a
@@ -399,7 +399,7 @@
       which the marker makes permanent — and nothing in the API distinguishes the two states.
       This is distinct from both the service-unreachable and permission-denied states the
       console-auth mockup already draws.
-- [ ] 4.17 Update the repo's start and reset tooling, which this change breaks. None of it
+- [x] 4.17 Update the repo's start and reset tooling, which this change breaks. None of it
       is optional — `pnpm start` is what `README.md` and `SETUP.md` tell attendees to run:
       - `scripts/dev.mjs` brings up **only** `postgres`. With the auth layer restored, the
         console's `hooks.server.ts` does OIDC discovery in a top-level `await`, so with no
@@ -430,7 +430,7 @@
         sixteen-service stack rather than one container. Rename or rescope them. There is no
         seed script to add: the service seeds itself on the first dispatcher request, so
         `pnpm start` gains no seeding step at all.
-- [ ] 4.18 Document the env block for a native run (`cd apps/dispatch-web && pnpm dev`),
+- [x] 4.18 Document the env block for a native run (`cd apps/dispatch-web && pnpm dev`),
       added to `.env.development` and `.env.template`:
       ```sh
       ORIGIN=http://${DEV_DOMAIN}:5173
@@ -466,7 +466,7 @@
       startup — the exact failure the baseline documented. `ORIGIN` must be the
       `${DEV_DOMAIN}` origin, not `localhost`, or the session cookie never reaches
       `rtus-seh` and its CORS list rejects the SSE request (design.md D10).
-- [ ] 4.19 Verify: `cd apps/dispatch-web && pnpm build && pnpm check-types && pnpm lint` all
+- [x] 4.19 Verify: `cd apps/dispatch-web && pnpm build && pnpm check-types && pnpm lint` all
       exit 0, and
       `grep -rniE "no authentication|NO AUTH" apps README.md SETUP.md WORKSHOP.md compose/compose.yml`
       returns nothing; `git diff` on `compose/iams/keycloak/realm-import.json` shows exactly
@@ -476,7 +476,7 @@
 
 ## 5. End-to-end verification + reproducibility gate
 
-- [ ] 5.1 Confirm the seed triggers itself. **Order matters**: the stack runs one tenant, so
+- [x] 5.1 Confirm the seed triggers itself. **Order matters**: the stack runs one tenant, so
       once a dispatcher has touched it there is no unseeded tenant left to test against. So,
       against a freshly torn-down stack:
       1. **Viewer first.** `GET /v1/units` with the viewer token returns an empty roster and
@@ -491,7 +491,7 @@
          against the full roster.
       5. Reload the console as the viewer; the roster now renders normally.
       This is the whole seeding surface (design.md D12) and a prerequisite of everything below.
-- [ ] 5.2 Write `scripts/e2e-smoke.mjs` — Node, matching the repo's existing `scripts/*.mjs`
+- [x] 5.2 Write `scripts/e2e-smoke.mjs` — Node, matching the repo's existing `scripts/*.mjs`
       convention and its Node 24 prerequisite. It SHALL, with no manual step: fetch a
       dispatcher token and a viewer token by password grant against the bundled `web` client
       **with `scope=openid`**; assert `GET /v1/units` is 401 with no token and 200 with the
@@ -506,7 +506,7 @@
       session-id cookie captured before sign-out is refused, and that a malformed token and an
       expired token each answer 401 (not only a missing one); and exit non-zero with a named
       assertion on any failure.
-- [ ] 5.3 Add the tenant-isolation checks to the same script. It SHALL first insert a unit row
+- [x] 5.3 Add the tenant-isolation checks to the same script. It SHALL first insert a unit row
       under a **different** `tenant_id`, directly — **two** of them, per the note below:
       ```sh
       # or: docker compose -f compose/compose.yml exec -T postgres psql …  (identical args)
@@ -548,8 +548,8 @@
       operator action, which is the brief-outage scenario; restart `rtus-seh`;
       sign out, sign in as the viewer, and confirm the add / edit / delete controls are absent
       and the map still renders.
-- [ ] 5.5 Native dev E2E: `node scripts/e2e-smoke.mjs` exits 0.
-- [ ] 5.6 **Reproducibility gate** — tear and rebuild infra, kill and restart the native dev
+- [x] 5.5 Native dev E2E: `node scripts/e2e-smoke.mjs` exits 0.
+- [x] 5.6 **Reproducibility gate** — tear and rebuild infra, kill and restart the native dev
       processes for both apps using the env blocks from 3.14 and 4.18, and re-run the SAME
       E2E command from 5.5:
       ```bash

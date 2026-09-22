@@ -23,4 +23,12 @@ var (
 	CodeUnitStale = aoherr.MustCode("DISPATCH_UNIT_STALE")
 	// CodeUnitWriteFailed — the unit store could not be written.
 	CodeUnitWriteFailed = aoherr.MustCode("DISPATCH_UNIT_WRITE_FAILED")
+
+	// CodeUnitForbidden — the caller authenticated, but their active_tenant.roles do
+	// not project onto the permission this operation needs.
+	CodeUnitForbidden = aoherr.MustCode("DISPATCH_UNIT_FORBIDDEN")
+	// CodeTenantSeedFailed — the tenant's baseline roster could not be written. The
+	// triggering request fails with this rather than being answered with an empty
+	// roster, which would be indistinguishable from a tenant nobody has seeded.
+	CodeTenantSeedFailed = aoherr.MustCode("DISPATCH_TENANT_SEED_FAILED")
 )

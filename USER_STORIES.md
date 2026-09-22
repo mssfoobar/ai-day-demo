@@ -74,7 +74,9 @@ Event shape: `{ "at", "kind", "summary" }` where `kind` is one of `created`, `up
 
 ### Out of scope
 
-Filtering, paging past 20, a fleet-wide feed, who did it (there is no login).
+Filtering, paging past 20, and a fleet-wide feed. **Who** did it is now knowable —
+every write carries the caller's `sub` — so recording it is a reasonable extension
+rather than an impossibility; it is simply not required here.
 
 ---
 

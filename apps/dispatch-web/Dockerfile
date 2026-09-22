@@ -38,15 +38,17 @@ FROM base
 COPY --from=build /prod/web /prod/web
 WORKDIR /prod/web
 
-# This app has no authentication, so the scaffold's IAM_URL / IAM_CLIENT_ID / SDS_URL /
-# PUBLIC_COOKIE_PREFIX / LOGIN_DESTINATION defaults were removed along with the code that
-# read them. LOGIN_DESTINATION also pointed at /getting-started, a route that no longer
-# exists. See apps/dispatch-web/AGENTS.md.
+# The auth variables the scaffold defaults here — IAM_URL, IAM_CLIENT_ID, SDS_URL,
+# PUBLIC_COOKIE_PREFIX, LOGIN_DESTINATION — are deliberately NOT baked in. This app does
+# authenticate (see apps/dispatch-web/AGENTS.md), but every one of those values is
+# deployment-specific: a realm URL, a session store address and a landing route differ per
+# environment, and a wrong baked-in default fails at startup rather than being overridden
+# cleanly. `src/hooks.server.ts` refuses to start when a required one is missing, which is
+# the behaviour we want from a container handed an incomplete environment.
 #
-# What remains is exactly what src/hooks.server.ts reads. The two security headers must be
-# defaulted here: unset, the container serves no CSP and no X-Frame-Options at all.
-# `'self'` is double-quoted so the CSP keyword survives — bare `self` is parsed as a host
-# name and matches nothing.
+# The two security headers are different: they must be defaulted here, because unset the
+# container serves no CSP and no X-Frame-Options at all. `'self'` is double-quoted so the
+# CSP keyword survives — bare `self` is parsed as a host name and matches nothing.
 ENV FRAME_ANCESTORS="'self'"
 ENV X_FRAME_OPTIONS="SAMEORIGIN"
 

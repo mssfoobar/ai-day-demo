@@ -18,6 +18,7 @@ echo "Ready. Start the stack with:"
 echo
 echo "    pnpm start"
 echo
-echo "Postgres already runs as a sibling container, and the runner skips it."
-echo "The console comes up on http://localhost:5173"
+echo "The platform stack (Postgres, IAMS, SDS, RTUS, GIS) runs as sibling containers;"
+echo "the runner waits for them to converge before starting the apps."
+echo "The console comes up on http://127.0.0.1.nip.io:5173 - sign in as admin / P@ssw0rd."
 echo

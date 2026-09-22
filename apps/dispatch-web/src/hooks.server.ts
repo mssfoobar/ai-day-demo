@@ -1,6 +1,19 @@
 import { env as envPrivate } from '$env/dynamic/private';
+import { env } from '$env/dynamic/public';
+import {
+	type Configuration,
+	discovery,
+	type DiscoveryRequestOptions,
+	allowInsecureRequests
+} from 'openid-client';
+import {
+	authenticate,
+	LOGIN_API,
+	type AuthResult,
+	getSdsClient
+} from '$lib/aoh/core/provider/auth/auth';
 import { log } from '$lib/aoh/core/logger/Logger';
-import type { Handle, HandleServerError } from '@sveltejs/kit';
+import { error, type Handle, type HandleServerError } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { createObservabilityHandle } from '@mssfoobar/observability/sveltekit';
 import { trace } from '@opentelemetry/api';
@@ -16,24 +29,35 @@ import {
 log.info('Environment Mode (NODE_ENV): ' + envPrivate.NODE_ENV);
 
 /* -------------------------------------------------------------------------- */
-/*                             NO AUTHENTICATION                              */
+/*                               AUTHENTICATION                               */
 /* -------------------------------------------------------------------------- */
 
 /*
- * This app has NO authentication. The `aoh-web-init` scaffold ships an OIDC/Keycloak
- * layer here; it was removed deliberately for the workshop baseline — see the openspec
- * change `baseline-dispatch-console` (design.md D1).
+ * Restored as one piece from the `aoh-web-init` scaffold, reversing
+ * `baseline-dispatch-console` D1. Auth here is all-or-nothing and cannot be left inert:
+ * `discovery()` below is a TOP-LEVEL await, so it runs at server startup before any
+ * routing. With no reachable identity provider *every* route — including the health
+ * probes — fails with 500. That is why the baseline deleted the layer rather than
+ * disabling it, and why it returns whole.
  *
- * Worth knowing before anyone reinstates it: the scaffold performed OIDC discovery in a
- * TOP-LEVEL `await` in this module. That runs at server startup, before any routing, so
- * with no reachable identity provider every route — including unauthenticated ones —
- * failed with HTTP 500. Auth here is all-or-nothing; it cannot be left inert.
+ * Over plain http, OIDC_ALLOW_INSECURE_REQUESTS=1 is not optional for the same reason:
+ * without it this discovery throws at startup and the app never serves anything.
  *
- * Restoring auth means restoring the whole set together: this module's discovery +
- * auth handle, `src/lib/aoh/core/provider/auth/`, the `(public)/aoh/api/auth/*` routes,
- * the `(private)` group and its layout, the gateway proxy, and the `App.Locals` fields
- * in `src/app.d.ts` — plus running `iams-keycloak`, `iams-aas`, `sds-server` and `valkey`.
+ * Tokens live in SDS. The browser gets only `web_auth_session_id`.
  */
+
+const discoveryRequestOptions: DiscoveryRequestOptions = {};
+if (envPrivate.OIDC_ALLOW_INSECURE_REQUESTS === '1') {
+	discoveryRequestOptions.execute = [allowInsecureRequests];
+}
+
+const oidc_config: Configuration = await discovery(
+	new URL(envPrivate.IAM_URL!),
+	envPrivate.IAM_CLIENT_ID ?? '',
+	envPrivate.IAM_CLIENT_SECRET || undefined,
+	undefined,
+	discoveryRequestOptions
+);
 
 /* -------------------------------------------------------------------------- */
 /*                           VALIDATE ENV VARIABLES                           */
@@ -41,7 +65,37 @@ log.info('Environment Mode (NODE_ENV): ' + envPrivate.NODE_ENV);
 
 const missingEnvVars: string[] = [];
 
+// Public (browser-exposed) variables.
+if (!env.PUBLIC_DOMAIN) {
+	log.warn(
+		'PUBLIC_DOMAIN is not set, cookie behaviour might not be as expected! This is desired only in local development using localhost.'
+	);
+}
+if (!env.PUBLIC_COOKIE_SAMESITE) {
+	log.warn("PUBLIC_COOKIE_SAMESITE is not set, defaulting to 'lax'.");
+}
+// The cookie prefix is what makes the session cookie `web_auth_session_id`, which is the
+// name rtus-seh's seeded `rtus.session-id.cookienames` already carries. Change it and the
+// map's SSE subscription is rejected with nothing in either log to explain it.
+if (!env.PUBLIC_COOKIE_PREFIX) missingEnvVars.push('PUBLIC_COOKIE_PREFIX');
+
+// Private variables.
+if (!envPrivate.IAM_CLIENT_ID) missingEnvVars.push('IAM_CLIENT_ID');
+if (!envPrivate.IAM_URL) missingEnvVars.push('IAM_URL');
 if (!envPrivate.ORIGIN) missingEnvVars.push('ORIGIN');
+if (!envPrivate.LOGIN_DESTINATION) missingEnvVars.push('LOGIN_DESTINATION');
+if (!envPrivate.LOGIN_PAGE) {
+	log.warn(`LOGIN_PAGE is not set, defaulting to ${LOGIN_API}`);
+}
+
+// SDS is not optional here, whatever the scaffold's fallback allows: the cookie-only flow
+// puts a usable bearer in the browser, and rtus-seh authorises the map's SSE stream by
+// resolving the SDS session cookie.
+if (!envPrivate.SDS_URL) {
+	log.warn(
+		'SDS_URL is not set — falling back to cookie-held tokens. That is a diagnostic mode: it puts a bearer in the browser and the map will not be able to subscribe to rtus-seh.'
+	);
+}
 
 if (!envPrivate.FRAME_ANCESTORS) {
 	log.warn(`FRAME_ANCESTORS is not set.`);
@@ -57,12 +111,53 @@ if (missingEnvVars.length > 0) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                              SECURITY HEADERS                              */
+/*                             TOKENS AND COOKIES                             */
 /* -------------------------------------------------------------------------- */
 
-const securityHeadersHandle: Handle = async ({ event, resolve }) => {
+/*
+ * This handle only *resolves* the session; it never redirects. The sign-in redirect is
+ * the `(private)` layout's job, which is what keeps `/livez` and `/readyz` — and the
+ * `(public)/aoh/api/auth/*` routes themselves — reachable with no session.
+ */
+const authHandle: Handle = async ({ event, resolve }) => {
+	let sdsClient = undefined;
+	if (envPrivate.SDS_URL) {
+		sdsClient = await getSdsClient();
+	}
+
+	try {
+		const authResult: AuthResult = await authenticate(
+			oidc_config,
+			event.cookies,
+			event.url,
+			sdsClient
+		);
+		event.locals.clients = {
+			oidc_config
+		};
+		event.locals.authResult = authResult;
+
+		// Preserve the operator's intended destination across the sign-in round trip.
+		if (!authResult.success && !event.url.pathname.startsWith('/aoh/api/auth/')) {
+			event.locals.originalUrl = event.url.pathname + event.url.search;
+		}
+	} catch (err) {
+		log.error({ err }, 'critical authentication failure');
+
+		if (envPrivate.NODE_ENV === 'development') {
+			error(500, {
+				message: (err as Error).message
+			});
+		}
+	} finally {
+		if (sdsClient) {
+			await sdsClient.close();
+		}
+	}
+
 	const response = await resolve(event);
 
+	// 🛡️ Security headers (only when the environment sets them).
 	const frameAncestors = envPrivate.FRAME_ANCESTORS;
 	if (frameAncestors) {
 		response.headers.set('Content-Security-Policy', `frame-ancestors ${frameAncestors};`);
@@ -83,7 +178,7 @@ const securityHeadersHandle: Handle = async ({ event, resolve }) => {
 // createObservabilityHandle renames the auto-instrumented server span to the
 // matched SvelteKit route (low cardinality), so it runs outermost.
 // (No-op when OTEL is disabled — there is simply no active span.)
-export const handle: Handle = sequence(createObservabilityHandle(), securityHeadersHandle);
+export const handle: Handle = sequence(createObservabilityHandle(), authHandle);
 
 /* -------------------------------------------------------------------------- */
 /*                                 ERROR SEAM                                 */

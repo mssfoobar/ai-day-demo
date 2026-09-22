@@ -1,0 +1,177 @@
+name: aoh
+
+include:
+    - ../traefik/compose.yml
+    - ../sds/compose.yml
+
+services:
+    iams-db:
+        image: postgres:17.0
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 3s
+        environment:
+            - POSTGRES_DB=iams
+            - POSTGRES_USER=${DEV_USER}
+            - POSTGRES_PASSWORD=${DEV_PASSWORD}
+        volumes:
+            - iams-db-volume:/var/lib/postgresql/data
+
+    iams-keycloak:
+        image: ghcr.io/mssfoobar/iams/iams-keycloak:${IAMS_KEYCLOAK_TAG}
+        command: start --import-realm
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 10s
+        environment:
+            - KC_DB=postgres
+            - KC_DB_URL_DATABASE=iams
+            - KC_DB_URL_HOST=iams-db
+            - KC_DB_URL_PORT=5432
+            - KC_DB_USERNAME=${DEV_USER}
+            - KC_DB_PASSWORD=${DEV_PASSWORD}
+            - KC_BOOTSTRAP_ADMIN_USERNAME=${DEV_USER}
+            - KC_BOOTSTRAP_ADMIN_PASSWORD=${DEV_PASSWORD}
+            - KC_HOSTNAME=http://iams-keycloak.${DEV_DOMAIN}
+            - KC_HOSTNAME_BACKCHANNEL_DYNAMIC=true
+            - KC_HTTP_ENABLED=true
+            - KC_HTTP_PORT=8080
+            - KC_PROXY_HEADERS=xforwarded
+            - KC_HEALTH_ENABLED=true
+            - DEFAULT_REALM=aoh
+            - DEV_DOMAIN=${DEV_DOMAIN}
+            - DEV_USER=${DEV_USER}
+            - DEV_PASSWORD=${DEV_PASSWORD}
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.iams-keycloak.rule=Host(`iams-keycloak.${DEV_DOMAIN}`)
+            - traefik.http.routers.iams-keycloak.entrypoints=web
+            - traefik.http.routers.iams-keycloak.middlewares=permissive-headers@docker
+            - traefik.http.services.iams-keycloak.loadBalancer.server.port=8080
+        volumes:
+            - ../iams/keycloak:/opt/keycloak/data/import
+        healthcheck:
+            test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q '\"status\": \"UP\"'"]
+            interval: 10s
+            timeout: 5s
+            retries: 30
+            start_period: 30s
+        depends_on:
+            iams-db:
+                condition: service_started
+
+    iams-aas:
+        image: ghcr.io/mssfoobar/iams/iams-aas:${IAMS_AAS_TAG}
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 5s
+        environment:
+            - IAMS_KEYCLOAK_BASEURL=http://iams-keycloak:8080
+            - IAMS_KEYCLOAK_SYSADMIN_ROLE=system-admin
+            - IAMS_KEYCLOAK_TENANTADMIN_ROLE=tenant-admin
+            - server.port=8080
+            - management.health.probes.enabled=true
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.iams-aas.rule=Host(`iams-aas.${DEV_DOMAIN}`)
+            - traefik.http.routers.iams-aas.entrypoints=web
+            - traefik.http.routers.iams-aas.middlewares=permissive-headers@docker
+            - traefik.http.services.iams-aas.loadBalancer.server.port=8080
+        healthcheck:
+            test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/actuator/health"]
+            interval: 20s
+            timeout: 5s
+            retries: 15
+            start_period: 10s
+        depends_on:
+            iams-keycloak:
+                condition: service_healthy
+
+    iams-web:
+        image: ghcr.io/mssfoobar/iams/iams-web:${IAMS_WEB_TAG}
+        restart: on-failure
+        environment:
+            - PORT=8080
+            - ORIGIN=http://iams-web.${DEV_DOMAIN}
+            - IAM_URL=http://iams-keycloak:8080/realms/aoh/.well-known/openid-configuration
+            - IAM_CLIENT_ID=iams
+            - PUBLIC_DOMAIN=${DEV_DOMAIN}
+            - PUBLIC_COOKIE_PREFIX=iams
+            - OIDC_ALLOW_INSECURE_REQUESTS=1
+            - LOGIN_DESTINATION=/aoh/iams/users
+            - IAMS_AAS_URL=http://iams-aas:8080
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.iams-web.rule=Host(`iams-web.${DEV_DOMAIN}`)
+            - traefik.http.routers.iams-web.entrypoints=web
+            - traefik.http.routers.iams-web.middlewares=permissive-headers@docker
+            - traefik.http.services.iams-web.loadBalancer.server.port=8080
+        depends_on:
+            iams-keycloak:
+                condition: service_healthy
+            iams-aas:
+                condition: service_healthy
+
+    iams-init:
+        image: postman/newman
+        command:
+            - run
+            - /etc/newman/iams-aas-init.postman_collection.json
+            - --env-var
+            - IAMS_AAS_ENDPOINT=http://iams-aas:8080
+            - --env-var
+            - IAM_ENDPOINT=http://iams-keycloak:8080
+            - --env-var
+            - IAM_REALM=aoh
+            - --env-var
+            - DEV_USER=${DEV_USER}
+            - --env-var
+            - DEV_PASSWORD=${DEV_PASSWORD}
+        volumes:
+            - ../iams/init:/etc/newman
+        depends_on:
+            iams-keycloak:
+                condition: service_healthy
+            iams-aas:
+                condition: service_healthy
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 20s
+
+    # Project-owned AAS bootstrap — reconciles application roles, groups,
+    # resources, scopes, and permissions from compose/iams/init/project-aas/roles.yaml.
+    # Edit roles.yaml to add new authz state; this service re-runs on every
+    # `docker compose up` and converges idempotently.
+    # See compose/iams/init/project-aas/README.md for the full workflow.
+    #
+    # `roles.yaml` and `bootstrap.py` are bind-mounted so edits land without
+    # an image rebuild — the only thing baked into the image is the Python
+    # interpreter + deps. Without the mounts, podman/docker would keep
+    # serving the YAML that was baked at first build and silently ignore
+    # edits, which is the #1 hiccup users hit when iterating on authz.
+    project-aas-init:
+        build:
+            context: ./init/project-aas
+        environment:
+            IAMS_AAS_ENDPOINT: http://iams-aas:8080
+            IAM_ENDPOINT: http://iams-keycloak:8080
+            IAM_REALM: aoh
+            IAM_CLIENT_ID: iams
+            DEV_USER: ${DEV_USER}
+            DEV_PASSWORD: ${DEV_PASSWORD}
+        volumes:
+            - ./init/project-aas/roles.yaml:/app/roles.yaml:ro
+            - ./init/project-aas/bootstrap.py:/app/bootstrap.py:ro
+        depends_on:
+            iams-init:
+                condition: service_completed_successfully
+        # No restart — exit 0 on success, non-zero is a YAML/AAS error that
+        # should surface, not loop silently.
+        restart: "no"
+
+volumes:
+    iams-db-volume:

@@ -4,8 +4,13 @@
   The right-hand pane.
 
   With a unit selected: an identity header (call sign, id, status, one muted context line),
-  then Overview / Assignment / Crew / Capabilities. With nothing selected: the fleet at a
-  glance — the same roster read a different way, so the pane is never a placeholder.
+  then Overview / Position / Assignment / Crew / Capabilities. With nothing selected: the
+  fleet at a glance — the same roster read a different way, so the pane is never a
+  placeholder.
+
+  Edit and Delete are rendered only when the page passes their handlers, which it does
+  only for an operator holding `dispatch-dispatcher`. The service enforces the same rule
+  independently — a hidden button is not a permission check.
 -->
 
 <script lang="ts">
@@ -14,6 +19,7 @@
 	import { Button } from '@mssfoobar/ui/button';
 	import { Separator } from '@mssfoobar/ui/separator';
 	import { Skeleton } from '@mssfoobar/ui/skeleton';
+	import MapIcon from '@lucide/svelte/icons/map';
 	import MapPin from '@lucide/svelte/icons/map-pin';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Radio from '@lucide/svelte/icons/radio';
@@ -44,6 +50,14 @@
 		/** Workshop focus: the one exercise whose sketch is shown. Only one shows at a time. */
 		focus?: ExerciseNumber | null;
 	} = $props();
+
+	/**
+	 * Where "Show on map" goes. The map reads `?unit=` on mount and flies its camera
+	 * there, so the cross-link is a SvelteKit navigation rather than a fetch.
+	 */
+	const mapHref = $derived(
+		unit ? `/aoh/dispatch/map?unit=${encodeURIComponent(unit.id)}` : '/aoh/dispatch/map'
+	);
 
 	const fleet = $derived(fleetSummary(units));
 
@@ -167,6 +181,32 @@
 				<dt class="text-muted-foreground">Last contact</dt>
 				<dd class="font-mono tabular-nums">{sinceLabel(unit.lastContact, now)}</dd>
 			</dl>
+		</section>
+
+		<section>
+			<div class="flex items-start justify-between gap-2">
+				{@render sectionTitle('Position')}
+				{#if unit.position}
+					<Button variant="ghost" size="sm" href={mapHref} class="-mt-1 h-6 gap-1.5 px-2 text-xs">
+						<MapIcon class="size-3.5" aria-hidden="true" />
+						Show on map
+					</Button>
+				{/if}
+			</div>
+			{#if unit.position}
+				<dl class="grid grid-cols-[120px_1fr] gap-x-4 gap-y-1.5 text-xs">
+					<dt class="text-muted-foreground">Coordinates</dt>
+					<dd class="font-mono tabular-nums">
+						{unit.position.lat.toFixed(5)}, {unit.position.lon.toFixed(5)}
+					</dd>
+					<dt class="text-muted-foreground">Fix time</dt>
+					<!-- The fix time, not last contact: a unit can be heard from without
+					     reporting a position, so the two are shown separately. -->
+					<dd class="font-mono tabular-nums">{sinceLabel(unit.position.at, now)}</dd>
+				</dl>
+			{:else}
+				<p class="text-xs text-muted-foreground">No position reported.</p>
+			{/if}
 		</section>
 
 		<section>

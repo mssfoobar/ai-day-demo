@@ -1,38 +1,12 @@
-# Workshop stack — one container.
-#
-# This is the whole infrastructure: PostgreSQL for dispatch-svc. There is deliberately no
-# Traefik, no Keycloak, no iams-aas, no sds-server and no valkey, because the workshop has
-# no authentication (see openspec/changes/baseline-dispatch-console, design.md D1).
-#
-# The apps themselves run natively, not in compose:
-#   cd apps/dispatch-svc && go run ./cmd/server
-#   cd apps/dispatch-web && pnpm dev
-#
-# Usage:
-#   docker compose up -d postgres     (or: podman compose up -d postgres)
+name: aoh
 
-services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: dispatch-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-dispatch}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dispatch}
-      POSTGRES_DB: ${POSTGRES_DB:-dispatch}
-    ports:
-      # Exposed on localhost so `go run ./cmd/server` reaches it natively.
-      - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - dispatch-pgdata:/var/lib/postgresql/data
-    healthcheck:
-      # `docker compose up -d` returns before Postgres is accepting connections; without
-      # this the service's first start races the database and fails on connect.
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dispatch} -d ${POSTGRES_DB:-dispatch}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
-
-volumes:
-  dispatch-pgdata:
+include:
+    - ./traefik/compose.yml
+    - ./iams/compose.yml
+    - ./sds/compose.yml
+    - ./otel/compose.yml
+    - ./rtus/compose.yml
+    - ./gis/compose.yml
+    - ./dispatch/compose.yml
+    - ./dispatch-svc/compose.yml
+    - ./dispatch-web/compose.yml

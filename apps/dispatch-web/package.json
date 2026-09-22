@@ -25,18 +25,26 @@
 		]
 	},
 	"dependencies": {
+		"@cesium/engine": "^25.0.0",
+		"@cesium/widgets": "^15.0.0",
 		"@floating-ui/dom": "1.6.13",
 		"@fontsource-variable/geist": "5.2.8",
 		"@iconify/utils": "2.2.1",
 		"@lucide/svelte": "0.479.0",
-		"@mssfoobar/ui": "^1.1.0",
+		"@mssfoobar/auth-sdk": "^2.0.0",
 		"@mssfoobar/errors": "^0.1.0",
+		"@mssfoobar/gis-web-sdk": "^2.1.0",
 		"@mssfoobar/logger": "^1.0.5",
 		"@mssfoobar/observability": "^0.1.0",
+		"@mssfoobar/sds-client": "1.0.0",
 		"@mssfoobar/sse-client": "1.2.0",
+		"@mssfoobar/ui": "^1.1.0",
 		"@opentelemetry/api": "1.9.1",
 		"change-case-all": "2.1.0",
+		"dayjs": "1.11.13",
 		"http-status-codes": "2.3.0",
+		"jwt-decode": "4.0.0",
+		"openid-client": "6.1.7",
 		"rough-notation": "0.5.1"
 	},
 	"devDependencies": {

@@ -1,0 +1,97 @@
+# Project-owned AAS bootstrap data (development only).
+#
+# bootstrap.py reads this file and idempotently reconciles IAMS-AAS state via
+# its admin REST API. Safe to re-run: every operation is GET-then-create,
+# except `permissions:` which is PUT-the-whole-array (YAML is the source of
+# truth — removing a name from a permission revokes it on next run).
+#
+# Walk order (dependency-driven):
+#   roles -> groups -> resources -> scopes -> resource_scopes
+#         -> assignments -> tenant_admins -> permissions
+#
+# This is the canonical schema. Every section is present even if empty so
+# any agent or developer reading this file sees the full AAS authorization
+# vocabulary (RBAC + GBAC + UBAC + resources + scopes) in one place.
+
+tenant: development            # AAS tenant — created by the platform iams-init
+
+# --- RBAC ----------------------------------------------------------------- #
+# Define application roles. AAS surfaces these into JWTs as the
+# `active_tenant.roles` claim, which the AOH Go scaffold exposes via
+# `getTenantRoles(ctx)`. NOT to be added to Keycloak realm-import.json.
+roles:
+  # Gates the reference host's AI chat (AOH-8275). The route spends the
+  # application's gateway virtual key, so a session alone is not permission.
+  - name: ai-user
+    description: May use AI chat (spends the application's gateway virtual key)
+  # The dispatch console's two application roles. Both apps mirror this pair in a
+  # static role -> permission projection (apps/dispatch-svc/internal/service and
+  # apps/dispatch-web/src/lib/aoh/dispatch/permissions.ts); this file is the source
+  # of truth for both.
+  - name: dispatch-viewer
+    description: Reads the field-unit roster and the map
+  - name: dispatch-dispatcher
+    description: Creates, edits and deletes field units
+  # - name: field-reporter
+  #   description: Submits new incident reports
+  #   # required: false   # optional — AAS "required role" flag
+
+# User -> role assignments. The user must already exist in Keycloak
+# (seeded via realm-import.json).
+# Usernames are literal: bootstrap.py reads this file with yaml.safe_load and performs
+# no ${VAR} substitution (unlike realm-import.json), so a literal `${DEV_USER}` would be
+# searched for verbatim in Keycloak and the bootstrap would exit "user not found".
+# `admin` is the shipped DEV_USER default; `viewer` is seeded in realm-import.json.
+assignments:
+  - username: admin
+    roles: [ai-user, dispatch-viewer, dispatch-dispatcher]
+  - username: viewer
+    roles: [dispatch-viewer]
+
+# Tenant administrators — full admin over THIS tenant (manage members, roles,
+# resources, permissions), the grant you'd otherwise set by hand in the iams-web
+# console. Scoped to this file's `tenant:` only — NOT every tenant a user belongs
+# to. Users must already exist in Keycloak and are added as tenant members first.
+tenant_admins: []
+  # - admin
+
+# --- GBAC ----------------------------------------------------------------- #
+# Groups with optional hierarchy. `parent` references another group by name
+# in the same file (must appear earlier). `extend_children` flows permissions
+# down to sub-groups when set on the permission grant (see `permissions:`).
+groups: []
+  # - name: field-team
+  #   # parent: operations
+  #   # extend_children: true
+  #   roles:   [field-reporter]
+  #   members: [admin]
+
+# --- Resources + scopes (the AAS authz substrate) ------------------------- #
+# Resources are protected entities (e.g. "incident"). Scopes are actions on
+# them (e.g. "read", "write"). Both must exist before any permission grant
+# referencing them.
+resources: []
+  # - name: incident
+  #   type: domain
+  #   displayName: Incident report   # human-friendly label (AAS resources take displayName, not description)
+
+scopes: []
+  # - { name: read }
+  # - { name: write }
+  # - { name: delete }
+
+# Which scopes apply to which resource.
+resource_scopes: []
+  # - resource: incident
+  #   scopes:  [read, write, delete]
+
+# --- Permission grants (RBAC + GBAC + UBAC compose here) ------------------ #
+# Each entry grants a (resource, scope) pair to any combination of roles,
+# groups, and users. PUT semantics: the lists below REPLACE the current
+# grant set on next run — removing a name revokes the grant.
+permissions: []
+  # - resource: incident
+  #   scope:    write
+  #   roles:    [field-reporter]    # RBAC
+  #   groups:   [field-team]        # GBAC
+  #   users:    []                  # UBAC — escape hatch; keep short
