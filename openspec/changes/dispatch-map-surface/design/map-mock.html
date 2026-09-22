@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Map surface — mock</title>
+<style>
+  /* ------------------------------------------------------------------
+     AOH tokens, lifted from aoh-design/assets/colors_and_type.css.
+     STATIC APPROXIMATION for design review only — the real page composes
+     @mssfoobar/gis-web-sdk inside chrome built from @mssfoobar/ui, which
+     ship these same tokens. The "map" is an SVG stand-in for a Cesium 2D
+     scene; it shows placement and states, not real tiles.
+
+     THE MAP IS EMPTY BY DESIGN. This change integrates the GIS module as a
+     surface and puts no application data on it — no units, no entities, no
+     live feed, no backend (design.md D1). Wiring field units onto it is a
+     workshop exercise. The states below are therefore about the integration
+     itself: does it render, and what does an operator see when there is
+     nothing on it.
+     ------------------------------------------------------------------ */
+  :root {
+    --zinc-50:#FAFAFA; --zinc-100:#F4F4F5; --zinc-200:#E4E4E7; --zinc-300:#D4D4D8;
+    --zinc-400:#A1A1AA; --zinc-500:#71717A; --zinc-600:#52525B; --zinc-800:#27272A;
+    --zinc-900:#18181B; --zinc-950:#09090B;
+    --slate-50:#F8FAFC;
+    --sky-500:#0EA5E9; --sky-600:#0284C7;
+    --green-600:#059669; --green-700:#047857;
+    --amber-600:#D97706;
+
+    --color-bg: var(--slate-50);
+    --card: #FFFFFF;
+    --foreground: var(--zinc-950);
+    --muted-foreground: var(--zinc-500);
+    --accent: var(--zinc-100);
+    --border: var(--zinc-200);
+    --ring: var(--sky-600);
+    --sidebar: #FFFFFF;
+
+    --map-bg:#E8EDF2; --map-line:#CFD8E3; --map-land:#DDE5EC;
+
+    --badge-success-bg:#ECFDF5; --badge-success-fg:var(--green-700);
+    --badge-info-bg:#ECFEFF;    --badge-info-fg:#0E7490;
+    --badge-warn-bg:#FFFBEB;    --badge-warn-fg:#B45309;
+    --badge-default-bg:var(--zinc-100); --badge-default-fg:var(--zinc-600);
+
+    --radius-sm:6px; --radius-md:8px; --radius-lg:12px;
+    --shadow-md:0 1px 3px 0 rgba(0,0,0,.1), 0 1px 2px -1px rgba(0,0,0,.1);
+
+    --font-sans:"Geist","Inter",ui-sans-serif,system-ui,-apple-system,sans-serif;
+    --font-mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,monospace;
+    --fs-xs:12px; --fs-sm:14px; --fs-base:16px; --fs-xl:20px;
+  }
+  [data-theme="dark"] {
+    --color-bg: var(--zinc-950);
+    --card: var(--zinc-900);
+    --foreground: var(--zinc-50);
+    --muted-foreground: var(--zinc-400);
+    --accent: var(--zinc-800);
+    --border: #2A2A31;
+    --ring: var(--sky-500);
+    --sidebar: var(--zinc-900);
+
+    --map-bg:#0F141A; --map-line:#1E2731; --map-land:#161D25;
+
+    --badge-success-bg:rgba(5,150,105,.16);  --badge-success-fg:#6EE7B7;
+    --badge-info-bg:rgba(6,182,212,.16);     --badge-info-fg:#67E8F9;
+    --badge-warn-bg:rgba(217,119,6,.18);     --badge-warn-fg:#FCD34D;
+    --badge-default-bg:var(--zinc-800);      --badge-default-fg:var(--zinc-300);
+  }
+
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--color-bg); color:var(--foreground);
+    font-family:var(--font-sans); font-size:var(--fs-base);
+    -webkit-font-smoothing:antialiased;
+  }
+  .page { max-width:1320px; margin:0 auto; padding:24px 24px 48px; }
+
+  /* --- mock chrome: state switcher (not part of the product) ---------- */
+  .mockbar {
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+    padding:12px 16px; margin-bottom:20px;
+    border:1px dashed var(--border); border-radius:var(--radius-md);
+    background:var(--card);
+  }
+  .mockbar .label {
+    font-size:var(--fs-xs); text-transform:uppercase; letter-spacing:.05em;
+    color:var(--muted-foreground); margin-right:4px;
+  }
+  .mockbar button {
+    font:inherit; font-size:var(--fs-sm); color:var(--foreground);
+    background:transparent; border:1px solid var(--border);
+    border-radius:var(--radius-sm); padding:5px 10px; cursor:pointer;
+  }
+  .mockbar button:hover { background:var(--accent); }
+  .mockbar button[aria-pressed="true"] { background:var(--ring); border-color:var(--ring); color:#fff; }
+  .mockbar .spacer { flex:1; }
+
+  /* --- app shell: Sidebar + Navbar from @mssfoobar/ui ----------------- */
+  .shell { display:block;
+           border:1px solid var(--border); border-radius:var(--radius-lg);
+           overflow:hidden; background:var(--card); box-shadow:var(--shadow-md); }
+  .sidebar { background:var(--sidebar); border-right:1px solid var(--border); padding:14px 10px; }
+  .sidebar .brand { font-weight:600; font-size:var(--fs-sm); padding:4px 8px 12px; }
+  .navitem {
+    display:flex; align-items:center; gap:8px; width:100%; text-align:left;
+    font:inherit; font-size:var(--fs-sm); color:inherit; background:transparent;
+    border:0; border-radius:var(--radius-sm); padding:7px 8px; cursor:pointer;
+  }
+  .navitem:hover { background:var(--accent); }
+  .navitem[aria-current="page"] { background:var(--accent); font-weight:600; }
+  .navitem .glyph { width:14px; height:14px; border-radius:3px; background:var(--muted-foreground); flex:none; }
+  .navitem[aria-current="page"] .glyph { background:var(--ring); }
+
+  .main { padding:18px 20px 22px; min-width:0; }
+  .navbar { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; }
+  h1 { font-size:var(--fs-xl); line-height:32px; margin:0 0 4px; font-weight:600; letter-spacing:-.01em; }
+  .desc { color:var(--muted-foreground); font-size:var(--fs-sm); margin:0; }
+  .who { font-size:var(--fs-sm); color:var(--muted-foreground); display:flex; align-items:center; gap:10px; }
+
+  .badge {
+    display:inline-flex; align-items:center; gap:6px; font-size:var(--fs-xs);
+    padding:2px 8px; border-radius:999px; font-weight:500;
+    background:var(--badge-default-bg); color:var(--badge-default-fg);
+  }
+  .badge.success { background:var(--badge-success-bg); color:var(--badge-success-fg); }
+  .badge.info    { background:var(--badge-info-bg);    color:var(--badge-info-fg); }
+  .badge.warn    { background:var(--badge-warn-bg);    color:var(--badge-warn-fg); }
+
+  .layout { display:grid; grid-template-columns:1fr 272px; gap:16px; }
+
+  .mapcard {
+    position:relative; border:1px solid var(--border); border-radius:var(--radius-lg);
+    background:var(--card); overflow:hidden; min-height:430px;
+  }
+  .canvas { display:block; width:100%; height:430px; background:var(--map-bg); }
+
+  .overlay { position:absolute; display:flex; flex-direction:column; gap:8px; }
+  .overlay.tl { top:12px; left:12px; }
+  .overlay.tr { top:12px; right:12px; align-items:flex-end; }
+  .overlay.bl { bottom:12px; left:12px; }
+
+  .panel {
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius-md);
+    box-shadow:var(--shadow-md); padding:10px 12px; font-size:var(--fs-sm); max-width:280px;
+  }
+  .panel h3 { margin:0 0 6px; font-size:var(--fs-xs); font-weight:600;
+              text-transform:uppercase; letter-spacing:.05em; color:var(--muted-foreground); }
+  .panel .row { display:flex; align-items:center; gap:8px; padding:3px 0; }
+  .panel .row input { accent-color:var(--ring); }
+
+  .btn {
+    font:inherit; font-size:var(--fs-sm); color:var(--foreground); background:var(--card);
+    border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 12px; cursor:pointer;
+  }
+  .btn:hover { background:var(--accent); }
+  .btn.primary { background:var(--ring); border-color:var(--ring); color:#fff; }
+
+  .notice {
+    display:flex; gap:10px; align-items:flex-start;
+    border:1px solid var(--border); border-radius:var(--radius-md);
+    background:var(--card); padding:10px 12px; font-size:var(--fs-sm); max-width:340px;
+  }
+  .notice .dot { width:8px; height:8px; border-radius:999px; margin-top:6px; flex:none; background:var(--amber-600); }
+  .notice p { margin:0; }
+  .notice .sub { color:var(--muted-foreground); font-size:var(--fs-xs); margin-top:2px; }
+
+  .side .card {
+    border:1px solid var(--border); border-radius:var(--radius-lg); background:var(--card);
+    padding:14px; margin-bottom:12px;
+  }
+  .side h2 { margin:0 0 2px; font-size:var(--fs-sm); font-weight:600; }
+  .side .muted { color:var(--muted-foreground); font-size:var(--fs-xs); margin:0; }
+  .kv { display:flex; justify-content:space-between; gap:12px; padding:5px 0; font-size:var(--fs-sm); border-top:1px solid var(--border); }
+  .kv:first-of-type { border-top:0; }
+  .kv .k { color:var(--muted-foreground); }
+  .kv .v { font-variant-numeric:tabular-nums; }
+  .mono { font-family:var(--font-mono); font-size:var(--fs-xs); }
+
+  .empty { text-align:center; color:var(--muted-foreground); font-size:var(--fs-sm); padding:24px 8px; }
+
+  .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:var(--fs-xs); color:var(--muted-foreground); margin-top:12px; }
+  .legend span { display:inline-flex; align-items:center; gap:6px; }
+  .swatch { width:10px; height:10px; border-radius:999px; display:inline-block; }
+
+  .hidden { display:none !important; }
+
+  @media (max-width: 1000px) {
+    .shell { grid-template-columns:1fr; }
+    .sidebar { border-right:0; border-bottom:1px solid var(--border); }
+    .layout { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ============ mock-only controls ============ -->
+  <div class="mockbar">
+    <span class="label">State</span>
+    <button type="button" data-state="loaded"  aria-pressed="true">Loaded</button>
+    <button type="button" data-state="notiles" aria-pressed="false">Tiles unavailable (offline)</button>
+    <span class="spacer"></span>
+    <button type="button" id="theme">Light / dark</button>
+  </div>
+
+  <!-- ============ product ============ -->
+  <div class="shell">
+    <div class="main">
+      <div class="navbar">
+        <div>
+          <h1>Map</h1>
+          <p class="desc" id="pagedesc">Base map. No application data is shown on it yet.</p>
+        </div>
+        <div class="who">
+          <button class="btn" type="button">← Units</button>
+        </div>
+      </div>
+
+      <div class="layout">
+        <!-- ---------- map ---------- -->
+        <div class="mapcard">
+          <svg class="canvas" viewBox="0 0 900 430" preserveAspectRatio="xMidYMid slice" aria-label="Map canvas (mock)">
+            <rect x="0" y="0" width="900" height="430" fill="var(--map-bg)"/>
+            <path id="land" d="M80 280 Q200 220 320 255 T600 230 Q720 215 830 265 L830 430 L80 430 Z" fill="var(--map-land)"/>
+            <path d="M120 110 Q260 80 400 120 T760 100" fill="none" stroke="var(--map-line)" stroke-width="2"/>
+            <g stroke="var(--map-line)" stroke-width="1" opacity=".7">
+              <line x1="0" y1="107" x2="900" y2="107"/><line x1="0" y1="215" x2="900" y2="215"/>
+              <line x1="0" y1="322" x2="900" y2="322"/>
+              <line x1="225" y1="0" x2="225" y2="430"/><line x1="450" y1="0" x2="450" y2="430"/>
+              <line x1="675" y1="0" x2="675" y2="430"/>
+            </g>
+
+          </svg>
+
+          <!-- MapLayerManager from @mssfoobar/gis-web-sdk -->
+          <div class="overlay tl">
+            <div class="panel">
+              <h3>Layers</h3>
+              <label class="row"><input type="checkbox" checked /> Field units</label>
+              <label class="row"><input type="checkbox" checked /> OpenStreetMap</label>
+            </div>
+          </div>
+
+          <div class="overlay tr">
+            <span class="badge success" id="feedbadge">Live</span>
+          </div>
+
+          <div class="overlay bl">
+            <div class="notice hidden" id="degradednotice">
+              <span class="dot"></span>
+              <div>
+                <p>Live positions are unavailable.</p>
+                <p class="sub">Positions shown were last known when the page loaded.</p>
+              </div>
+            </div>
+            <!-- The state every attendee sees first. It has to read as "working and
+                 empty", not as "broken" — that distinction is the whole point. -->
+            <!-- The state every attendee sees first. It must read as "working and
+                 empty", not "broken" — that distinction is the point of D2. -->
+            <div class="notice" id="emptynotice">
+              <span class="dot"></span>
+              <div>
+                <p>No entities are shown on this map yet.</p>
+                <p class="sub">Wiring field units onto it is a workshop exercise.</p>
+              </div>
+            </div>
+            <div class="notice hidden" id="notilesnotice">
+              <span class="dot"></span>
+              <div>
+                <p>Base map tiles could not be loaded.</p>
+                <p class="sub">The map itself is working; the tile server is unreachable.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ---------- side rail ---------- -->
+        <div class="side">
+          <div class="card">
+            <h2>Integration</h2>
+            <p class="muted">What this page proves is wired.</p>
+            <div style="height:8px"></div>
+            <div class="kv"><span class="k">Map engine</span><span class="v"><span class="badge success">Cesium</span></span></div>
+            <div class="kv"><span class="k">Base layer</span><span class="v"><span class="badge success" id="tilesrow">OSM</span></span></div>
+            <div class="kv"><span class="k">Cesium assets</span><span class="v"><span class="badge success">Served</span></span></div>
+            <div class="kv"><span class="k">Backend</span><span class="v"><span class="badge">None required</span></span></div>
+            <div class="kv"><span class="k">Entities</span><span class="v"><span class="badge">None yet</span></span></div>
+          </div>
+
+          <div class="card">
+            <h2>Next</h2>
+            <p class="muted">
+              Field units do not appear here yet. Putting them on this map —
+              which needs IAMS, gis-service and RTUS — is the workshop exercise.
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // Mock-only wiring. Two states, because this surface has two things that can
+  // vary: whether tiles loaded, and the theme. Everything else is fixed — the
+  // map carries no data and depends on no backend.
+  const $ = (sel) => document.querySelector(sel);
+
+  function apply(state) {
+    const noTiles = state === 'notiles';
+    $('#notilesnotice').classList.toggle('hidden', !noTiles);
+    $('#emptynotice').classList.toggle('hidden', noTiles);
+    $('#land').classList.toggle('hidden', noTiles);
+
+    const badge = $('#feedbadge');
+    badge.textContent = noTiles ? 'No tiles' : 'Tiles loaded';
+    badge.className = 'badge ' + (noTiles ? 'warn' : 'success');
+
+    const row = $('#tilesrow');
+    row.textContent = noTiles ? 'Unreachable' : 'OSM';
+    row.className = 'badge ' + (noTiles ? 'warn' : 'success');
+  }
+
+  document.querySelectorAll('.mockbar button[data-state]').forEach((b) => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.mockbar button[data-state]')
+        .forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+      apply(b.dataset.state);
+    });
+  });
+
+  document.getElementById('theme').addEventListener('click', () => {
+    const root = document.documentElement;
+    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+  });
+
+  apply('loaded');
+</script>
+</body>
+</html>

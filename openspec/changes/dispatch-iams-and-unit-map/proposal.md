@@ -1,3 +1,13 @@
+> **Status: proposed, not next.** The map surface landed separately in
+> `dispatch-map-surface`, which adds a Cesium map to the console with no authentication and
+> no new container. This change is retained as the worked design for **adopting IAMS** — and
+> as the reference for the workshop exercise that puts field units on that map, which needs
+> IAMS, `gis-service` and RTUS together. Two consequences for anyone picking it up: its
+> `dispatch-map` delta assumes the map does not exist yet and needs rebasing onto whatever
+> `dispatch-map-surface` created, and its route moves (`/units` → `/aoh/dispatch/units`)
+> should be read alongside that change's `/map`. The auth, tenancy and seeding reasoning
+> below stands on its own and is what makes it worth keeping.
+
 ## Why
 
 The workshop console is the only AOH app in the repo that nobody logs into and that shows
