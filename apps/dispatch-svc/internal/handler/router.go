@@ -6,6 +6,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	aohhttp "github.com/mssfoobar/ops-hub/packages/aoh-golib/http"
+	"go.uber.org/zap"
+
+	"github.com/mssfoobar/fleet-dispatch-console/apps/dispatch-svc/internal/auth"
 )
 
 // Router builds the service's HTTP routes.
@@ -13,7 +16,11 @@ import (
 // readiness is probed by /readyz; it should return an error when the database is
 // unreachable, so a broken dependency shows up there rather than as a 500 on a data
 // route.
-func Router(units *UnitHandler, readiness func(ctx context.Context) error) *chi.Mux {
+//
+// issuerURL is the Keycloak realm every bearer token must come from. Authentication is
+// mounted on /v1/units only: /livez and /readyz stay open, because Kubernetes probes them
+// without credentials.
+func Router(units *UnitHandler, readiness func(ctx context.Context) error, issuerURL string, logger *zap.Logger) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -34,7 +41,19 @@ func Router(units *UnitHandler, readiness func(ctx context.Context) error) *chi.
 		return readiness(context.Background())
 	})
 
-	r.Route("/v1/units", units.Routes)
+	// Authentication, mounted inside the resource rather than globally so the health
+	// probes above stay reachable. BearerAuth is aoh-golib's shipped middleware — it
+	// validates against Keycloak's userinfo endpoint, which is also why a token issued
+	// without `scope=openid` is rejected. auth.Identify then puts the caller's subject,
+	// tenant and roles on the request context.
+	//
+	// The four workshop stub routes are inside this group too: they keep answering 501,
+	// but only to an authorised caller.
+	r.Route("/v1/units", func(r chi.Router) {
+		r.Use(aohhttp.BearerAuth(issuerURL, logger))
+		r.Use(auth.Identify)
+		units.Routes(r)
+	})
 
 	return r
 }

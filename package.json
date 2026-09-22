@@ -9,9 +9,10 @@
     "check-types": "turbo run check-types",
     "verify": "turbo run lint check-types build",
     "start": "node scripts/dev.mjs",
-    "start:no-db": "node scripts/dev.mjs --no-db",
+    "start:no-infra": "node scripts/dev.mjs --no-infra",
     "stop": "podman compose -f compose/compose.yml down",
-    "reset-db": "podman compose -f compose/compose.yml down -v",
+    "reset": "podman compose -f compose/compose.yml down -v",
+    "e2e": "node scripts/e2e-smoke.mjs",
     "slides": "pnpm -C slides install && pnpm -C slides dev",
     "doctor": "node scripts/doctor.mjs"
   },

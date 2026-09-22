@@ -1,0 +1,83 @@
+name: aoh
+
+include:
+    - ../traefik/compose.yml
+    - ../iams/compose.yml
+    - ../rtus/compose.yml
+
+# Compose wiring for the GIS service. For what GIS is and how it works, see the
+# aoh-knowledge skill (references/services/gis.md).
+
+services:
+    gis-db:
+        image: postgres:17.0
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 3s
+        # Logical WAL retained from the legacy stack; harmless if unused.
+        command: postgres -c wal_level=logical
+        environment:
+            - POSTGRES_DB=gis
+            - POSTGRES_USER=${DEV_USER}
+            - POSTGRES_PASSWORD=${DEV_PASSWORD}
+        volumes:
+            - gis-db-volume:/var/lib/postgresql/data
+            # gis-service migrates its tables on boot but does not CREATE SCHEMA;
+            # this seeds the schema namespace (see ./db-init/schema.sql).
+            - ../gis/db-init:/docker-entrypoint-initdb.d/
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ${DEV_USER} -d gis"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    # gis-service — the GIS REST API (geo-entities, bookmarks, sync), routed at
+    # gis.${DEV_DOMAIN}. It publishes entity changes to RTUS via a transactional
+    # outbox worker. The map UI is an SDK a host app embeds (aoh-gis-integration
+    # skill), so no gis web service runs here.
+    gis-service:
+        image: ghcr.io/mssfoobar/ops-hub/gis-service:${GIS_SERVICE_TAG}
+        restart: on-failure
+        deploy:
+            restart_policy:
+                delay: 5s
+        environment:
+            - LOG_LEVEL=debug
+            - HTTP_PORT=8080
+            - SQL_HOST=gis-db
+            - SQL_PORT=5432
+            - SQL_USER=${DEV_USER}
+            - SQL_PASSWORD=${DEV_PASSWORD}
+            - SQL_DATABASE_NAME=gis
+            - SQL_SCHEMA_NAME=gis
+            - SQL_SSL_MODE=disable
+            - IAMS_KEYCLOAK_HOST=http://iams-keycloak
+            - IAMS_KEYCLOAK_PORT=8080
+            - IAMS_KEYCLOAK_REALM=aoh
+            - IAMS_AAS_HOST=http://iams-aas
+            - IAMS_AAS_PORT=8080
+            - RTUS_HOST=http://rtus-pms
+            - RTUS_PORT=8080
+            - RTUS_MAP_NAME=gis
+            - GIS_ACTIVE_TENANT_CLAIM_KEY=active_tenant
+            - GIS_BATCH_LIMIT=1000
+            - GIS_PUTS_IGNORE_OCC_LOCK=true
+            # Export to the core gateway OTEL collector (aoh-golib/otel reads these);
+            # safe no-op if the endpoint is unreachable.
+            - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+            - OTEL_RESOURCE_ATTRIBUTES=${OTEL_RESOURCE_ATTRIBUTES:-}
+        labels:
+            - traefik.enable=true
+            - traefik.http.routers.gis-service.rule=Host(`gis.${DEV_DOMAIN}`)
+            - traefik.http.routers.gis-service.entrypoints=web
+            - traefik.http.routers.gis-service.middlewares=permissive-headers@docker
+            - traefik.http.services.gis-service.loadBalancer.server.port=8080
+        depends_on:
+            gis-db:
+                condition: service_healthy
+            iams-keycloak:
+                condition: service_healthy
+
+volumes:
+    gis-db-volume:

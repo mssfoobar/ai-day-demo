@@ -611,7 +611,8 @@ named step, rather than carrying on and reporting at the end.
 <NumStep :n="3" body="font-mono text-sm">podman compose -f compose/compose.yml -f compose/compose.devcontainer.yml up -d</NumStep>
 <NumStep :n="4" body="font-mono text-sm">podman compose exec workshop bash</NumStep>
 <NumStep :n="5" body="font-mono text-sm">pnpm start</NumStep>
-<NumStep :n="6">Open http://localhost:5173</NumStep>
+<NumStep :n="6">Open http://127.0.0.1.nip.io:5173</NumStep>
+<NumStep :n="7">Sign in — admin / P@ssw0rd</NumStep>
 </Points>
 
 <!--
@@ -633,8 +634,18 @@ without republishing them.
 Step three pulls about 1.1 GB, once. Worth doing before they arrive if the wifi
 is shared.
 
-pnpm start installs, then runs. Twenty-five seconds the first time, under a
-second after. Safe to retype if anything goes wrong.
+pnpm start installs, brings up the stack, waits for it to converge, then runs
+both apps. The first start is minutes, not seconds, because it is sixteen
+services now rather than one Postgres. Safe to retype if anything goes wrong.
+
+Not localhost: 127.0.0.1.nip.io is the same machine, but a real domain name,
+which the session cookie needs to reach the live map feed. Nothing to install
+for it.
+
+Step seven is new and easy to skip past. The roster appears on the first
+DISPATCHER sign-in — seeding is a write, so the viewer account sees an empty
+console until admin has signed in once. If someone demos viewer first and
+reports "no units", that is the reason and it is correct behaviour.
 
 If someone already runs Postgres on 5432, the runner says so by name and they
 start again with POSTGRES_PORT set to a free port.

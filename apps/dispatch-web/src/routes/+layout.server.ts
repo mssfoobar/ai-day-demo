@@ -5,16 +5,18 @@ import type { LayoutServerLoad } from './$types';
 /**
  * Bare `/` lands on the dispatch console.
  *
- * The scaffold shipped this redirect pointing at the OIDC login flow. This app has no
- * authentication (see the openspec change `baseline-dispatch-console`, design.md D1/D2),
- * so that destination no longer exists and `/` goes straight to the console instead.
+ * The console now lives under the `(private)` group, so this redirect leads to the
+ * sign-in flow for anyone without a session — the private layout's guard does that
+ * part. It is deliberately a *replacement* for the baseline's `/` → `/units` redirect
+ * rather than a deletion: the scaffold ships no root `+page.svelte`, so dropping it
+ * would leave `/` a 404 instead of a sign-in redirect.
  *
- * `/` is kept as a redirect rather than hosting the console directly, so the route stays
- * free to become a real landing page later.
+ * `/` stays a redirect rather than hosting the console directly, so the route is free
+ * to become a real landing page later.
  */
 export const load: LayoutServerLoad = async ({ url }) => {
 	if (url.pathname === '/') {
-		redirect(StatusCodes.TEMPORARY_REDIRECT, '/units');
+		redirect(StatusCodes.TEMPORARY_REDIRECT, '/aoh/dispatch/units');
 	}
 	return {};
 };

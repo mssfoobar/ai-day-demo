@@ -1,0 +1,58 @@
+## Use this override file to override any default configuration.
+##
+## Runtime default is Podman (the base compose.yml mounts the Podman socket).
+## DOCKER USERS: rename this file to `compose.override.yml` — Docker Compose
+## will auto-load it and the traefik block below will remount the socket at
+## /var/run/docker.sock so Traefik's docker provider works. `compose.override.yml`
+## is gitignored so each developer makes this choice locally.
+##
+## Other useful customizations (dev replicas=0, DB port mappings) are included
+## below the traefik block as commented-out samples.
+
+name: aoh
+
+services:
+    ## --- Docker socket (uncomment when running under Docker instead of Podman) ---
+    # traefik:
+    #     volumes:
+    #         - /var/run/docker.sock:/var/run/docker.sock
+
+    ## When doing development, you will usually run the service that you are developing locally instead of within
+    ## the Docker container - use deploy: replicas: 0 to quickly disable those services
+    # my-service-app:
+    #     deploy:
+    #         replicas: 0
+
+    ## --- Native-dev port contract ---
+    ## Host 5432 belongs to the dispatch PostgreSQL (compose/dispatch/compose.yml),
+    ## which publishes it unconditionally so `cd apps/dispatch-svc && go run ./cmd/server`
+    ## reaches it natively. It is NOT available to iams-db — the shipped sample used to
+    ## allocate 5432 here, and that collision is the one to avoid. iams-db is mapped to
+    ## 5436 below instead.
+    ##
+    ## sds-server's TCP 5333 needs no entry at all: Traefik already publishes it, which is
+    ## what makes `SDS_URL=tcp://127.0.0.1:5333` work for a natively-run dispatch-web.
+
+    ## The following is a quick list of database port mappings that do not clash - for you to quickly enable or
+    ## disable if you would like to connect directly to the DB
+    # iams-db:
+    #     ports:
+    #         - 5436:5432
+    # rtus-db:
+    #     ports:
+    #         - 5433:5432
+    # unh-db:
+    #     ports:
+    #         - 5434:5432
+    # ian-db:
+    #     ports:
+    #         - 5435:5432
+    # dash-db:
+    #     ports:
+    #         - 5437:5432
+    # gis-db:
+    #     ports:
+    #         - 5438:5432
+    # amm-db:
+    #     ports:
+    #         - 5439:5432

@@ -1,5 +1,15 @@
 // See https://kit.svelte.dev/docs/types#app
 
+// @mssfoobar/gis-web-sdk's component `.d.ts` files declare their props as
+// `interface Props extends Gis.MapOptions`. That global namespace only resolves when
+// the SDK's `types-namespace.d.ts` is in the app's TypeScript program — without this
+// reference every `<Map>` prop type-errors as an unknown property, even though the
+// build succeeds. Referenced once here rather than per page.
+/// <reference types="@mssfoobar/gis-web-sdk/types" />
+
+import type { AuthResult } from '$lib/aoh/core/provider/auth/auth';
+import type { Configuration } from 'openid-client';
+
 // for information about these interfaces
 declare global {
 	namespace App {
@@ -36,12 +46,21 @@ declare global {
 			trace_id?: string;
 		}
 		/**
-		 * Empty on purpose. This app has no authentication, so there is no
-		 * `authResult`, no OIDC client, and no post-login redirect to carry —
-		 * see the openspec change `baseline-dispatch-console` (design.md D1).
+		 * What `hooks.server.ts`'s auth handle puts on every request.
+		 *
+		 * `authResult` carries the operator's *claims* and — on the success branch —
+		 * the access token, read from SDS server-side. The token is deliberately
+		 * never returned from a `load`: the browser gets only the opaque
+		 * `web_auth_session_id` cookie.
 		 */
-		// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-		interface Locals {}
+		interface Locals {
+			authResult: AuthResult;
+			clients?: {
+				oidc_config?: Configuration;
+			};
+			/** Where the operator was heading before they were sent to sign in. */
+			originalUrl?: string;
+		}
 		// interface PageData {}
 		// interface PageState {}
 		// interface Platform {}
@@ -79,6 +98,6 @@ declare global {
 }
 
 // Keeps this file a module so `declare global` above is an augmentation rather than a
-// redeclaration. The scaffold got this implicitly from its auth imports; those are gone
-// with the auth layer, so the marker has to be explicit.
+// redeclaration. The auth imports at the top would do it implicitly; the explicit marker
+// stays so removing an import cannot silently turn this into a redeclaration.
 export {};

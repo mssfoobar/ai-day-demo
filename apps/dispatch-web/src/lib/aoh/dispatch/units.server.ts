@@ -11,6 +11,7 @@ import {
 	type Assignment,
 	type Crew,
 	type FieldUnit,
+	type Position,
 	type UnitField,
 	type UnitInput,
 	type UnitStatus
@@ -18,7 +19,18 @@ import {
 
 // Re-exported so existing imports keep working; the definitions live in ./types so
 // client components can use them without touching this server-only module.
-export type { Assignment, Crew, FieldUnit, UnitInput, UnitStatus } from './types';
+export type { Assignment, Crew, FieldUnit, Position, UnitInput, UnitStatus } from './types';
+
+/**
+ * The bearer this console sends upstream, read from SDS server-side.
+ *
+ * Never returned from a `load` and never threaded through page data: everything a `load`
+ * returns is serialised into the page payload, and the browser must only ever hold the
+ * opaque session-id cookie.
+ */
+export function bearerFrom(locals: App.Locals): string | undefined {
+	return locals.authResult?.success ? locals.authResult.access_token : undefined;
+}
 
 /** One field-level problem, as the AOH error contract's `details` carries it. */
 export interface FieldError {
@@ -54,6 +66,14 @@ export class DispatchServiceError extends Error {
 	get isValidation() {
 		return this.status === 400;
 	}
+	/** The service refused the token — the session is gone or was never valid. */
+	get isUnauthenticated() {
+		return this.status === 401;
+	}
+	/** The session is fine; the operator's roles do not permit the action. */
+	get isForbidden() {
+		return this.status === 403;
+	}
 }
 
 /** The AOH success envelope every service response is wrapped in. */
@@ -76,6 +96,12 @@ interface WireAssignment {
 	since?: unknown;
 }
 
+interface WirePosition {
+	lon?: unknown;
+	lat?: unknown;
+	at?: unknown;
+}
+
 interface WireUnit {
 	unit_code?: unknown;
 	call_sign?: unknown;
@@ -88,6 +114,7 @@ interface WireUnit {
 	capabilities?: unknown;
 	crew?: unknown;
 	assignment?: unknown;
+	position?: unknown;
 	last_contact?: unknown;
 	occ_lock?: unknown;
 }
@@ -120,6 +147,16 @@ function toAssignment(value: unknown): Assignment | undefined {
 	};
 }
 
+function toPosition(value: unknown): Position | undefined {
+	// The service omits the key entirely for an un-positioned unit. Keep it absent rather
+	// than manufacturing `{lon: 0, lat: 0}`, which would put a marker off West Africa and
+	// read as data rather than as an absence.
+	if (value === null || typeof value !== 'object') return undefined;
+	const wire = value as WirePosition;
+	if (typeof wire.lon !== 'number' || typeof wire.lat !== 'number') return undefined;
+	return { lon: wire.lon, lat: wire.lat, at: str(wire.at) };
+}
+
 /**
  * Map one wire unit to the app's shape.
  *
@@ -150,6 +187,7 @@ export function toFieldUnit(value: unknown): FieldUnit {
 		capabilities: Array.isArray(wire.capabilities) ? wire.capabilities.map(str) : [],
 		crew: toCrew(wire.crew),
 		assignment: toAssignment(wire.assignment),
+		position: toPosition(wire.position),
 		lastContact: str(wire.last_contact),
 		occLock: typeof wire.occ_lock === 'number' ? wire.occ_lock : 0
 	};
@@ -172,7 +210,14 @@ function unitFromEnvelope(body: unknown): FieldUnit {
 	return toFieldUnit(envelope.data);
 }
 
-/** camelCase → the snake_case body the service expects. */
+/**
+ * camelCase → the snake_case body the service expects.
+ *
+ * `position` is omitted when absent, which is exactly how a replace clears one. The
+ * console never clears a position on purpose, so the edit form round-trips the unit's
+ * existing fix through hidden inputs — including `at`, so an edit that reported no new
+ * location leaves the fix time where it was.
+ */
 export function toWireInput(input: UnitInput): Record<string, unknown> {
 	return {
 		unit_code: input.unitCode,
@@ -183,7 +228,16 @@ export function toWireInput(input: UnitInput): Record<string, unknown> {
 		sector: input.sector,
 		radio_channel: input.radioChannel,
 		shift: input.shift,
-		capabilities: input.capabilities
+		capabilities: input.capabilities,
+		...(input.position
+			? {
+					position: {
+						lon: input.position.lon,
+						lat: input.position.lat,
+						...(input.position.at ? { at: input.position.at } : {})
+					}
+				}
+			: {})
 	};
 }
 
@@ -242,6 +296,7 @@ function serviceUrl(): string {
 }
 
 async function call(
+	token: string,
 	fetchImpl: typeof fetch,
 	method: string,
 	path: string,
@@ -252,6 +307,9 @@ async function call(
 			method,
 			headers: {
 				accept: 'application/json',
+				// The service requires a bearer on every /v1/units route. The token comes
+				// from SDS, server-side; there is no browser-side call to sign.
+				authorization: `Bearer ${token}`,
 				...(body !== undefined ? { 'content-type': 'application/json' } : {})
 			},
 			body: body !== undefined ? JSON.stringify(body) : undefined
@@ -283,24 +341,29 @@ async function json(response: Response): Promise<unknown> {
  * Throws `DispatchServiceError` when the service is unreachable or answers unusably, so
  * the caller can render an explicit error state rather than an empty fleet.
  */
-export async function listUnits(fetchImpl: typeof fetch = fetch): Promise<FieldUnit[]> {
-	const response = await call(fetchImpl, 'GET', '/v1/units');
+export async function listUnits(
+	token: string,
+	fetchImpl: typeof fetch = fetch
+): Promise<FieldUnit[]> {
+	const response = await call(token, fetchImpl, 'GET', '/v1/units');
 	if (!response.ok) throw await errorFromResponse(response);
 	return unitsFromEnvelope(await json(response));
 }
 
 /** Create a unit. 400 → validation details, 409 → `DISPATCH_UNIT_CODE_TAKEN`. */
 export async function createUnit(
+	token: string,
 	input: UnitInput,
 	fetchImpl: typeof fetch = fetch
 ): Promise<FieldUnit> {
-	const response = await call(fetchImpl, 'POST', '/v1/units', toWireInput(input));
+	const response = await call(token, fetchImpl, 'POST', '/v1/units', toWireInput(input));
 	if (!response.ok) throw await errorFromResponse(response);
 	return unitFromEnvelope(await json(response));
 }
 
 /** Replace a unit's editable fields, echoing `occLock`. 409 `DISPATCH_UNIT_STALE` on a stale lock. */
 export async function updateUnit(
+	token: string,
 	unitCode: string,
 	occLock: number,
 	input: UnitInput,
@@ -308,21 +371,29 @@ export async function updateUnit(
 ): Promise<FieldUnit> {
 	const { unit_code: _omit, ...body } = toWireInput(input);
 	void _omit; // the code travels in the URL, not the body
-	const response = await call(fetchImpl, 'PUT', `/v1/units/${encodeURIComponent(unitCode)}`, {
-		...body,
-		occ_lock: occLock
-	});
+	const response = await call(
+		token,
+		fetchImpl,
+		'PUT',
+		`/v1/units/${encodeURIComponent(unitCode)}`,
+		{
+			...body,
+			occ_lock: occLock
+		}
+	);
 	if (!response.ok) throw await errorFromResponse(response);
 	return unitFromEnvelope(await json(response));
 }
 
 /** Delete a unit, echoing `occLock`. 204 on success. */
 export async function deleteUnit(
+	token: string,
 	unitCode: string,
 	occLock: number,
 	fetchImpl: typeof fetch = fetch
 ): Promise<void> {
 	const response = await call(
+		token,
 		fetchImpl,
 		'DELETE',
 		`/v1/units/${encodeURIComponent(unitCode)}?occ_lock=${encodeURIComponent(String(occLock))}`

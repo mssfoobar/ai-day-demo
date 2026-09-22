@@ -5,9 +5,12 @@
   units.
 
   Reads happen in +page.server.ts's load; writes go through its form actions. Either way
-  the browser only ever talks to its own origin and the server talks to dispatch-svc. This
-  app has NO authentication. See openspec/changes/dispatch-units-service and
-  openspec/changes/dispatch-units-crud.
+  the browser only ever talks to its own origin and the server talks to dispatch-svc,
+  carrying the operator's bearer read from SDS.
+
+  Add / edit / delete render only for an operator holding `dispatch-dispatcher`
+  (`data.canWrite`). The service enforces the same rule independently — hiding a button
+  is presentation, not authorization. See openspec/changes/dispatch-iams-and-unit-map.
 -->
 
 <script lang="ts">
@@ -31,11 +34,14 @@
 	import { toast } from '@mssfoobar/ui/toast';
 	import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
 	import Construction from '@lucide/svelte/icons/construction';
+	import Lock from '@lucide/svelte/icons/lock';
+	import MapIcon from '@lucide/svelte/icons/map';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Search from '@lucide/svelte/icons/search';
 	import SearchX from '@lucide/svelte/icons/search-x';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import X from '@lucide/svelte/icons/x';
+	import { page } from '$app/state';
 
 	import StatusFilter from '$lib/aoh/dispatch/components/StatusFilter.svelte';
 	import ExerciseDialog from '$lib/aoh/dispatch/components/ExerciseDialog.svelte';
@@ -58,12 +64,16 @@
 
 	let { data }: { data: PageData } = $props();
 	const units = $derived(data.units);
+	// The write gate. Mirrors roles.yaml via $lib/aoh/dispatch/permissions.
+	const canWrite = $derived(data.canWrite);
 
 	// --- interaction state (client-side; only the forms below talk to the server) --------
 	let query = $state('');
 	let statuses = $state<UnitStatus[]>([]);
 	let sortKey = $state<SortKey>('status');
-	let selectedId = $state<string | null>(null);
+	// `?unit=` is how the map hands a selection to the console — a SvelteKit navigation,
+	// not a fetch. Seeded from the URL, then owned by the user.
+	let selectedId = $state<string | null>(page.url.searchParams.get('unit'));
 	let searchRef = $state<HTMLInputElement | null>(null);
 
 	// Write UI state.
@@ -98,6 +108,12 @@
 		// Any change to the roster counts as an update for the header line.
 		void units;
 		loadedAt = new Date().toISOString();
+	});
+
+	// A later navigation to ?unit=… (clicking a second marker) must move the selection too.
+	$effect(() => {
+		const fromUrl = page.url.searchParams.get('unit');
+		if (fromUrl) selectedId = fromUrl;
 	});
 
 	function select(unit: FieldUnit) {
@@ -198,7 +214,7 @@
 	<header class="flex flex-wrap items-end justify-between gap-3">
 		<div>
 			<h1 class="text-lg leading-6 font-semibold tracking-tight">Dispatch console</h1>
-			{#if data.unavailable}
+			{#if data.state !== 'ok'}
 				<p class="text-xs text-muted-foreground">Field units and their current status.</p>
 			{:else}
 				<p class="text-xs text-muted-foreground tabular-nums">
@@ -209,7 +225,7 @@
 		</div>
 
 		<div class="flex flex-wrap items-center gap-2">
-			{#if !data.unavailable}
+			{#if data.state === 'ok'}
 				<div class="relative">
 					<Search
 						class="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
@@ -244,15 +260,38 @@
 					</SelectContent>
 				</Select>
 
-				<Button size="sm" onclick={openCreate} class="gap-1.5 text-xs">
-					<Plus class="size-3.5" aria-hidden="true" />
-					Add unit
+				<Button variant="outline" size="sm" href="/aoh/dispatch/map" class="gap-1.5 text-xs">
+					<MapIcon class="size-3.5" aria-hidden="true" />
+					Map
 				</Button>
+
+				{#if canWrite}
+					<Button size="sm" onclick={openCreate} class="gap-1.5 text-xs">
+						<Plus class="size-3.5" aria-hidden="true" />
+						Add unit
+					</Button>
+				{/if}
 			{/if}
 		</div>
 	</header>
 
-	{#if data.unavailable}
+	{#if data.state === 'denied'}
+		<!-- A refusal, not an outage. No retry: it will never succeed for these roles. -->
+		<Card>
+			<CardHeader>
+				<CardTitle class="flex items-center gap-2">
+					<Lock class="size-5" aria-hidden="true" />
+					Access restricted
+				</CardTitle>
+			</CardHeader>
+			<CardContent>
+				<p class="text-sm text-muted-foreground" role="alert">
+					Access to this action is restricted. For assistance with access, please contact your
+					administrator.
+				</p>
+			</CardContent>
+		</Card>
+	{:else if data.state === 'unavailable'}
 		<Card class="border-destructive">
 			<CardHeader>
 				<CardTitle class="flex items-center gap-2 text-destructive">
@@ -294,13 +333,26 @@
 				<Separator />
 				<ScrollArea class="min-h-0 flex-1">
 					{#if visible.length === 0}
+						<!--
+							An empty roster is an explicit state, not a bare empty list — the two are
+							indistinguishable to an operator. The wording is deliberately
+							seed-state-independent: a tenant can be empty because nobody has triggered the
+							seed yet OR because a dispatcher deleted every unit; nothing in the API tells
+							the two apart, and for the second "a dispatcher will populate it" is false.
+							What varies is the role-gated action, not the statement.
+						-->
 						<div class="flex flex-col items-center px-6 py-14 text-center text-muted-foreground">
 							<SearchX class="mb-3 size-8" aria-hidden="true" />
-							<p class="text-sm">{units.length === 0 ? 'No units yet.' : 'No units match.'}</p>
+							<p class="text-sm">
+								{units.length === 0 ? 'No units in this tenant.' : 'No units match.'}
+							</p>
 							{#if units.length === 0}
-								<Button variant="outline" size="sm" onclick={openCreate} class="mt-3">
-									Add the first unit
-								</Button>
+								{#if canWrite}
+									<p class="mt-1 text-xs">Add one to get started.</p>
+									<Button variant="outline" size="sm" onclick={openCreate} class="mt-3">
+										Add the first unit
+									</Button>
+								{/if}
 							{:else}
 								<Button variant="outline" size="sm" onclick={clearFilters} class="mt-3">
 									Clear filters
@@ -335,18 +387,20 @@
 							unit={selected}
 							{units}
 							{now}
-							onedit={openEdit}
+							onedit={canWrite ? openEdit : undefined}
 							onexercise={() => openExercises()}
 							focus={focused}
-							ondelete={() => (deleteOpen = true)}
+							ondelete={canWrite ? () => (deleteOpen = true) : undefined}
 						/>
 					</div>
 				</ScrollArea>
 			</Card>
 		</div>
 
-		<!-- Add / edit -->
-		<UnitForm bind:open={formOpen} mode={formMode} unit={selected} onoutcome={onFormOutcome} />
+		<!-- Add / edit. Not mounted for a viewer: there is no path to open it. -->
+		{#if canWrite}
+			<UnitForm bind:open={formOpen} mode={formMode} unit={selected} onoutcome={onFormOutcome} />
+		{/if}
 		<ExerciseDialog bind:open={exerciseOpen} onfocus={focusExercise} />
 
 		{#if incomplete.length > 0}

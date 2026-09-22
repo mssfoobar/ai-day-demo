@@ -28,6 +28,19 @@ export interface Assignment {
 	since: string;
 }
 
+/**
+ * Where a unit was last located.
+ *
+ * `at` is the **fix time** — when the location was reported — which is deliberately not
+ * the unit's last contact. A unit can be heard from without reporting a position, so the
+ * two move independently and the detail pane labels them separately.
+ */
+export interface Position {
+	lon: number;
+	lat: number;
+	at: string;
+}
+
 export interface FieldUnit {
 	id: string;
 	callSign: string;
@@ -41,6 +54,8 @@ export interface FieldUnit {
 	crew: Crew[];
 	/** Absent — not an empty object — when the unit is not committed to an incident. */
 	assignment?: Assignment;
+	/** Absent — not a zero coordinate — when the unit has never reported a location. */
+	position?: Position;
 	lastContact: string;
 	/**
 	 * Optimistic-concurrency version. Echoed on every edit/delete; a mismatch means someone
@@ -60,7 +75,29 @@ export interface UnitInput {
 	radioChannel: string;
 	shift: string;
 	capabilities: string[];
+	/**
+	 * Carried through, not edited. Positions are seeded and set through the API, not
+	 * authored in the console — but a write is a **replace**, so the form has to send the
+	 * unit's existing position back or the write would clear it and the unit's marker
+	 * would vanish from the map. Round-tripping `at` unchanged is also what keeps the fix
+	 * time from advancing on an edit that reported no new location.
+	 */
+	position?: Position;
 }
 
-/** Field names a form can carry, and the key an error is reported under. */
-export type UnitField = keyof UnitInput;
+/**
+ * Field names a form can carry, and the key an error is reported under.
+ *
+ * Spelled out rather than `keyof UnitInput`: `position` is round-tripped through hidden
+ * inputs rather than being an editable field, so it has no label and no required check.
+ */
+export type UnitField =
+	| 'unitCode'
+	| 'callSign'
+	| 'status'
+	| 'unitType'
+	| 'station'
+	| 'sector'
+	| 'radioChannel'
+	| 'shift'
+	| 'capabilities';

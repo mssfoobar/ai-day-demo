@@ -7,6 +7,8 @@
 		"build": "go build ./...",
 		"lint": "go vet ./...",
 		"check-types": "go build ./...",
+		"test": "go test ./... -count=1 -race",
+		"test:integration": "go test -tags=integration ./internal/repo/... -count=1 -race",
 		"dev": "go run ./cmd/server"
 	}
 }

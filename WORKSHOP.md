@@ -18,8 +18,20 @@ Clicking the sketch opens the same dialog on that exercise. When you finish one,
 `complete` flag in `apps/dispatch-web/src/lib/aoh/dispatch/workshop.ts` and it drops off the
 list. The 501s carry the AOH error contract with `errorCode: DISPATCH_NOT_IMPLEMENTED`:
 
+These routes are behind a bearer token now, so an unauthenticated `curl` answers **401**
+before it ever reaches the 501. Fetch a token first — `scope=openid` is not optional, the
+service validates through Keycloak's userinfo endpoint which rejects a token issued without
+it:
+
 ```sh
-curl -i -X POST http://localhost:8081/v1/units/FU-101/assignment
+TOKEN=$(curl -fsS -X POST \
+  "http://iams-keycloak.127.0.0.1.nip.io/realms/aoh/protocol/openid-connect/token" \
+  -d grant_type=password -d client_id=web -d scope=openid \
+  -d username=admin -d password='P@ssw0rd' \
+  | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).access_token))")
+
+curl -i -X POST http://localhost:8081/v1/units/FU-101/assignment \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ## Ground rules
@@ -108,17 +120,27 @@ Choosing from a list of incidents, a map, more than one unit per incident, notif
    built — dispatch and stand down. The event is written in the **same transaction** as
    the unit change, so the two can never disagree.
 3. A unit with no history shows `No activity yet.`
-4. The seed data includes a few events for the seeded units, so the section is not empty
-   on first boot.
+4. Events accumulate from the writes an operator makes; there is no seeded history, so a
+   freshly seeded tenant starts with none and the empty state carries the section until
+   the first write.
 5. Events survive a service restart.
 
 ### What already exists
 
 - `migrations/0001_init.up.sql` shows the mandatory columns every table carries (`id`,
   `created_at`, `updated_at`, `created_by`, `updated_by`, `tenant_id`, `occ_lock`) and the
-  `set_updated_at` trigger. `0002_seed.up.sql` shows idempotent seeding with
-  `ON CONFLICT ... DO UPDATE`. Add `0003_unit_event.up.sql` in the same style; the migrator
-  picks it up by filename.
+  `set_updated_at` trigger; `0003_position_and_outbox.up.sql` shows a later migration in
+  the same style. Add **`0005_unit_event.up.sql`** — `0003` and `0004` are taken — and the
+  migrator picks it up by filename.
+  > Do **not** copy `0002_seed.up.sql`'s `ON CONFLICT … DO UPDATE` seeding: that seed is
+  > gone, and `0004_drop_preauth_seed.up.sql` deletes the rows it left. The roster is
+  > seeded by the service now, once per tenant, on its first dispatcher request
+  > (`internal/service/roster.go`). Write your table's DDL only.
+- **Scope every query to the caller's tenant** (`WHERE tenant_id = $n`) and stamp
+  `created_by` from the caller's `sub`, exactly as `unit_repo.go` does. `repo.Caller`
+  carries both.
+- **Write the event in the same transaction as the unit change.** `repo.enqueue` — which
+  writes the GIS outbox row — is the worked example of doing exactly that.
 - `repo.crewFor` shows how a child table is read per unit and folded into the domain
   object. `eventsFor` is the same shape.
 - `UnitDetail.svelte` already has the section title snippet and the dashed placeholder box
@@ -139,7 +161,9 @@ Event shape: `{ "at", "kind", "summary" }` where `kind` is one of `created`, `up
 
 ### Out of scope
 
-Filtering, paging past 20, a fleet-wide feed, who did it (there is no login).
+Filtering, paging past 20, and a fleet-wide feed. **Who** did it is now knowable —
+every write carries the caller's `sub` — so recording it is a reasonable extension
+rather than an impossibility; it is simply not required here.
 
 ---
 
@@ -191,5 +215,6 @@ several units.
 
 - The placeholder for your exercise is gone from the console, the page, and `Routes`.
 - `pnpm verify` is green.
-- `pnpm reset-db && pnpm start`, then walk the acceptance criteria against a clean
-  database — including the restart in the last criterion.
+- `pnpm reset && pnpm start`, then sign in as `admin` — the first dispatcher request is
+  what seeds the roster — and walk the acceptance criteria against a clean stack,
+  including the restart in the last criterion.

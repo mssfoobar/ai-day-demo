@@ -5,10 +5,27 @@
  * the last word. Duplicating the *required* checks here means a blank field is caught
  * without a round trip, and the wording is the console's, not the service's.
  */
-import { KNOWN_STATUSES, type UnitField, type UnitInput, type UnitStatus } from './types';
+import {
+	KNOWN_STATUSES,
+	type Position,
+	type UnitField,
+	type UnitInput,
+	type UnitStatus
+} from './types';
 
 /** What the form sends, as strings — the shape we echo back on a failed submit. */
 export type UnitFormValues = Record<UnitField, string>;
+
+/**
+ * The three hidden inputs that carry a unit's existing position through an edit.
+ *
+ * The console does not author positions — but a write is a **replace**, so a form that
+ * sent no position would clear the unit's fix and delete its marker from the map. They
+ * are not `UnitField`s: they have no label, no required check, and the operator never
+ * sees them. `at` rides along too, so an edit that reported no new location leaves the
+ * fix time where it was rather than looking like a fresh GPS report.
+ */
+export const POSITION_FIELDS = ['positionLon', 'positionLat', 'positionAt'] as const;
 
 export const EMPTY_VALUES: UnitFormValues = {
 	unitCode: '',
@@ -27,6 +44,35 @@ export type UnitFormErrors = Partial<Record<UnitField | 'form', string>>;
 export type ParsedUnitForm =
 	| { ok: true; input: UnitInput; occLock: number | null; values: UnitFormValues }
 	| { ok: false; errors: UnitFormErrors; values: UnitFormValues };
+
+/**
+ * Read the round-tripped position back off the form.
+ *
+ * Returns `undefined` when the unit had none — which is also what an absent `position`
+ * means to the service. A malformed value is a wiring bug rather than user input, so it
+ * is reported under the form rather than under a field the operator can see.
+ */
+function parsePosition(data: FormData): { position?: Position; error?: string } {
+	const raw = (key: (typeof POSITION_FIELDS)[number]) => {
+		const value = data.get(key);
+		return typeof value === 'string' ? value.trim() : '';
+	};
+	const lon = raw('positionLon');
+	const lat = raw('positionLat');
+	const at = raw('positionAt');
+
+	if (!lon && !lat) return {};
+
+	const lonNum = Number(lon);
+	const latNum = Number(lat);
+	if (!lon || !lat || Number.isNaN(lonNum) || Number.isNaN(latNum)) {
+		return { error: 'This edit carried an incomplete position. Reload and try again.' };
+	}
+	if (lonNum < -180 || lonNum > 180 || latNum < -90 || latNum > 90) {
+		return { error: 'This edit carried an out-of-range position. Reload and try again.' };
+	}
+	return { position: { lon: lonNum, lat: latNum, at } };
+}
 
 const REQUIRED: UnitField[] = [
 	'callSign',
@@ -113,6 +159,10 @@ export function parseUnitForm(data: FormData, options: { requireCode: boolean })
 	const rawLock = data.get('occLock');
 	const occLock = typeof rawLock === 'string' && /^\d+$/.test(rawLock) ? Number(rawLock) : null;
 
+	// The unit's existing position, carried through untouched.
+	const { position, error: positionError } = parsePosition(data);
+	if (positionError) errors.form = positionError;
+
 	if (Object.keys(errors).length > 0) {
 		return { ok: false, errors, values };
 	}
@@ -130,7 +180,8 @@ export function parseUnitForm(data: FormData, options: { requireCode: boolean })
 			sector: values.sector,
 			radioChannel: values.radioChannel,
 			shift: values.shift,
-			capabilities: parseCapabilities(values.capabilities)
+			capabilities: parseCapabilities(values.capabilities),
+			position
 		}
 	};
 }

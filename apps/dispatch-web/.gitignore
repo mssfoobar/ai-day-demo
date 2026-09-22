@@ -22,6 +22,10 @@ Thumbs.db
 # and `pnpm dev` fails without it. Holds no secret — see the file's own header.
 !.env.development
 
+# Cesium runtime assets, copied out of node_modules by vite.config.ts on every
+# build and dev start. Generated, not authored — never committed.
+static/cesium/
+
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*

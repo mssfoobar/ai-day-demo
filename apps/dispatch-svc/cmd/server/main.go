@@ -12,9 +12,12 @@ import (
 	"syscall"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/mssfoobar/fleet-dispatch-console/apps/dispatch-svc/internal/config"
 	"github.com/mssfoobar/fleet-dispatch-console/apps/dispatch-svc/internal/db"
 	"github.com/mssfoobar/fleet-dispatch-console/apps/dispatch-svc/internal/handler"
+	"github.com/mssfoobar/fleet-dispatch-console/apps/dispatch-svc/internal/projection"
 	"github.com/mssfoobar/fleet-dispatch-console/apps/dispatch-svc/internal/repo"
 	"github.com/mssfoobar/fleet-dispatch-console/apps/dispatch-svc/internal/service"
 )
@@ -47,12 +50,33 @@ func run() error {
 	}
 	log.Printf("dispatch-svc: schema %q ready", cfg.SQLSchemaName)
 
-	units := service.NewUnitService(repo.NewUnitRepo(pool, cfg.SQLSchemaName))
+	logger, err := zap.NewProduction()
+	if err != nil {
+		return fmt.Errorf("build logger: %w", err)
+	}
+	defer func() { _ = logger.Sync() }()
+
+	unitRepo := repo.NewUnitRepo(pool, cfg.SQLSchemaName)
+
+	// The projection worker drains the outbox as the operator who caused each row. It
+	// is started by a write, not by a timer: a timer waking with no operator token
+	// could deliver nothing (design.md D2a).
+	worker := projection.NewWorker(unitRepo, cfg.GISURL, projection.Retry{
+		Attempts:   cfg.ProjectionAttempts,
+		Backoff:    cfg.ProjectionBackoff,
+		MaxBackoff: cfg.ProjectionMaxBackoff,
+	})
+	// In-flight deliveries finish before the process exits; anything still pending is
+	// left in gis_outbox, visible, for an operator to recover by re-saving the unit.
+	defer worker.Wait()
+
+	units := service.NewUnitService(unitRepo, worker)
 	router := handler.Router(handler.NewUnitHandler(units), func(ctx context.Context) error {
 		pingCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
 		return pool.PingContext(pingCtx)
-	})
+	}, cfg.IssuerURL(), logger)
+	log.Printf("dispatch-svc: bearer tokens validated against %s", cfg.IssuerURL())
 
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.HTTPPort),

@@ -1,0 +1,525 @@
+{
+	"info": {
+		"_postman_id": "d42d5333-3b7e-41d8-9b43-2939ee8f80fd",
+		"name": "iams-aas-init",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "179545",
+		"_collection_link": "https://agilrad.postman.co/workspace/AGIL-Ops-Hub~3d088e92-5274-41e4-8f8b-fbe3f46e43f9/collection/179545-d42d5333-3b7e-41d8-9b43-2939ee8f80fd?action=share&source=collection_link&creator=179545"
+	},
+	"item": [
+		{
+			"name": "Realm - Master",
+			"item": [
+				{
+					"name": "0. Upsert Admin Password",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Reset Admin Password\", function () {",
+									"    if (pm.response.code === 204) {",
+									"        // Tenant exists, if it has a membership, we stop",
+									"        pm.execution.setNextRequest(\"1. Check Existing Tenant\");",
+									"",
+									"    } else {",
+									"        const token_endpoint = `${pm.environment.get(\"IAM_ENDPOINT\")}/realms/${pm.environment.get(\"IAM_REALM\")}/protocol/openid-connect/token`;",
+									"        const username = pm.environment.get(\"DEV_USER\");",
+									"        const password = pm.environment.get(\"DEV_PASSWORD\");",
+									"        const bearer_token = pm.collectionVariables.get(\"BEARER_TOKEN\")",
+									"",
+									"        console.error({ error: pm.response.json(), token_endpoint, username, password, bearer_token }, \"Error resetting admin password.\");",
+									"        pm.execution.setNextRequest(null);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"type\": \"password\",\n    \"value\": \"{{DEV_PASSWORD}}\",\n    \"temporary\": false\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{IAM_ENDPOINT}}/admin/realms/{{IAM_REALM}}/users/f67cb8f5-0645-444d-a4bd-c61aaf1b2db0/reset-password",
+							"host": [
+								"{{IAM_ENDPOINT}}"
+							],
+							"path": [
+								"admin",
+								"realms",
+								"{{IAM_REALM}}",
+								"users",
+								"f67cb8f5-0645-444d-a4bd-c61aaf1b2db0",
+								"reset-password"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"exec": [
+							"const token_endpoint = `${pm.environment.get(\"IAM_ENDPOINT\")}/realms/master/protocol/openid-connect/token`;",
+							"const username = pm.environment.get(\"DEV_USER\");",
+							"const password = pm.environment.get(\"DEV_PASSWORD\");",
+							"",
+							"// Login with master account",
+							"pm.sendRequest( {",
+							"    method: \"POST\",",
+							"    url: token_endpoint,",
+							"    headers: {",
+							"        'Content-Type': 'application/x-www-form-urlencoded',",
+							"    },",
+							"    body: {",
+							"        mode: \"urlencoded\",",
+							"        urlencoded: [",
+							"            { key: \"scope\", value: \"openid\" },",
+							"            { key: \"grant_type\", value: \"password\" },",
+							"            { key: \"username\", value: username },",
+							"            { key: \"password\", value: password },",
+							"            { key: \"client_id\", value: \"admin-cli\" }",
+							"        ]",
+							"    }",
+							"}, (err, response) => {",
+							"",
+							"    if (err) {",
+							"        console.error({err, token_endpoint, username, password}, \"Unable to login. Please check variables.\");",
+							"    } else {",
+							"        const result = response.json();",
+							"        const access_token = result.access_token;",
+							"",
+							"        if (access_token) {",
+							"            pm.collectionVariables.set(\"BEARER_TOKEN\", access_token);",
+							"        } else {",
+							"           console.error({result, token_endpoint, username, password}, \"Unable to login. Please check variables.\");",
+							"        }",
+							"    }",
+							"});"
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"exec": [
+							""
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Realm - aoh",
+			"item": [
+				{
+					"name": "1. Check Existing Tenant",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Find Existing Tenants\", function () {",
+									"    if (pm.response.code === 200) {",
+									"        var tenants = pm.response.json();",
+									"",
+									"        if (tenants.length <= 0) {",
+									"            pm.execution.setNextRequest(\"2. Create Development Tenant\");",
+									"            return;",
+									"        }",
+									"",
+									"        var tenant_id = tenants[0].id",
+									"",
+									"        pm.collectionVariables.set(\"TENANT_ID\", tenant_id);",
+									"",
+									"        // Tenant exists, if it has a membership, we stop",
+									"        pm.execution.setNextRequest(\"1.1. Check Existing Membership\");",
+									"",
+									"    } else {",
+									"        const token_endpoint = `${pm.environment.get(\"IAM_ENDPOINT\")}/realms/${pm.environment.get(\"IAM_REALM\")}/protocol/openid-connect/token`;",
+									"        const username = pm.environment.get(\"DEV_USER\");",
+									"        const password = pm.environment.get(\"DEV_PASSWORD\");",
+									"        const bearer_token = pm.collectionVariables.get(\"BEARER_TOKEN\")",
+									"",
+									"        console.error({ error: pm.response.json(), token_endpoint, username, password, bearer_token }, \"Error fetching tenants!\");",
+									"        pm.execution.setNextRequest(null);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{IAMS_AAS_ENDPOINT}}/admin/tenants",
+							"host": [
+								"{{IAMS_AAS_ENDPOINT}}"
+							],
+							"path": [
+								"admin",
+								"tenants"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "1.1. Check Existing Membership",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Find Existing Memberships\", function () {",
+									"    if (pm.response.code === 200) {",
+									"        var memberships = pm.response.json();",
+									"",
+									"        if (memberships.length <= 0) {",
+									"            pm.execution.setNextRequest(\"2. Create Development Tenant\");",
+									"            return;",
+									"        }",
+									"",
+									"        if (memberships.some(( membership )=> {",
+									"            return membership.user.id == \"f67cb8f5-0645-444d-a4bd-c61aaf1b2db0\";",
+									"        })) {",
+									"            console.log(\"Admin already exists in a tenant, successfully terminating.\");",
+									"            pm.execution.setNextRequest(null);",
+									"            return;",
+									"        }",
+									"",
+									"        // Tenant exists, just add the default user to it",
+									"        pm.execution.setNextRequest(\"3. Create Memebership\");",
+									"",
+									"    } else {",
+									"        const token_endpoint = `${pm.environment.get(\"IAM_ENDPOINT\")}/realms/${pm.environment.get(\"IAM_REALM\")}/protocol/openid-connect/token`;",
+									"        const username = pm.environment.get(\"DEV_USER\");",
+									"        const password = pm.environment.get(\"DEV_PASSWORD\");",
+									"        const bearer_token = pm.collectionVariables.get(\"BEARER_TOKEN\")",
+									"",
+									"        console.error({ error: pm.response.json(), token_endpoint, username, password, bearer_token }, \"Error checking memberships!\");",
+									"        pm.execution.setNextRequest(null);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{IAMS_AAS_ENDPOINT}}/admin/tenants/:tenant_id/memberships",
+							"host": [
+								"{{IAMS_AAS_ENDPOINT}}"
+							],
+							"path": [
+								"admin",
+								"tenants",
+								":tenant_id",
+								"memberships"
+							],
+							"variable": [
+								{
+									"key": "tenant_id",
+									"value": "{{TENANT_ID}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "2. Create Development Tenant",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Created New Tenant\", function () {",
+									"    if (pm.response.code === 201) {",
+									"        var tenant_id = pm.response.text();",
+									"        pm.execution.setNextRequest(\"3. Create Memebership\");",
+									"        pm.collectionVariables.set(\"TENANT_ID\", tenant_id);",
+									"    } else {",
+									"        const token_endpoint = `${pm.environment.get(\"IAM_ENDPOINT\")}/realms/${pm.environment.get(\"IAM_REALM\")}/protocol/openid-connect/token`;",
+									"        const username = pm.environment.get(\"DEV_USER\");",
+									"        const password = pm.environment.get(\"DEV_PASSWORD\");",
+									"        const bearer_token = pm.collectionVariables.get(\"BEARER_TOKEN\")",
+									"",
+									"        console.error({ error: pm.response.json(), token_endpoint, username, password, bearer_token }, \"Error creating tenant!\");",
+									"        pm.execution.setNextRequest(null);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"development\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{IAMS_AAS_ENDPOINT}}/admin/tenants",
+							"host": [
+								"{{IAMS_AAS_ENDPOINT}}"
+							],
+							"path": [
+								"admin",
+								"tenants"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "3. Create Memebership",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Setup Status\", function () {",
+									"    if (pm.response.code === 201) {",
+									"        console.log(\"Success!\");",
+									"    } else {",
+									"        console.error(\"Failure! Please manually create your tenant membership.\");",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{IAMS_AAS_ENDPOINT}}/admin/tenants/:tenant_id/memberships/:user_id",
+							"host": [
+								"{{IAMS_AAS_ENDPOINT}}"
+							],
+							"path": [
+								"admin",
+								"tenants",
+								":tenant_id",
+								"memberships",
+								":user_id"
+							],
+							"variable": [
+								{
+									"key": "tenant_id",
+									"value": "{{TENANT_ID}}"
+								},
+								{
+									"key": "user_id",
+									"value": "f67cb8f5-0645-444d-a4bd-c61aaf1b2db0"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"exec": [
+							"const token_endpoint = `${pm.environment.get(\"IAM_ENDPOINT\")}/realms/${pm.environment.get(\"IAM_REALM\")}/protocol/openid-connect/token`;",
+							"const username = pm.environment.get(\"DEV_USER\");",
+							"const password = pm.environment.get(\"DEV_PASSWORD\");",
+							"",
+							"// Login with master account",
+							"pm.sendRequest( {",
+							"    method: \"POST\",",
+							"    url: token_endpoint,",
+							"    headers: {",
+							"        'Content-Type': 'application/x-www-form-urlencoded',",
+							"    },",
+							"    body: {",
+							"        mode: \"urlencoded\",",
+							"        urlencoded: [",
+							"            { key: \"scope\", value: \"openid\" },",
+							"            { key: \"grant_type\", value: \"password\" },",
+							"            { key: \"username\", value: username },",
+							"            { key: \"password\", value: password },",
+							"            { key: \"client_id\", value: \"iams\" },",
+							"            { key: \"client_secret\", value: password }",
+							"        ]",
+							"    }",
+							"}, (err, response) => {",
+							"",
+							"    if (err) {",
+							"        console.error({err, token_endpoint, username, password}, \"Unable to login. Please check variables.\");",
+							"    } else {",
+							"        const result = response.json();",
+							"        const access_token = result.access_token;",
+							"",
+							"        if (access_token) {",
+							"            pm.collectionVariables.set(\"BEARER_TOKEN\", access_token);",
+							"        } else {",
+							"           console.error({result, token_endpoint, username, password}, \"Unable to login. Please check variables.\");",
+							"        }",
+							"    }",
+							"});"
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"exec": [
+							""
+						]
+					}
+				}
+			]
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{BEARER_TOKEN}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "BEARER_TOKEN",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "TENANT_ID",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

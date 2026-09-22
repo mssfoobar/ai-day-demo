@@ -1,6 +1,10 @@
-import { fail } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
+import { StatusCodes } from 'http-status-codes';
+import { LOGIN_API } from '$lib/aoh/core/provider/auth/auth';
+import { canWrite } from '$lib/aoh/dispatch/permissions';
 import { parseUnitForm, type UnitFormErrors, type UnitFormValues } from '$lib/aoh/dispatch/forms';
 import {
+	bearerFrom,
 	createUnit,
 	deleteUnit,
 	DispatchServiceError,
@@ -10,20 +14,38 @@ import {
 } from '$lib/aoh/dispatch/units.server';
 import type { Actions, PageServerLoad } from './$types';
 
+/** Why the roster is not on screen. `ok` means it is. */
+export type RosterState = 'ok' | 'unavailable' | 'denied';
+
 /**
- * Load the roster on the server.
+ * Load the roster on the server, as the signed-in operator.
  *
  * The browser never talks to the dispatch service: no CORS to configure, and no service
- * URL in the client bundle. All URL and transport wiring lives behind the client module.
+ * URL in the client bundle. The bearer is read from SDS here and sent upstream; it is
+ * never returned from this load, because everything a load returns is serialised into
+ * the page payload.
  *
- * A failure is returned as data, not thrown: an unreachable service is an expected
- * operational condition the console renders an explicit state for.
+ * Failures are returned as data rather than thrown — an unreachable service and a refused
+ * role are both expected operational conditions the console renders explicit states for.
+ * A 401 is the exception: a dead session is not a state to render, it is a reason to sign
+ * in again.
  */
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
+	const roles = locals.authResult.success
+		? (locals.authResult.claims.active_tenant?.roles ?? [])
+		: [];
+	const token = bearerFrom(locals);
+	if (!token) redirect(StatusCodes.TEMPORARY_REDIRECT, LOGIN_API);
+
 	try {
-		return { units: await listUnits(), unavailable: false };
-	} catch {
-		return { units: [], unavailable: true };
+		return { units: await listUnits(token), state: 'ok' as RosterState, canWrite: canWrite(roles) };
+	} catch (err) {
+		if (err instanceof DispatchServiceError && err.isUnauthenticated) {
+			redirect(StatusCodes.TEMPORARY_REDIRECT, LOGIN_API);
+		}
+		const state: RosterState =
+			err instanceof DispatchServiceError && err.isForbidden ? 'denied' : 'unavailable';
+		return { units: [], state, canWrite: canWrite(roles) };
 	}
 };
 
@@ -32,6 +54,8 @@ export interface UnitActionFailure {
 	intent: 'create' | 'update' | 'delete';
 	errors: UnitFormErrors;
 	values?: UnitFormValues;
+	/** True when the service refused the operator's role, not their input. */
+	denied?: boolean;
 }
 
 /** What a successful write hands back so the page can toast and select. */
@@ -44,11 +68,25 @@ export interface UnitActionSuccess {
 const CONFLICT_MESSAGE = (callSign: string) =>
 	`${callSign} was changed by someone else. Reload and try again.`;
 
+/** The platform's permission-denied line. Names the action; offers no retry. */
+const DENIED_MESSAGE = (action: string) =>
+	`Access to ${action} is restricted. For assistance with access, please contact your administrator.`;
+
+const ACTION_NAMES: Record<'create' | 'update' | 'delete', string> = {
+	create: 'adding a unit',
+	update: 'editing a unit',
+	delete: 'deleting a unit'
+};
+
 /**
  * Turn a service failure into the form's error shape. Developer-facing text from the
  * service never reaches the user; the field details and error code do.
  */
-function errorsFrom(err: unknown, callSign: string): { status: number; errors: UnitFormErrors } {
+function errorsFrom(
+	err: unknown,
+	callSign: string,
+	intent: 'create' | 'update' | 'delete'
+): { status: number; errors: UnitFormErrors; denied?: boolean } {
 	if (err instanceof DispatchServiceError) {
 		if (err.isValidation && err.details.length > 0) {
 			const errors: UnitFormErrors = {};
@@ -56,6 +94,11 @@ function errorsFrom(err: unknown, callSign: string): { status: number; errors: U
 				errors[fieldFromWire(d.field) as keyof UnitFormErrors] = humanise(d);
 			}
 			return { status: 400, errors };
+		}
+		if (err.isForbidden) {
+			// The operator's roles do not permit this. A retry will never succeed, so this
+			// is deliberately not the generic "try again" message.
+			return { status: 403, errors: { form: DENIED_MESSAGE(ACTION_NAMES[intent]) }, denied: true };
 		}
 		if (err.errorCode === 'DISPATCH_UNIT_CODE_TAKEN') {
 			return { status: 409, errors: { unitCode: 'A unit with this ID already exists.' } };
@@ -82,12 +125,24 @@ function humanise(d: { field: string; message: string }): string {
 		.replace(/([A-Z])/g, ' $1')
 		.replace(/^./, (c) => c.toUpperCase())
 		.replace(/^Unit Code$/, 'Unit ID');
-	const msg = d.message.replace(/^[a-z_]+:\s*/, '');
+	const msg = d.message.replace(/^[a-z_.]+:\s*/, '');
 	return `${label} ${msg}${msg.endsWith('.') ? '' : '.'}`;
 }
 
+/**
+ * The bearer for a write, or a redirect to sign in.
+ *
+ * A write with no session is not a form error — there is nobody to show one to.
+ */
+function writeToken(locals: App.Locals): string {
+	const token = bearerFrom(locals);
+	if (!token) redirect(StatusCodes.TEMPORARY_REDIRECT, LOGIN_API);
+	return token;
+}
+
 export const actions: Actions = {
-	create: async ({ request }) => {
+	create: async ({ request, locals }) => {
+		const token = writeToken(locals);
 		const data = await request.formData();
 		const parsed = parseUnitForm(data, { requireCode: true });
 		if (!parsed.ok) {
@@ -98,23 +153,28 @@ export const actions: Actions = {
 			} satisfies UnitActionFailure);
 		}
 		try {
-			const unit = await createUnit(parsed.input);
+			const unit = await createUnit(token, parsed.input);
 			return {
 				intent: 'create',
 				unitCode: unit.id,
 				callSign: unit.callSign
 			} satisfies UnitActionSuccess;
 		} catch (err) {
-			const { status, errors } = errorsFrom(err, parsed.input.callSign);
+			if (err instanceof DispatchServiceError && err.isUnauthenticated) {
+				redirect(StatusCodes.TEMPORARY_REDIRECT, LOGIN_API);
+			}
+			const { status, errors, denied } = errorsFrom(err, parsed.input.callSign, 'create');
 			return fail(status, {
 				intent: 'create',
 				errors,
-				values: parsed.values
+				values: parsed.values,
+				denied
 			} satisfies UnitActionFailure);
 		}
 	},
 
-	update: async ({ request }) => {
+	update: async ({ request, locals }) => {
+		const token = writeToken(locals);
 		const data = await request.formData();
 		const unitCode = String(data.get('unitCode') ?? '').trim();
 		const parsed = parseUnitForm(data, { requireCode: false });
@@ -134,23 +194,31 @@ export const actions: Actions = {
 			} satisfies UnitActionFailure);
 		}
 		try {
-			const unit = await updateUnit(unitCode, parsed.occLock, { ...parsed.input, unitCode });
+			const unit = await updateUnit(token, unitCode, parsed.occLock, {
+				...parsed.input,
+				unitCode
+			});
 			return {
 				intent: 'update',
 				unitCode: unit.id,
 				callSign: unit.callSign
 			} satisfies UnitActionSuccess;
 		} catch (err) {
-			const { status, errors } = errorsFrom(err, parsed.input.callSign);
+			if (err instanceof DispatchServiceError && err.isUnauthenticated) {
+				redirect(StatusCodes.TEMPORARY_REDIRECT, LOGIN_API);
+			}
+			const { status, errors, denied } = errorsFrom(err, parsed.input.callSign, 'update');
 			return fail(status, {
 				intent: 'update',
 				errors,
-				values: parsed.values
+				values: parsed.values,
+				denied
 			} satisfies UnitActionFailure);
 		}
 	},
 
-	delete: async ({ request }) => {
+	delete: async ({ request, locals }) => {
+		const token = writeToken(locals);
 		const data = await request.formData();
 		const unitCode = String(data.get('unitCode') ?? '').trim();
 		const callSign = String(data.get('callSign') ?? unitCode).trim();
@@ -162,11 +230,14 @@ export const actions: Actions = {
 			} satisfies UnitActionFailure);
 		}
 		try {
-			await deleteUnit(unitCode, Number(rawLock));
+			await deleteUnit(token, unitCode, Number(rawLock));
 			return { intent: 'delete', unitCode, callSign } satisfies UnitActionSuccess;
 		} catch (err) {
-			const { status, errors } = errorsFrom(err, callSign);
-			return fail(status, { intent: 'delete', errors } satisfies UnitActionFailure);
+			if (err instanceof DispatchServiceError && err.isUnauthenticated) {
+				redirect(StatusCodes.TEMPORARY_REDIRECT, LOGIN_API);
+			}
+			const { status, errors, denied } = errorsFrom(err, callSign, 'delete');
+			return fail(status, { intent: 'delete', errors, denied } satisfies UnitActionFailure);
 		}
 	}
 };

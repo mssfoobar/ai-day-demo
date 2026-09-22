@@ -1,0 +1,36 @@
+# The dispatch service's own PostgreSQL.
+#
+# `dispatch-svc` itself runs natively (`go run ./cmd/server`), not in compose — this is
+# the database it connects to. Kept as its own include rather than folded into
+# `dispatch-svc/compose.yml` so that a bare `compose up` (which skips the `apps` profile)
+# still brings the database up.
+
+name: aoh
+
+services:
+    postgres:
+        image: postgres:16-alpine
+        container_name: dispatch-postgres
+        restart: unless-stopped
+        environment:
+            POSTGRES_USER: ${POSTGRES_USER:-dispatch}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dispatch}
+            POSTGRES_DB: ${POSTGRES_DB:-dispatch}
+        ports:
+            # Exposed on localhost so `go run ./cmd/server` reaches it natively.
+            # Host 5432 is the dispatch database's, not iams-db's — see
+            # compose.override.sample.yml.
+            - "${POSTGRES_PORT:-5432}:5432"
+        volumes:
+            - dispatch-pgdata:/var/lib/postgresql/data
+        healthcheck:
+            # `compose up -d` returns before Postgres is accepting connections; without
+            # this the service's first start races the database and fails on connect.
+            test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dispatch} -d ${POSTGRES_DB:-dispatch}"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+            start_period: 10s
+
+volumes:
+    dispatch-pgdata:

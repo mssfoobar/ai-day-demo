@@ -215,6 +215,18 @@
 					{#if mode === 'edit' && unit}
 						<!-- Optimistic concurrency: the version this edit is based on. -->
 						<input type="hidden" name="occLock" value={unit.occLock} />
+						{#if unit.position}
+							<!--
+								The unit's existing position, carried through untouched. Positions are
+								not authored here, but a write is a REPLACE: without these the edit
+								would clear the fix and the unit's marker would vanish from the map.
+								`at` rides along too, so an edit that reported no new location leaves
+								the fix time where it was instead of looking like a fresh GPS report.
+							-->
+							<input type="hidden" name="positionLon" value={unit.position.lon} />
+							<input type="hidden" name="positionLat" value={unit.position.lat} />
+							<input type="hidden" name="positionAt" value={unit.position.at} />
+						{/if}
 					{/if}
 				</div>
 			</ScrollArea>
