@@ -1,4 +1,4 @@
-# Builds the participant download: the project with its container images inside.
+# Builds the participant download: the project with the PostgreSQL image inside.
 #
 # One zip per architecture. An arm64 image will not run on an amd64 machine, and
 # the room has both.
@@ -19,41 +19,22 @@ jobs:
           - label: windows-linux
             platform: linux/amd64
             runner: ubuntu-latest
-          # Swap to ubuntu-latest with docker/setup-qemu-action if arm64 runners
-          # are unavailable; the Go build is slow under emulation.
           - label: mac
             platform: linux/arm64
             runner: ubuntu-24.04-arm
 
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 60
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: docker/setup-buildx-action@v3
-
-      - name: Build the workshop image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: .devcontainer/Dockerfile
-          platforms: ${{ matrix.platform }}
-          tags: ghcr.io/mssfoobar/ai-day-workshop:0.1.0
-          load: true
-          # Separate scopes: the two platforms share no layers.
-          cache-from: type=gha,scope=${{ matrix.label }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.label }}
-
       - name: Pull postgres
         run: docker pull --platform ${{ matrix.platform }} postgres:16-alpine
 
-      - name: Save both images
+      - name: Save the image
         run: |
-          docker save \
-            ghcr.io/mssfoobar/ai-day-workshop:0.1.0 \
-            postgres:16-alpine \
-            | gzip -6 > images.tar.gz
+          docker save postgres:16-alpine | gzip -6 > images.tar.gz
           ls -lh images.tar.gz
 
       - name: Assemble the folder

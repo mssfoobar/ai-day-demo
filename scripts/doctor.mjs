@@ -6,14 +6,34 @@
  *   pnpm doctor
  */
 import { request } from 'node:http';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const BASE = process.env.ANTHROPIC_BASE_URL ?? '';
-const KEY = process.env.ANTHROPIC_AUTH_TOKEN ?? '';
-const MODEL = process.env.ANTHROPIC_MODEL ?? '';
+
+/**
+ * Reads the `env` block of `.claude/settings.json`, or `{}` when it is missing.
+ *
+ * Claude Code applies that block to its own process, never to the shell.
+ */
+function settingsEnv() {
+	const path = join(ROOT, '.claude', 'settings.json');
+	if (!existsSync(path)) return {};
+	try {
+		return JSON.parse(readFileSync(path, 'utf8')).env ?? {};
+	} catch {
+		return {};
+	}
+}
+
+// The shell wins over the settings file.
+const SETTINGS = settingsEnv();
+const read = (name) => process.env[name] ?? SETTINGS[name] ?? '';
+
+const BASE = read('ANTHROPIC_BASE_URL');
+const KEY = read('ANTHROPIC_AUTH_TOKEN');
+const MODEL = read('ANTHROPIC_MODEL');
 const TIMEOUT_MS = 30_000;
 
 let failed = false;
@@ -59,7 +79,9 @@ async function check(label, fn) {
 }
 
 if (!BASE) {
-	console.error('ANTHROPIC_BASE_URL is not set. Is .claude/settings.json in place?');
+	console.error(
+		'ANTHROPIC_BASE_URL is not set, in the environment or in .claude/settings.json.'
+	);
 	process.exit(1);
 }
 
@@ -73,7 +95,7 @@ await check('deps', async () => {
 });
 
 await check('service', async () => {
-	const r = await send('http://localhost:8081/healthz');
+	const r = await send('http://localhost:8081/readyz');
 	return r.status === 200
 		? { ok: true, detail: 'localhost:8081 responding' }
 		: { ok: false, why: `HTTP ${r.status}` };
