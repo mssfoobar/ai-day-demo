@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dispatch console — auth states mock</title>
+<style>
+  /* ------------------------------------------------------------------
+     AOH tokens, lifted from aoh-design/assets/colors_and_type.css.
+     STATIC APPROXIMATION for design review only — the real console
+     composes @mssfoobar/ui primitives, which ship these same tokens.
+
+     Scope of this mock: only what this change adds to the console —
+     the signed-in identity, role-gated write controls, the
+     permission-denied state, and the detail pane's position section.
+     The two-pane layout itself is unchanged and already drawn in
+     openspec/changes/baseline-dispatch-console/design/units-console-mock.html.
+     ------------------------------------------------------------------ */
+  :root {
+    --zinc-50:#FAFAFA; --zinc-100:#F4F4F5; --zinc-200:#E4E4E7; --zinc-300:#D4D4D8;
+    --zinc-400:#A1A1AA; --zinc-500:#71717A; --zinc-600:#52525B; --zinc-800:#27272A;
+    --zinc-900:#18181B; --zinc-950:#09090B;
+    --slate-50:#F8FAFC;
+    --sky-500:#0EA5E9; --sky-600:#0284C7;
+    --green-600:#059669; --green-700:#047857;
+    --red-600:#DC2626; --red-700:#B91C1C;
+
+    --color-bg: var(--slate-50);
+    --card: #FFFFFF;
+    --foreground: var(--zinc-950);
+    --muted-foreground: var(--zinc-500);
+    --accent: var(--zinc-100);
+    --border: var(--zinc-200);
+    --ring: var(--sky-600);
+    --destructive: var(--red-600);
+
+    --badge-success-bg:#ECFDF5; --badge-success-fg:var(--green-700);
+    --badge-info-bg:#ECFEFF;    --badge-info-fg:#0E7490;
+    --badge-danger-bg:#FEF2F2;  --badge-danger-fg:var(--red-700);
+    --badge-default-bg:var(--zinc-100); --badge-default-fg:var(--zinc-600);
+
+    --radius-sm:6px; --radius-md:8px; --radius-lg:12px;
+    --shadow-md:0 1px 3px 0 rgba(0,0,0,.1), 0 1px 2px -1px rgba(0,0,0,.1);
+
+    --font-sans:"Geist","Inter",ui-sans-serif,system-ui,-apple-system,sans-serif;
+    --font-mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,monospace;
+    --fs-xs:12px; --fs-sm:14px; --fs-base:16px; --fs-xl:20px;
+  }
+  [data-theme="dark"] {
+    --color-bg: var(--zinc-950);
+    --card: var(--zinc-900);
+    --foreground: var(--zinc-50);
+    --muted-foreground: var(--zinc-400);
+    --accent: var(--zinc-800);
+    --border: #2A2A31;
+    --ring: var(--sky-500);
+    --destructive: #F87171;
+
+    --badge-success-bg:rgba(5,150,105,.16);  --badge-success-fg:#6EE7B7;
+    --badge-info-bg:rgba(6,182,212,.16);     --badge-info-fg:#67E8F9;
+    --badge-danger-bg:rgba(220,38,38,.18);   --badge-danger-fg:#FCA5A5;
+    --badge-default-bg:var(--zinc-800);      --badge-default-fg:var(--zinc-300);
+  }
+
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--color-bg); color:var(--foreground);
+    font-family:var(--font-sans); font-size:var(--fs-base);
+    -webkit-font-smoothing:antialiased;
+  }
+  .page { max-width:1280px; margin:0 auto; padding:24px 24px 48px; }
+
+  .mockbar {
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+    padding:12px 16px; margin-bottom:20px;
+    border:1px dashed var(--border); border-radius:var(--radius-md); background:var(--card);
+  }
+  .mockbar .label {
+    font-size:var(--fs-xs); text-transform:uppercase; letter-spacing:.05em;
+    color:var(--muted-foreground); margin-right:4px;
+  }
+  .mockbar button {
+    font:inherit; font-size:var(--fs-sm); color:var(--foreground); background:transparent;
+    border:1px solid var(--border); border-radius:var(--radius-sm); padding:5px 10px; cursor:pointer;
+  }
+  .mockbar button:hover { background:var(--accent); }
+  .mockbar button[aria-pressed="true"] { background:var(--ring); border-color:var(--ring); color:#fff; }
+  .mockbar .spacer { flex:1; }
+
+  .navbar { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; }
+  h1 { font-size:var(--fs-xl); line-height:32px; margin:0 0 4px; font-weight:600; letter-spacing:-.01em; }
+  .desc { color:var(--muted-foreground); font-size:var(--fs-sm); margin:0; }
+  .who { font-size:var(--fs-sm); color:var(--muted-foreground); display:flex; align-items:center; gap:10px; }
+
+  .badge {
+    display:inline-flex; align-items:center; gap:6px; font-size:var(--fs-xs);
+    padding:2px 8px; border-radius:999px; font-weight:500;
+    background:var(--badge-default-bg); color:var(--badge-default-fg);
+  }
+  .badge.success { background:var(--badge-success-bg); color:var(--badge-success-fg); }
+  .badge.info    { background:var(--badge-info-bg);    color:var(--badge-info-fg); }
+  .badge.danger  { background:var(--badge-danger-bg);  color:var(--badge-danger-fg); }
+
+  .btn {
+    font:inherit; font-size:var(--fs-sm); color:var(--foreground); background:var(--card);
+    border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 12px; cursor:pointer;
+  }
+  .btn:hover { background:var(--accent); }
+  .btn.primary { background:var(--ring); border-color:var(--ring); color:#fff; }
+  .btn.destructive { color:var(--destructive); }
+
+  .shell { display:grid; grid-template-columns:200px 1fr;
+           border:1px solid var(--border); border-radius:var(--radius-lg);
+           overflow:hidden; background:var(--card); box-shadow:var(--shadow-md); }
+  .sidebar { background:var(--card); border-right:1px solid var(--border); padding:14px 10px; }
+  .sidebar .brand { font-weight:600; font-size:var(--fs-sm); padding:4px 8px 12px; }
+  .navitem {
+    display:flex; align-items:center; gap:8px; width:100%; text-align:left;
+    font:inherit; font-size:var(--fs-sm); color:inherit; background:transparent;
+    border:0; border-radius:var(--radius-sm); padding:7px 8px; cursor:pointer;
+  }
+  .navitem:hover { background:var(--accent); }
+  .navitem[aria-current="page"] { background:var(--accent); font-weight:600; }
+  .navitem .glyph { width:14px; height:14px; border-radius:3px; background:var(--muted-foreground); flex:none; }
+  .navitem[aria-current="page"] .glyph { background:var(--ring); }
+  .main { padding:18px 20px 22px; min-width:0; }
+
+  .layout { display:grid; grid-template-columns:360px 1fr; gap:16px; }
+  .card {
+    border:1px solid var(--border); border-radius:var(--radius-lg); background:var(--card);
+    box-shadow:var(--shadow-md); padding:14px;
+  }
+  .cardhead { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+  .cardhead h2 { margin:0; font-size:var(--fs-sm); font-weight:600; }
+
+  .unit {
+    display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%;
+    text-align:left; font:inherit; color:inherit; background:transparent; cursor:pointer;
+    border:0; border-top:1px solid var(--border); padding:10px 6px;
+  }
+  .unit:first-of-type { border-top:0; }
+  .unit:hover { background:var(--accent); }
+  .unit[aria-current="true"] { background:var(--accent); }
+  .unit .cs { font-weight:600; font-size:var(--fs-sm); }
+  .unit .sub { color:var(--muted-foreground); font-size:var(--fs-xs); }
+
+  .section { border-top:1px solid var(--border); padding:12px 0 4px; }
+  .section:first-of-type { border-top:0; }
+  .section h3 {
+    margin:0 0 8px; font-size:var(--fs-xs); font-weight:600;
+    text-transform:uppercase; letter-spacing:.05em; color:var(--muted-foreground);
+  }
+  .kv { display:flex; justify-content:space-between; gap:12px; padding:4px 0; font-size:var(--fs-sm); }
+  .kv .k { color:var(--muted-foreground); }
+  .kv .v { font-variant-numeric:tabular-nums; }
+  .mono { font-family:var(--font-mono); font-size:var(--fs-xs); }
+  .none { color:var(--muted-foreground); font-size:var(--fs-sm); margin:0; }
+
+  .denied { text-align:center; padding:28px 16px; }
+  .denied .icon {
+    width:40px; height:40px; border-radius:999px; margin:0 auto 12px;
+    background:var(--badge-danger-bg); color:var(--badge-danger-fg);
+    display:flex; align-items:center; justify-content:center; font-weight:700;
+  }
+  .denied h2 { margin:0 0 6px; font-size:var(--fs-base); font-weight:600; }
+  .denied p { margin:0 auto; max-width:420px; color:var(--muted-foreground); font-size:var(--fs-sm); }
+
+  .hidden { display:none !important; }
+  @media (max-width: 1000px) {
+    .shell { grid-template-columns:1fr; }
+    .sidebar { border-right:0; border-bottom:1px solid var(--border); }
+    .layout { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="mockbar">
+    <span class="label">State</span>
+    <button type="button" data-state="dispatcher"  aria-pressed="true">Dispatcher</button>
+    <button type="button" data-state="viewer"      aria-pressed="false">Viewer (no write controls)</button>
+    <button type="button" data-state="denied"      aria-pressed="false">Permission denied (403)</button>
+    <button type="button" data-state="unreachable" aria-pressed="false">Service unreachable</button>
+    <button type="button" data-state="unseeded"    aria-pressed="false">Empty roster (viewer)</button>
+    <button type="button" data-state="emptydisp"   aria-pressed="false">Empty roster (dispatcher)</button>
+    <button type="button" data-state="positioned"  aria-pressed="false">Unit with position</button>
+    <button type="button" data-state="nopos"       aria-pressed="false">Unit without position</button>
+    <button type="button" data-state="unassigned"  aria-pressed="false">Unit unassigned, no capabilities</button>
+    <span class="spacer"></span>
+    <button type="button" id="theme">Light / dark</button>
+  </div>
+
+  <div class="shell">
+  <nav class="sidebar">
+    <div class="brand">Dispatch</div>
+    <button class="navitem" type="button" aria-current="page"><i class="glyph"></i> Units</button>
+    <button class="navitem" type="button"><i class="glyph"></i> Map</button>
+  </nav>
+  <div class="main">
+  <div class="navbar">
+    <div>
+      <h1>Units</h1>
+      <p class="desc">Field units in the development tenant.</p>
+    </div>
+    <div class="who">
+      <span id="whoami">Signed in as <strong>admin</strong></span>
+      <span class="badge" id="rolebadge">Dispatcher</span>
+      <button class="btn" type="button">Sign out</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <!-- ---------- roster ---------- -->
+    <div class="card">
+      <div class="cardhead">
+        <h2>Roster</h2>
+        <button class="btn primary writeonly" type="button">Add unit</button>
+      </div>
+      <!-- Seed-state-independent: true whether the tenant was never seeded or a
+           dispatcher deleted every unit. The Add affordance is role-gated, not
+           seed-gated, which is the only thing the console can actually know. -->
+      <div id="unseededroster" class="denied hidden" style="padding:22px 12px">
+        <h2>No units in this tenant</h2>
+        <p id="emptyaction">Add one to get started.</p>
+      </div>
+      <button class="unit" type="button" data-unit="FU-101">
+        <span><span class="cs">Alpha-1</span><br /><span class="sub">Marina Bay Station 4 · FU-101</span></span>
+        <span class="badge success">Available</span>
+      </button>
+      <button class="unit" type="button" data-unit="FU-102" aria-current="true">
+        <span><span class="cs">Alpha-2</span><br /><span class="sub">INC-2841 · FU-102</span></span>
+        <span class="badge info">En route</span>
+      </button>
+      <button class="unit" type="button" data-unit="FU-204">
+        <span><span class="cs">Bravo-1</span><br /><span class="sub">Tanjong Pagar Station 2 · FU-204</span></span>
+        <span class="badge">Idle</span>
+      </button>
+    </div>
+
+    <!-- ---------- detail ---------- -->
+    <div class="card" id="detail">
+      <!-- normal detail -->
+      <div id="detailbody">
+        <div class="cardhead">
+          <div>
+            <h2 id="dcallsign" style="font-size:var(--fs-base)">Alpha-2</h2>
+            <span class="mono" id="dcode">FU-102</span>
+          </div>
+          <div style="display:flex; gap:8px">
+            <button class="btn writeonly" type="button">Edit</button>
+            <button class="btn destructive writeonly" type="button">Delete</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Overview</h3>
+          <div class="kv"><span class="k">Status</span><span class="v"><span class="badge info" id="dstatus">En route</span></span></div>
+          <div class="kv"><span class="k">Station</span><span class="v" id="dstation">Marina Bay Station 4</span></div>
+          <div class="kv"><span class="k">Last contact</span><span class="v">4 min ago</span></div>
+        </div>
+
+        <!-- NEW in this change -->
+        <div class="section">
+          <h3>Position</h3>
+          <div id="haspos">
+            <div class="kv"><span class="k">Coordinates</span><span class="v mono">1.2847, 103.8511</span></div>
+            <div class="kv"><span class="k">Fix</span><span class="v">2 min ago</span></div>
+            <div style="height:8px"></div>
+            <button class="btn" type="button">Show on map</button>
+          </div>
+          <p class="none hidden" id="nopos">No position reported.</p>
+        </div>
+
+        <div class="section">
+          <h3>Assignment</h3>
+          <div id="hasassign">
+            <div class="kv"><span class="k">Incident</span><span class="v mono">INC-2841</span></div>
+            <div class="kv"><span class="k">Priority</span><span class="v">P2</span></div>
+          </div>
+          <p class="none hidden" id="noassign">Unassigned.</p>
+        </div>
+
+        <div class="section">
+          <h3>Capabilities</h3>
+          <div id="hascaps"><span class="badge">ALS</span> <span class="badge">Water rescue</span></div>
+          <p class="none hidden" id="nocaps">None recorded.</p>
+        </div>
+
+        <div class="section">
+          <h3>Crew (2)</h3>
+          <div class="kv"><span class="k">R. Morales</span><span class="v">Driver</span></div>
+          <div class="kv"><span class="k">T. Lim</span><span class="v">Paramedic</span></div>
+        </div>
+      </div>
+
+      <!-- permission denied, after a 403 from dispatch-svc -->
+      <div id="deniedbody" class="denied hidden">
+        <div class="icon">!</div>
+        <h2>Access to this action is restricted</h2>
+        <p>For assistance with access, please contact your administrator.</p>
+      </div>
+
+      <!-- No unit can be selected, so the pane says that rather than inviting it. -->
+      <div id="unseededdetail" class="denied hidden" style="padding:22px 12px">
+        <p>No unit selected.</p>
+      </div>
+
+      <!-- dispatch-svc unreachable: distinct from a refusal, and retryable -->
+      <div id="unreachablebody" class="denied hidden">
+        <div class="icon">!</div>
+        <h2>Units could not be loaded</h2>
+        <p>The dispatch service is not responding. Try again in a moment.</p>
+        <div style="height:12px"></div>
+        <button class="btn" type="button">Retry</button>
+      </div>
+    </div>
+  </div>
+  </div>
+  </div>
+</div>
+
+<script>
+  const $  = (s) => document.querySelector(s);
+  const $$ = (s) => document.querySelectorAll(s);
+
+  function apply(state) {
+    const viewer      = state === 'viewer' || state === 'unseeded';
+    // Both ways a roster goes empty look identical to the console; only the role differs.
+    const unseeded    = state === 'unseeded' || state === 'emptydisp';
+    const denied      = state === 'denied';
+    const unreachable = state === 'unreachable';
+    const noPosition  = state === 'nopos';
+    // FU-311 Charlie-1 is the seeded unit with an empty capability list; FU-205 is unassigned.
+    const unassigned  = state === 'unassigned';
+
+    // Role gating: a viewer never renders a write control (the service refuses
+    // it independently — see specs/dispatch-access-control).
+    $$('.writeonly').forEach((el) => el.classList.toggle('hidden', viewer || denied || unreachable));
+
+    // An unseeded tenant is not an error: no rows, no failure, and it says why.
+    $$('.unit').forEach((el) => el.classList.toggle('hidden', unseeded || unreachable));
+    $('#unseededroster').classList.toggle('hidden', !unseeded);
+    // The action line is the one thing that varies, and it varies by ROLE.
+    $('#emptyaction').classList.toggle('hidden', viewer);
+    $('#detailbody').classList.toggle('hidden', denied || unreachable || unseeded);
+    $('#deniedbody').classList.toggle('hidden', !denied);
+    $('#unreachablebody').classList.toggle('hidden', !unreachable);
+    $('#unseededdetail').classList.toggle('hidden', !unseeded);
+
+    $('#hasassign').classList.toggle('hidden', unassigned);
+    $('#noassign').classList.toggle('hidden', !unassigned);
+    $('#hascaps').classList.toggle('hidden', unassigned);
+    $('#nocaps').classList.toggle('hidden', !unassigned);
+    $('#haspos').classList.toggle('hidden', noPosition);
+    $('#nopos').classList.toggle('hidden', !noPosition);
+    $('#dcallsign').textContent = noPosition ? 'Bravo-1' : 'Alpha-2';
+    $('#dcode').textContent     = noPosition ? 'FU-204' : 'FU-102';
+    $('#dstatus').textContent   = noPosition ? 'Idle' : 'En route';
+    $('#dstatus').className     = 'badge ' + (noPosition ? '' : 'info');
+    $('#dstation').textContent  = noPosition ? 'Tanjong Pagar Station 2' : 'Marina Bay Station 4';
+
+    $('#whoami').innerHTML  = viewer ? 'Signed in as <strong>viewer</strong>' : 'Signed in as <strong>admin</strong>';
+    $('#rolebadge').textContent = viewer ? 'Viewer' : 'Dispatcher';
+  }
+
+  $$('.mockbar button[data-state]').forEach((b) => {
+    b.addEventListener('click', () => {
+      $$('.mockbar button[data-state]').forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+      apply(b.dataset.state);
+    });
+  });
+
+  $$('.unit').forEach((u) => {
+    u.addEventListener('click', () => {
+      $$('.unit').forEach((o) => o.setAttribute('aria-current', String(o === u)));
+      $('.mockbar button[data-state="' + (u.dataset.unit === 'FU-204' ? 'nopos' : 'positioned') + '"]').click();
+    });
+  });
+
+  $('#theme').addEventListener('click', () => {
+    const root = document.documentElement;
+    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+  });
+
+  apply('dispatcher');
+</script>
+</body>
+</html>
