@@ -1,0 +1,9 @@
+services:
+  squid:
+    image: ubuntu/squid:latest
+    container_name: forward-proxy
+    ports:
+      - "3128:3128"
+    volumes:
+      - ./squid.conf:/etc/squid/squid.conf:ro
+    restart: unless-stopped

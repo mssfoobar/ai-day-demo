@@ -5,7 +5,7 @@ info: |
   ## AI Coder
 
   AI Day · InnoRAD.ai
-class: flex flex-col justify-center text-center
+class: flex flex-col justify-center items-center
 colorSchema: light
 fonts:
   sans: Jost
@@ -17,184 +17,373 @@ drawings:
 transition: fade
 mdc: true
 duration: 35min
-clicks: 2
+defaults:
+  class: flex flex-col justify-center items-center
 ---
-<div class="text-4xl font-extrabold leading-tight px-16">
-Everyone is already using AI to write code.
-</div>
 
-<div class="transition-all duration-700 mt-10" :class="$clicks >= 1 ? 'opacity-100' : 'opacity-0'">
-<div class="text-xl mb-5" style="color:#71717a">
-But writing code is the easy part. Every project is built inside rules
-that were decided long before it.
-</div>
-<div class="flex flex-wrap justify-center gap-3" style="max-width:52rem;margin:0 auto">
-<div class="rounded-lg border px-4 py-2 text-base" style="border-color:#d4d4d8;background:#fafafa;color:#52525b">Coding standards</div>
-<div class="rounded-lg border px-4 py-2 text-base" style="border-color:#d4d4d8;background:#fafafa;color:#52525b">Architecture decisions already made</div>
-<div class="rounded-lg border px-4 py-2 text-base" style="border-color:#d4d4d8;background:#fafafa;color:#52525b">Approved libraries</div>
-<div class="rounded-lg border px-4 py-2 text-base" style="border-color:#d4d4d8;background:#fafafa;color:#52525b">How errors are handled</div>
-<div class="rounded-lg border px-4 py-2 text-base" style="border-color:#d4d4d8;background:#fafafa;color:#52525b">Security and audit rules</div>
-<div class="rounded-lg border px-4 py-2 text-base" style="border-color:#d4d4d8;background:#fafafa;color:#52525b">What the platform already gives us</div>
-</div>
-</div>
+# Contents
 
-<div class="text-4xl font-extrabold leading-tight px-16 mt-10 transition-all duration-700" :class="$clicks >= 2 ? 'opacity-100' : 'opacity-0'">
-An AI knows <span class="accent">none of it</span>.
-</div>
+<Points>
+<NumStep :n="1" pad="py-1">Background</NumStep>
+<NumStep :n="2" pad="py-1">AI Coder</NumStep>
+<NumStep :n="3" pad="py-1">Components</NumStep>
+<SubPoint>AGIL Ops Hub</SubPoint>
+<SubPoint>Agent Skills</SubPoint>
+<SubPoint>OpenSpec</SubPoint>
+<NumStep :n="4" pad="py-1">Workshop</NumStep>
+</Points>
 
 <!--
-THE PROBLEM
+CONTENTS
 
-Open on the thing everyone already knows. Developers are using AI. That
-argument is over and we are not here to have it. Let it sit.
+Thirty seconds. Read the five, do not expand on any of them.
 
-Click. This is the part people skip. Writing code was never the hard part.
-The hard part is writing it inside the rules: the standards we hold to,
-the architecture decisions already made, the libraries we are allowed to
-use, how errors have to be handled, what security and audit require, and
-what the platform already gives us so nobody rebuilds it.
-
-A developer learns those over months. They are not in the code, they are
-in people, in review comments, and in documents nobody reads twice.
-
-Click. An AI knows none of it. It has never seen our codebase and it will
-not say so. It fills the gap with something plausible.
-
-Do not blame the tool. It is doing exactly what it was asked. Nothing told
-it how we build. That is the gap the rest of this deck closes.
+The only one worth a beat is three: that is the part most of the room has
+not seen before. Four is the demo, five is what they need to do before
+the session.
 -->
 
+---
+
+# Background
+
+<Points>
+<Bullet>Tasked to build a C2 application, as fast as AI could take us.</Bullet>
+<Bullet>A C2 application needs an <span class="key">exorbitant amount of detail</span>.</Bullet>
+<Bullet>Whatever you leave out, the model <span class="key">fills in for you</span>.</Bullet>
+<Bullet>And you find out only <span class="key">after</span> it is finished.</Bullet>
+</Points>
+
+<!--
+Background
+
+So mid last year, we were tasked to explore how fast we can build a C2 application quickly using AI. During the research, we discovered 2 main problems;
+
+- Context
+Prompting for a full fledged application is extremely tedious. This is due to the scale of a C2 application; It requires an exorbident amount of details in the specifications, and missing them, tend to have the model to fill up what it is not specified (which might not be whats prefered).
+
+Which leads to the next problem where you realised whats wrong only after it is done.
+-->
 
 ---
+
+# Two questions
+
+<Points>
+<NumStep :n="1">Can we keep the results <span class="key">consistent</span> </NumStep>
+<NumStep :n="2">Can we pin down what it builds, <span class="key">before</span> it builds it?</NumStep>
+</Points>
+
+<!--
+THE TWO QUESTIONS
+
+Two questions come out of that.
+
+First, consistency. Every developer feeds the model their own version of the
+detail, so every result comes back a little different. Can the standards live
+in the platform instead, so the same request gives the same shape of answer
+whoever is asking?
+
+Second, verification. Right now the model fills the gaps its own way and you
+find out at the end. Can we pin the work down before it starts, and correct it
+there instead?
+
+These two questions are what the rest of the deck answers.
+-->
+
+---
+
+```yaml
 clicks: 1
 class: text-center
----
+```
 
 <div class="flex flex-col items-center justify-center h-full">
   <div class="text-8xl font-extrabold tracking-tight">AI Coder</div>
   <div class="rule-red mt-6"></div>
-  <div class="text-2xl text-center mt-10 transition-all duration-700" :class="$clicks >= 1 ? 'opacity-100' : 'opacity-0'" style="color:#71717a;max-width:44rem">
-  An agentic coding suite for the AGIL Ops Hub platform, focused on the
-  code stage.
+  <div class="text-2xl text-center mt-10 transition-all duration-700 text-muted max-w-[44rem]" :class="$clicks >= 1 ? 'opacity-100' : 'opacity-0'">
+  A tool that generates C2 application with AGIL Ops Hub Platform
   </div>
 </div>
 
-<div class="abs-br m-6 text-sm" style="color:#a1a1aa">
-AI Day · InnoRAD.ai
-</div>
-
 <!--
-TITLE
-
-Say the name. Let it sit.
-
-Click: the definition. An agentic coding suite for the AGIL Ops Hub
-platform, focused on the code stage. Read it once, do not expand on it.
-The next nine slides are the expansion.
+AI Coder is a coding tool that generates C2 applications quickly using the AGIL Ops Hub platform.
 -->
 
 ---
-clicks: 1
-class: flex flex-col justify-center items-center
+
+# Components
+
+<ArchDiagram class="mt-6" />
+
+<!--
+COMPONENTS
+
+Start with the dashed box. Everything inside it runs on the developer's own
+machine. Only the model sits outside, and that is the only thing that leaves.
+
+The developer machine has the CLI installed. It hydrates the project with the
+context and knowledge of the AGIL Ops Hub platform.
+
+Click. That is what it installs. The knowledge and skills: code, design, code
+review, test, devops, documentation. And OpenSpec, a lightweight framework
+for spec-driven development.
+
+Click. The coding harness reads those artifacts and feeds them to an LLM,
+cloud or on-prem. That is what makes it consistently aware of the domain
+knowledge before it writes anything.
+
+The harness and the model are both swappable. The red box is the part that
+is ours, and it carries over every time.
+-->
+
 ---
 
-# Where it fits
+# AGIL Ops Hub
 
-<div class="mt-10">
-<div class="flex justify-center" style="width:48.0rem;gap:1.0rem">
-<div class="rounded-lg border text-sm py-1.5 font-medium text-center" style="width:5.375rem;border-color:#d4d4d8;background:#fafafa;color:#18181b">Planning</div>
-<div class="rounded-lg border text-sm py-1.5 font-medium text-center" style="width:5.375rem;border-color:#d4d4d8;background:#fafafa;color:#18181b">Requirements</div>
-<div class="rounded-lg border text-sm py-1.5 font-medium text-center" style="width:5.375rem;border-color:#d4d4d8;background:#fafafa;color:#18181b">Design</div>
-<div class="rounded-lg border text-sm py-1.5 font-medium text-center transition-all duration-700" :style="'width:16.125rem;' + ($clicks >= 1 ? 'border-color:#dc2626;background:rgba(220,38,38,0.08);color:#dc2626' : 'border-color:#d4d4d8;background:#fafafa;color:#18181b')">Implementation</div>
-<div class="rounded-lg border text-sm py-1.5 font-medium text-center" style="width:5.375rem;border-color:#d4d4d8;background:#fafafa;color:#18181b">Testing</div>
-<div class="rounded-lg border text-sm py-1.5 font-medium text-center" style="width:5.375rem;border-color:#d4d4d8;background:#fafafa;color:#18181b">Maintenance</div>
+<Points>
+<Bullet>A platform contains a set of modules, tools and services commonly used by C2 applications</Bullet>
+<Bullet>Agent is to build C2 applications <span class="key">on top of</span> the AGIL Ops Hub platform.</Bullet>
+<Bullet>Maintain a certain degree of <span class="key">deterministic behaviour</span>.</Bullet>
+</Points>
+
+<!--
+AGIL OPS HUB
+
+Yours to write. Worth covering, based on what the deck already claims:
+
+- what AGIL Ops Hub is, in one sentence
+- that it is the middle layer from the Components slide, the only red box
+- what is actually in it: the knowledge, the skills, the conventions
+- who maintains it and how a team gets changes into it
+- why it carries over when the harness or the model is swapped
+-->
+
+---
+
+# Agent Skills
+
+<Points>
+<Bullet>A package of instructions scripts and contexts that an Agent can discover and read.</Bullet>
+<Bullet>Only knows what skills are available and only reads it only <span class="key">at the exact point of work</span></Bullet>
+<Bullet>Reduces context memory on start.</Bullet>
+<Bullet>Converted AGIL Ops Hub platform knowledge into Agent Skills </Bullet>
+</Points>
+
+<!--
+SKILLS
+
+This is the red box from the Components slide, on its own.
+
+A skill is not a prompt. It is our standards written down in a form the
+agent reads by itself: how we code, how we design, how we review.
+
+There is one per discipline, and the twenty-three of them arrive with the
+project rather than being pasted in per developer.
+
+The line that matters is the third one. The agent consults a skill at the
+step where it is relevant, not once at the beginning and then forgotten.
+Point forward to the task list later in the deck: step 1.1 and step 2.1 both
+read "consult the aoh-conventions skill", because that is where it matters.
+
+That is the answer to the first of the two questions. The standards are the
+same for everyone because nobody is retyping them.
+-->
+
+---
+
+# OpenSpec (Spec-driven Development) {.text-center}
+
+<Points>
+<Bullet>Framework to enable <span class="key">spec-driven development</span></Bullet>
+<Bullet v-click="1">Practice of a written specifications of your artifact</Bullet>
+<Bullet v-click="1">Treating code as generated from these specifications</Bullet>
+</Points>
+
+<!--
+Explain definition
+
+The idea isn't new. What spec-driven used to be like was like this.
+
+*Display loop*
+
+What changed is the economics. When a human wrote every line, the spec was overhead you paid once and then abandoned as the code drifted. Now that generating code is cheap and reviewing it is the bottleneck, the expensive scarce thing is a precise statement of intent. Agents will produce something plausible for any prompt you give them, including a badly underspecified one, so vagueness doesn't fail loudly. It fails as confident, working code that solves the wrong problem.
+-->
+
+---
+
+```yaml
+clicks: 5
+```
+
+# How a change gets built {.text-center}
+
+<div class="flex items-start justify-center gap-10 mt-4">
+<div class="flex flex-col">
+<div class="dgm-wide text-[10px] text-faint mb-3">One change, end to end</div>
+<FlowColumn
+  :steps="['Story', 'Propose spec', 'Review spec', 'Implement', 'Review build', 'Ship']"
+  :active="$clicks"
+/>
 </div>
-<div class="flex justify-center mt-2 transition-all duration-700" style="width:48.0rem;gap:1.0rem" :class="$clicks >= 1 ? 'opacity-100' : 'opacity-0'">
-<div style="width:5.375rem"></div>
-<div style="width:5.375rem"></div>
-<div style="width:5.375rem"></div>
-<div class="rounded-lg border text-lg py-2 font-bold text-center" style="width:16.125rem;border-color:#dc2626;background:#dc2626;color:#ffffff">AI Coder</div>
-<div style="width:5.375rem"></div>
-<div style="width:5.375rem"></div>
-</div>
-<div class="flex justify-center mt-2 transition-all duration-700" style="width:48.0rem;gap:1.0rem" :class="$clicks >= 1 ? 'opacity-100' : 'opacity-0'">
-<div style="width:5.375rem"></div>
-<div style="width:5.375rem"></div>
-<div style="width:5.375rem"></div>
-<div class="rounded-lg border text-xs py-1.5 font-medium text-center" style="width:16.125rem;border-color:rgba(220,38,38,0.25);background:rgba(220,38,38,0.05);color:#9f5f5f">Design principles &middot; Coding standards &middot; AGIL Ops Hub</div>
-<div style="width:5.375rem"></div>
-<div style="width:5.375rem"></div>
+
+<!-- The artefacts only exist while the spec is being proposed and reviewed. -->
+<div
+  class="flex flex-col gap-2 w-[34rem] transition-all duration-700"
+  :class="$clicks === 1 || $clicks === 2 ? 'opacity-100' : 'opacity-0'"
+>
+<SpecCard
+  name="proposal.md"
+  caption="why are we doing this"
+  :active="true"
+  :lines="[
+    '## Why',
+    'Nothing ever writes to the database.',
+    'Persistence is only the seed.',
+    '## What Changes',
+    '- dispatch-svc gains write endpoints',
+    '- the console gains add, edit and delete',
+  ]"
+/>
+<SpecCard
+  name="design.md"
+  caption="how it will be built"
+  :active="false"
+  :lines="[
+    '## Context',
+    'dispatch-svc is read-only and the console renders it.',
+    '## Goals / Non-Goals',
+    '- create, replace and delete a unit from the console',
+    '- prove persistence across a restart',
+    '- not in scope: bulk edit, audit history',
+  ]"
+/>
+<SpecCard
+  name="specs/"
+  caption="how we will know it works"
+  :active="false"
+  :lines="[
+    '### Requirement: Add a unit from the console',
+    '#### Scenario: Successful add',
+    '- WHEN an operator submits the form with valid values',
+    '- THEN the new unit appears in the list',
+    '#### Scenario: Add rejected by validation',
+    '- WHEN a blank required field or a duplicate code',
+    '- THEN the form stays open and shows the message',
+  ]"
+/>
+<SpecCard
+  name="tasks.md"
+  caption="what happens, in what order"
+  :active="false"
+  :lines="[
+    '## 1. Implement dispatch-svc',
+    '- [ ] 1.1 Consult the aoh-conventions skill',
+    '- [ ] 1.2 Add OccLock to the unit model',
+    '- [ ] 1.3 Repository: create, update, delete',
+    '## 2. Implement dispatch-web',
+    '- [ ] 2.1 Consult the aoh-conventions and aoh-design skills',
+    '- [ ] 2.2 Add unit form, edit form, delete confirm',
+  ]"
+/>
 </div>
 </div>
 
 <!--
-WHAT AI CODER IS
+HOW A CHANGE GETS BUILT
 
-Be precise about what it is. The model is off the shelf. The tool that
-runs it is off the shelf too. AI Coder is the layer we own.
+The column on the left is the whole flow, top to bottom. One click per stage,
+and the red outline is wherever you are.
 
-Full definition if you need it: an agentic coding suite for the AGIL Ops
-Hub platform, focused on the code stage. Underneath it is a swappable
-coding harness, extended with agent skills and spec-driven development.
+Story is yours. Click.
 
-The band at the bottom of the diagram is what it carries: our design
-principles, our coding standards, the platform.
+Propose spec. The four documents appear on the right: why, how, how we will
+know, and in what order. This is what the agent hands back. Click.
 
-That is the part worth having. Anyone can buy the same model next quarter.
-Nobody can buy how MSS builds.
+Review spec. Same four documents, because this is the stage where you read
+them. This is the gate: nothing is implemented until it passes. If the spec is
+wrong you send it back, and that costs a spec rather than a build. Click.
 
-It also means we are not betting on a model. When a better one arrives,
-our knowledge still applies.
-
-The command is `aia init`, if you want to name it, but the room does
-not need it.
-
-Beat one: this is how we deliver, end to end. Build is the long pole.
-
-Beat two, click: AI Coder assists the developer through the build, and it
-arrives carrying our design principles, our coding standards, and the
-AGIL Ops Hub platform.
-
-Say "assists". The developer is still building. AI Coder is not replacing
-anyone, and this audience will hear the difference.
-
-The point for this room: nobody has to remember our standards or look them
-up. They are in the project from the first minute, so the work starts
-consistent instead of being corrected later.
-
-Planning, test and deploy stay with the team.
+Implement, approve the build, ship. The documents are gone from the screen
+because the arguing is over. The loop comes back to the next story.
 -->
 
 ---
+
+```yaml
 clicks: 1
-class: flex flex-col justify-center items-center
+```
+
+# Where you check the work {.text-center}
+
+<div class="flex items-start justify-center gap-20 mt-10">
+<LoopDiagram
+  label="Coding with an agent"
+  :nodes="['Prompt', 'Build', 'Review']"
+  :accent="2"
+/>
+<div v-click class="transition-all duration-700">
+<LoopDiagram
+  variant="brand"
+  label="Spec-driven development"
+  :nodes="['Story', 'Spec', 'Review', 'Build']"
+  :accent="2"
+/>
+</div>
+</div>
+
+<!--
+WHERE YOU CHECK THE WORK
+
+Both rings start at the top and run clockwise, so trace each one with a
+finger rather than reading the boxes out.
+
+Left: prompt, it builds, then you review. The first time a human gets a say
+is after the code exists, so a wrong turn costs the whole build.
+
+Click. Right: story, spec, you review, then it builds. The gate comes first,
+so nothing is written until you have agreed the plan, and a wrong turn costs
+a spec.
+
+The people icon marks the gate in both. On the left it is the last stop
+before you start over. On the right it sits ahead of the build.
+
+That answers the second question from earlier. You see what it plans to do
+before it does the work, and you correct it there, not at the end.
+-->
+
 ---
+
+<SectionTitle>Workshop</SectionTitle>
+
+<!--
+WORKSHOP
+
+Section marker. Everything so far was the argument. From here it is the
+tool doing the work, and then what they need to install before the session.
+-->
+
+---
+
+```yaml
+clicks: 1
+```
 
 # One command
 
-<div class="rounded-xl px-8 py-6 text-left" style="width:46rem;background:#18181b">
-<div class="flex items-center gap-2 mb-5">
-<div style="width:0.7rem;height:0.7rem;border-radius:50%;background:#52525b"></div>
-<div style="width:0.7rem;height:0.7rem;border-radius:50%;background:#52525b"></div>
-<div style="width:0.7rem;height:0.7rem;border-radius:50%;background:#52525b"></div>
-<div class="font-mono text-xs ml-3" style="color:#71717a">terminal</div>
-</div>
-<div class="font-mono text-lg">
-<span style="color:#71717a">$ </span><span style="color:#fafafa">aia init</span></div>
-<div class="font-mono text-sm mt-3"><span style="color:#71717a">? </span><span style="color:#a1a1aa">Project name</span><span class="pl-4" style="color:#fafafa">fleet-dispatch-console</span></div>
+<TermPanel>
+<TermDots />
+<PromptLine sigil="$">aia init</PromptLine>
+<div class="font-mono text-sm mt-3"><span class="text-term-dim">? </span><span class="text-faint">Project name</span><span class="pl-4 text-term-fg">fleet-dispatch-console</span></div>
 <div class="mt-4">
-<div class="font-mono text-sm flex gap-3 mt-1.5"><span style="color:#4ade80">&check;</span><span style="color:#a1a1aa">Resolving template source</span></div>
-<div class="font-mono text-sm flex gap-3 mt-1.5"><span style="color:#4ade80">&check;</span><span style="color:#a1a1aa">Configuring OpenSpec workflows</span></div>
-<div class="font-mono text-sm flex gap-3 mt-1.5"><span style="color:#4ade80">&check;</span><span style="color:#a1a1aa">Initializing OpenSpec</span></div>
-<div class="font-mono text-sm flex gap-3 mt-1.5"><span style="color:#4ade80">&check;</span><span style="color:#a1a1aa">Installing agent skills</span></div>
-<div class="font-mono text-sm flex gap-3 mt-1.5"><span style="color:#4ade80">&check;</span><span style="color:#a1a1aa">Initializing git repository</span></div>
+<CheckLine>Resolving template source</CheckLine>
+<CheckLine>Configuring OpenSpec workflows</CheckLine>
+<CheckLine>Initializing OpenSpec</CheckLine>
+<CheckLine>Installing agent skills</CheckLine>
+<CheckLine>Initializing git repository</CheckLine>
 </div>
-<div class="font-mono text-base font-bold mt-5" style="color:#fafafa">Project ready</div>
-</div>
-
-<div class="text-2xl text-center mt-8 transition-all duration-700" :class="$clicks >= 1 ? 'opacity-100' : 'opacity-0'" style="color:#71717a;max-width:44rem">
-It <strong>equips</strong> a new project with our way of building.
-</div>
+<div class="font-mono text-base font-bold mt-5 text-term-fg">Project ready</div>
+</TermPanel>
 
 <!--
 ONE COMMAND
@@ -227,108 +416,31 @@ This is exactly the first commit of the demo repository, pinned at
 -->
 
 ---
+
+```yaml
 clicks: 1
-class: flex flex-col justify-center items-center
----
+```
 
 # Then you describe the work
 
-<div class="rounded-xl px-8 py-6 text-left" style="width:46rem;background:#18181b">
-<div class="flex items-center gap-8 mb-6">
-<div style="display:flex;flex-direction:column;gap:0">
-<div style="display:flex;gap:0">
-<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
-</div>
-<div style="display:flex;gap:0">
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-</div>
-<div style="display:flex;gap:0">
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#000000"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#000000"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-</div>
-<div style="display:flex;gap:0">
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#000000"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#000000"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-</div>
-<div style="display:flex;gap:0">
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-</div>
-<div style="display:flex;gap:0">
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-</div>
-<div style="display:flex;gap:0">
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
-<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-</div>
-</div>
-<div class="font-mono text-sm" style="line-height:1.7">
-<div><span style="color:#fafafa;font-weight:700">Claude Code</span> <span style="color:#71717a">v2.1.221</span></div>
-<div style="color:#71717a">Opus 5 (1M context) with xhigh effort</div>
-<div style="color:#71717a">~/Desktop/projects/ai-day-demo</div>
-</div>
-</div>
-<div class="font-mono text-lg"><span style="color:#71717a">&gt; </span><span style="color:#fafafa">/opsx:propose</span></div>
-<div class="font-mono text-sm mt-3" style="color:#d4d4d8;line-height:1.6">
+<TermPanel>
+<ClaudeHeader pad="mb-6">
+<div><span class="text-term-fg font-bold">Claude Code</span> <span class="text-term-dim">v2.1.221</span></div>
+<div class="text-term-dim">Opus 5 (1M context) with xhigh effort</div>
+<div class="text-term-dim">~/Desktop/projects/ai-day-demo</div>
+</ClaudeHeader>
+<PromptLine>/opsx:propose</PromptLine>
+<div class="font-mono text-sm mt-3 text-steel leading-[1.6]">
 As a dispatcher, I want to dispatch an available unit to an<br/>
 incident and stand it down when the job is done.
 </div>
 <div class="mt-5">
-<div class="font-mono text-sm flex gap-3 mt-1.5"><span style="color:#4ade80">&check;</span><span style="color:#fafafa;width:9rem">proposal.md</span><span style="color:#71717a">why, and what changes</span></div>
-<div class="font-mono text-sm flex gap-3 mt-1.5"><span style="color:#4ade80">&check;</span><span style="color:#fafafa;width:9rem">design.md</span><span style="color:#71717a">how it will be built</span></div>
-<div class="font-mono text-sm flex gap-3 mt-1.5"><span style="color:#4ade80">&check;</span><span style="color:#fafafa;width:9rem">specs/</span><span style="color:#71717a">36 requirements, 77 scenarios</span></div>
-<div class="font-mono text-sm flex gap-3 mt-1.5"><span style="color:#4ade80">&check;</span><span style="color:#fafafa;width:9rem">tasks.md</span><span style="color:#71717a">82 steps, in order</span></div>
+<CheckLine name="proposal.md">why, and what changes</CheckLine>
+<CheckLine name="design.md">how it will be built</CheckLine>
+<CheckLine name="specs/">36 requirements, 77 scenarios</CheckLine>
+<CheckLine name="tasks.md">82 steps, in order</CheckLine>
 </div>
-</div>
-
-<div class="text-2xl text-center mt-8 transition-all duration-700" :class="$clicks >= 1 ? 'opacity-100' : 'opacity-0'" style="color:#71717a;max-width:44rem">
-One sentence in. A written plan out, <strong>before any code</strong>.
-</div>
+</TermPanel>
 
 <!--
 THEN YOU DESCRIBE THE WORK
@@ -357,79 +469,68 @@ by name.
 -->
 
 ---
+
+```yaml
 clicks: 3
-class: flex flex-col justify-center items-center
----
+```
 
 # What you review
 
-<div class="flex flex-col gap-2 mt-6" style="width:44rem">
-<div class="rounded-lg overflow-hidden transition-all duration-700 ease-in-out" :style="$clicks === 0 ? 'background:#ffffff;border:1px solid #e4e4e7;box-shadow:0 2px 8px rgba(0,0,0,0.08)' : 'background:#fafafa;border:1px solid #f4f4f5;box-shadow:none'">
-<div class="flex items-center justify-between px-5 py-2.5">
-<div class="font-mono text-sm font-bold transition-all duration-700 ease-in-out" :style="$clicks === 0 ? 'color:#dc2626' : 'color:#d4a0a0'">proposal.md</div>
-<div class="text-[11px]" style="color:#a1a1aa">why are we doing this</div>
-</div>
-<div class="overflow-hidden transition-all duration-700 ease-in-out" :style="$clicks === 0 ? 'max-height:9.5rem;opacity:1' : 'max-height:0;opacity:0'">
-<div class="px-5 pb-4" style="height:9.5rem">
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">## </span><span style="color:#3f3f46;font-weight:700">Why</span></div>
-<div class="font-mono text-[13px] leading-relaxed" style="color:#3f3f46">Nothing ever writes to the database.</div>
-<div class="font-mono text-[13px] leading-relaxed" style="color:#3f3f46">Persistence is only the seed.</div>
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">## </span><span style="color:#3f3f46;font-weight:700">What Changes</span></div>
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- </span><span style="color:#3f3f46">dispatch-svc gains write endpoints</span></div>
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- </span><span style="color:#3f3f46">the console gains add, edit and delete</span></div>
-</div>
-</div>
-</div>
-<div class="rounded-lg overflow-hidden transition-all duration-700 ease-in-out" :style="$clicks === 1 ? 'background:#ffffff;border:1px solid #e4e4e7;box-shadow:0 2px 8px rgba(0,0,0,0.08)' : 'background:#fafafa;border:1px solid #f4f4f5;box-shadow:none'">
-<div class="flex items-center justify-between px-5 py-2.5">
-<div class="font-mono text-sm font-bold transition-all duration-700 ease-in-out" :style="$clicks === 1 ? 'color:#dc2626' : 'color:#d4a0a0'">design.md</div>
-<div class="text-[11px]" style="color:#a1a1aa">how it will be built</div>
-</div>
-<div class="overflow-hidden transition-all duration-700 ease-in-out" :style="$clicks === 1 ? 'max-height:9.5rem;opacity:1' : 'max-height:0;opacity:0'">
-<div class="px-5 pb-4" style="height:9.5rem">
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">## </span><span style="color:#3f3f46;font-weight:700">Context</span></div>
-<div class="font-mono text-[13px] leading-relaxed" style="color:#3f3f46">dispatch-svc is read-only and the console renders it.</div>
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">## </span><span style="color:#3f3f46;font-weight:700">Goals / Non-Goals</span></div>
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- </span><span style="color:#3f3f46">create, replace and delete a unit from the console</span></div>
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- </span><span style="color:#3f3f46">prove persistence across a restart</span></div>
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- </span><span style="color:#3f3f46">not in scope: bulk edit, audit history</span></div>
-</div>
-</div>
-</div>
-<div class="rounded-lg overflow-hidden transition-all duration-700 ease-in-out" :style="$clicks === 2 ? 'background:#ffffff;border:1px solid #e4e4e7;box-shadow:0 2px 8px rgba(0,0,0,0.08)' : 'background:#fafafa;border:1px solid #f4f4f5;box-shadow:none'">
-<div class="flex items-center justify-between px-5 py-2.5">
-<div class="font-mono text-sm font-bold transition-all duration-700 ease-in-out" :style="$clicks === 2 ? 'color:#dc2626' : 'color:#d4a0a0'">specs/</div>
-<div class="text-[11px]" style="color:#a1a1aa">how we will know it works</div>
-</div>
-<div class="overflow-hidden transition-all duration-700 ease-in-out" :style="$clicks === 2 ? 'max-height:9.5rem;opacity:1' : 'max-height:0;opacity:0'">
-<div class="px-5 pb-4" style="height:9.5rem">
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">### </span><span style="color:#3f3f46;font-weight:700">Requirement: Add a unit from the console</span></div>
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">#### </span><span style="color:#3f3f46">Scenario: Successful add</span></div>
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- </span><span style="color:#3f3f46">WHEN an operator submits the form with valid values</span></div>
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- </span><span style="color:#3f3f46">THEN the new unit appears in the list</span></div>
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">#### </span><span style="color:#3f3f46">Scenario: Add rejected by validation</span></div>
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- </span><span style="color:#3f3f46">WHEN a blank required field or a duplicate code</span></div>
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- </span><span style="color:#3f3f46">THEN the form stays open and shows the message</span></div>
-</div>
-</div>
-</div>
-<div class="rounded-lg overflow-hidden transition-all duration-700 ease-in-out" :style="$clicks === 3 ? 'background:#ffffff;border:1px solid #e4e4e7;box-shadow:0 2px 8px rgba(0,0,0,0.08)' : 'background:#fafafa;border:1px solid #f4f4f5;box-shadow:none'">
-<div class="flex items-center justify-between px-5 py-2.5">
-<div class="font-mono text-sm font-bold transition-all duration-700 ease-in-out" :style="$clicks === 3 ? 'color:#dc2626' : 'color:#d4a0a0'">tasks.md</div>
-<div class="text-[11px]" style="color:#a1a1aa">what happens, in what order</div>
-</div>
-<div class="overflow-hidden transition-all duration-700 ease-in-out" :style="$clicks === 3 ? 'max-height:9.5rem;opacity:1' : 'max-height:0;opacity:0'">
-<div class="px-5 pb-4" style="height:9.5rem">
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">## </span><span style="color:#3f3f46;font-weight:700">1. Implement dispatch-svc</span></div>
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- [ ] </span><span style="color:#3f3f46">1.1 Consult the aoh-conventions skill</span></div>
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- [ ] </span><span style="color:#3f3f46">1.2 Add OccLock to the unit model</span></div>
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- [ ] </span><span style="color:#3f3f46">1.3 Repository: create, update, delete</span></div>
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">## </span><span style="color:#3f3f46;font-weight:700">2. Implement dispatch-web</span></div>
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- [ ] </span><span style="color:#3f3f46">2.1 Consult the aoh-conventions and aoh-design skills</span></div>
-<div class="font-mono text-[13px] leading-relaxed"><span style="color:#c4c4c8">- [ ] </span><span style="color:#3f3f46">2.2 Add unit form, edit form, delete confirm</span></div>
-</div>
-</div>
-</div>
+<div class="flex flex-col gap-2 mt-6 w-[44rem]">
+<SpecCard
+  name="proposal.md"
+  caption="why are we doing this"
+  :active="$clicks === 0"
+  :lines="[
+    '## Why',
+    'Nothing ever writes to the database.',
+    'Persistence is only the seed.',
+    '## What Changes',
+    '- dispatch-svc gains write endpoints',
+    '- the console gains add, edit and delete',
+  ]"
+/>
+<SpecCard
+  name="design.md"
+  caption="how it will be built"
+  :active="$clicks === 1"
+  :lines="[
+    '## Context',
+    'dispatch-svc is read-only and the console renders it.',
+    '## Goals / Non-Goals',
+    '- create, replace and delete a unit from the console',
+    '- prove persistence across a restart',
+    '- not in scope: bulk edit, audit history',
+  ]"
+/>
+<SpecCard
+  name="specs/"
+  caption="how we will know it works"
+  :active="$clicks === 2"
+  :lines="[
+    '### Requirement: Add a unit from the console',
+    '#### Scenario: Successful add',
+    '- WHEN an operator submits the form with valid values',
+    '- THEN the new unit appears in the list',
+    '#### Scenario: Add rejected by validation',
+    '- WHEN a blank required field or a duplicate code',
+    '- THEN the form stays open and shows the message',
+  ]"
+/>
+<SpecCard
+  name="tasks.md"
+  caption="what happens, in what order"
+  :active="$clicks === 3"
+  :lines="[
+    '## 1. Implement dispatch-svc',
+    '- [ ] 1.1 Consult the aoh-conventions skill',
+    '- [ ] 1.2 Add OccLock to the unit model',
+    '- [ ] 1.3 Repository: create, update, delete',
+    '## 2. Implement dispatch-web',
+    '- [ ] 2.1 Consult the aoh-conventions and aoh-design skills',
+    '- [ ] 2.2 Add unit form, edit form, delete confirm',
+  ]"
+/>
 </div>
 
 <!--
@@ -458,104 +559,27 @@ until they agree it.
 -->
 
 ---
-clicks: 2
-class: flex flex-col justify-center items-center
----
 
 # Then you let it run
 
-<div class="rounded-xl px-8 py-6 text-left" style="width:46rem;background:#18181b">
-<div class="flex items-center gap-8 mb-5">
-<div style="display:flex;flex-direction:column;gap:0">
-<div style="display:flex;gap:0">
-<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
-</div>
-<div style="display:flex;gap:0">
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-</div>
-<div style="display:flex;gap:0">
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#000000"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#000000"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-</div>
-<div style="display:flex;gap:0">
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#000000"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#000000"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-</div>
-<div style="display:flex;gap:0">
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-</div>
-<div style="display:flex;gap:0">
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-</div>
-<div style="display:flex;gap:0">
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
-<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-<div style="width:0.26rem;height:0.26rem;background:transparent"></div>
-<div style="width:0.26rem;height:0.26rem;background:#d97757"></div>
-</div>
-</div>
-<div class="font-mono text-sm" style="line-height:1.7">
-<div><span style="color:#fafafa;font-weight:700">Claude Code</span></div>
-<div style="color:#71717a">~/Desktop/projects/ai-day-demo</div>
-</div>
-</div>
-<div class="font-mono text-lg mb-1"><span style="color:#71717a">&gt; </span><span style="color:#fafafa">/opsx:apply</span></div>
-<div class="font-mono text-[13px] mt-3"><span style="color:#52525b">## </span><span style="color:#fafafa;font-weight:700">1. Implement dispatch-svc</span></div>
-<div class="font-mono text-[13px] leading-relaxed transition-all duration-500"><span class="pr-2" :style="$clicks >= 1 ? 'color:#4ade80' : 'color:#52525b'">{{ $clicks >= 1 ? '- [x]' : '- [ ]' }} </span><span :style="$clicks >= 1 ? 'color:#fafafa' : 'color:#71717a'">1.1 Consult the aoh-conventions skill</span></div>
-<div class="font-mono text-[13px] leading-relaxed transition-all duration-500"><span class="pr-2" :style="$clicks >= 1 ? 'color:#4ade80' : 'color:#52525b'">{{ $clicks >= 1 ? '- [x]' : '- [ ]' }} </span><span :style="$clicks >= 1 ? 'color:#fafafa' : 'color:#71717a'">1.2 Add OccLock to the unit model</span></div>
-<div class="font-mono text-[13px] leading-relaxed transition-all duration-500"><span class="pr-2" :style="$clicks >= 1 ? 'color:#4ade80' : 'color:#52525b'">{{ $clicks >= 1 ? '- [x]' : '- [ ]' }} </span><span :style="$clicks >= 1 ? 'color:#fafafa' : 'color:#71717a'">1.3 Repository: create, update, delete</span></div>
-<div class="font-mono text-[13px] leading-relaxed transition-all duration-500"><span class="pr-2" :style="$clicks >= 1 ? 'color:#4ade80' : 'color:#52525b'">{{ $clicks >= 1 ? '- [x]' : '- [ ]' }} </span><span :style="$clicks >= 1 ? 'color:#fafafa' : 'color:#71717a'">1.4 Service: validate fields, classify errors</span></div>
-<div class="font-mono text-[13px] mt-3"><span style="color:#52525b">## </span><span style="color:#fafafa;font-weight:700">2. Implement dispatch-web</span></div>
-<div class="font-mono text-[13px] leading-relaxed transition-all duration-500"><span class="pr-2" :style="$clicks >= 2 ? 'color:#4ade80' : 'color:#52525b'">{{ $clicks >= 2 ? '- [x]' : '- [ ]' }} </span><span :style="$clicks >= 2 ? 'color:#fafafa' : 'color:#71717a'">2.1 Consult the aoh-conventions and aoh-design skills</span></div>
-<div class="font-mono text-[13px] leading-relaxed transition-all duration-500"><span class="pr-2" :style="$clicks >= 2 ? 'color:#4ade80' : 'color:#52525b'">{{ $clicks >= 2 ? '- [x]' : '- [ ]' }} </span><span :style="$clicks >= 2 ? 'color:#fafafa' : 'color:#71717a'">2.2 Add create, update and delete to the client</span></div>
-<div class="font-mono text-[13px] leading-relaxed transition-all duration-500"><span class="pr-2" :style="$clicks >= 2 ? 'color:#4ade80' : 'color:#52525b'">{{ $clicks >= 2 ? '- [x]' : '- [ ]' }} </span><span :style="$clicks >= 2 ? 'color:#fafafa' : 'color:#71717a'">2.3 Add unit form, edit form, delete confirm</span></div>
-<div class="font-mono text-[13px] leading-relaxed transition-all duration-500"><span class="pr-2" :style="$clicks >= 2 ? 'color:#4ade80' : 'color:#52525b'">{{ $clicks >= 2 ? '- [x]' : '- [ ]' }} </span><span :style="$clicks >= 2 ? 'color:#fafafa' : 'color:#71717a'">2.4 Verify: build, lint, test</span></div>
-<div class="font-mono text-sm mt-4 transition-all duration-500" :class="$clicks >= 2 ? 'opacity-100' : 'opacity-0'" style="color:#4ade80;font-weight:700">All 82 steps complete.</div>
-</div>
+<TermPanel>
+<ClaudeHeader pad="mb-5">
+<div><span class="text-term-fg font-bold">Claude Code</span></div>
+<div class="text-term-dim">~/Desktop/projects/ai-day-demo</div>
+</ClaudeHeader>
+<PromptLine pad="mb-1">/opsx:apply</PromptLine>
+<div class="font-mono text-[13px] mt-3"><span class="text-term-dimmer">## </span><span class="text-term-fg font-bold">1. Implement dispatch-svc</span></div>
+<TaskLine :done="$clicks >= 1">1.1 Consult the aoh-conventions skill</TaskLine>
+<TaskLine :done="$clicks >= 1">1.2 Add OccLock to the unit model</TaskLine>
+<TaskLine :done="$clicks >= 1">1.3 Repository: create, update, delete</TaskLine>
+<TaskLine :done="$clicks >= 1">1.4 Service: validate fields, classify errors</TaskLine>
+<div class="font-mono text-[13px] mt-3"><span class="text-term-dimmer">## </span><span class="text-term-fg font-bold">2. Implement dispatch-web</span></div>
+<TaskLine :done="$clicks >= 2">2.1 Consult the aoh-conventions and aoh-design skills</TaskLine>
+<TaskLine :done="$clicks >= 2">2.2 Add create, update and delete to the client</TaskLine>
+<TaskLine :done="$clicks >= 2">2.3 Add unit form, edit form, delete confirm</TaskLine>
+<TaskLine :done="$clicks >= 2">2.4 Verify: build, lint, test</TaskLine>
+<div class="font-mono text-sm mt-4 font-bold text-term-ok transition-all duration-500" :class="$clicks >= 2 ? 'opacity-100' : 'opacity-0'">All 82 steps complete.</div>
+</TermPanel>
 
 <!--
 THEN YOU LET IT RUN
@@ -578,227 +602,17 @@ named step, rather than carrying on and reporting at the end.
 -->
 
 ---
-class: flex flex-col justify-center items-center
----
-
-# Our stack
-
-<div class="text-xl text-center mt-3 mb-10" style="color:#71717a;max-width:42rem">
-The tool and the engine can change. The knowledge stays.
-</div>
-
-<div class="flex flex-col gap-3">
-<div class="rounded-lg border-2 text-lg py-3 font-medium text-center" style="width:30.0rem;border-color:#dc2626;background:rgba(220,38,38,0.08);color:#dc2626">Coding agent</div>
-<div class="rounded-lg border-2 text-lg py-3 font-bold text-center" style="width:30.0rem;border-color:#dc2626;background:#dc2626;color:#ffffff">AGIL Ops Hub knowledge and skills</div>
-<div class="rounded-lg border-2 text-lg py-3 font-medium text-center" style="width:30.0rem;border-color:#dc2626;background:rgba(220,38,38,0.08);color:#dc2626">LLM</div>
-</div>
-
-<!--
-OUR STACK
-
-Three layers, top to bottom: the tool the developer works in, our
-knowledge loaded into it, and the model underneath doing the writing.
-
-The labels are deliberately generic. Today the coding agent is Claude Code
-and the model is Claude, and say so if asked. They are named as categories
-here because both are replaceable, and the slide would contradict itself if
-it named a vendor.
-
-Present it as one thing. This is the stack we run, and we built it to work
-together.
-
-The point of the subtitle: we are not tied to any vendor. A better tool
-arrives, we swap the tool. A better model arrives, we swap the model. The
-middle layer carries over every time, because it is ours.
-
-That is worth saying plainly to this room. Choosing a stack is usually a
-bet on a supplier. This one is not.
-
-Straight answer if someone asks who makes the tool or the model: both are
-licensed, chosen because they are the best available today and because
-they are replaceable. What makes the stack ours is the middle layer and
-the way the three are put together.
--->
-
----
-class: flex flex-col justify-center items-center
----
-
-# Why not just use an LLM?
-
-<div class="flex gap-6 justify-center mt-10">
-<div class="rounded-xl border-2 px-7 py-6 text-left" style="width:20.0rem;border-color:#d4d4d8;background:#fafafa">
-<div class="text-lg font-bold mb-4" style="color:#18181b">An LLM on its own</div>
-<div class="text-base mb-2.5" style="color:#71717a">Has never seen our code.</div>
-<div class="text-base mb-2.5" style="color:#71717a">Fills in the blanks, confidently.</div>
-<div class="text-base mb-2.5" style="color:#71717a">Nothing keeps it on course.</div>
-<div class="text-base mb-2.5" style="color:#71717a">You only find out at the end.</div>
-</div>
-<div class="rounded-xl border-2 px-7 py-6 text-left" style="width:20.0rem;border-color:#dc2626;background:rgba(220,38,38,0.06)">
-<div class="text-lg font-bold mb-4" style="color:#dc2626">AI Coder</div>
-<div class="text-base mb-2.5" style="color:#18181b">Already knows how we build.</div>
-<div class="text-base mb-2.5" style="color:#18181b">Keeps to the rules we set.</div>
-<div class="text-base mb-2.5" style="color:#18181b">You agree the plan first.</div>
-<div class="text-base mb-2.5" style="color:#18181b">You know where it is going.</div>
-</div>
-</div>
-
-<!--
-WHY NOT JUST AN LLM
-
-This is the question the room is already holding. Answer it straight.
-
-Be fair about it: an off-the-shelf LLM is fast, and the code often looks
-fine. The problem is not speed. The problem is that nothing is steering.
-
-It has never seen our codebase and it will not say so. It fills the gap
-with something plausible, and it keeps going, whatever direction it took.
-
-Third and fourth lines are the ones to dwell on. Left on its own, an LLM
-runs the whole job before you see anything. You wait, you pay for the full
-run, and only then do you learn it went the wrong way in the first ten
-minutes.
-
-AI Coder puts a checkpoint before the code. The plan is written down and
-you agree it first, so a wrong turn costs a conversation instead of a
-rewrite. That is OpenSpec doing the work, if anyone asks by name.
-
-The point of the whole slide: the result is something we chose, not
-something we were handed.
-
-Do not oversell it. AI Coder does not remove review. It keeps the work
-inside what we already decided, and moves the checking earlier, where it
-is cheap.
--->
-
----
-clicks: 1
-class: flex flex-col justify-center
----
-
-# How it works {.text-center}
-
-<div class="mx-auto" style="width:51.00rem">
-<div class="dgm-wide text-xs mt-8 mb-6" style="color:#a1a1aa;letter-spacing:0.08em">AI on its own</div>
-<div class="flex items-center" style="width:51.00rem">
-<div class="rounded-lg border text-sm py-2 font-medium text-center" style="width:4.00rem;border-color:#e4e4e7;background:#fafafa;color:#71717a">Prompt</div>
-<div class="text-center" style="width:1.0rem;color:#e4e4e7">&rarr;</div>
-<div class="rounded-lg border text-sm py-2 font-medium text-center" style="width:16.00rem;border-color:#e4e4e7;background:#fafafa;color:#71717a">Develop</div>
-<div class="text-center" style="width:1.0rem;color:#e4e4e7">&rarr;</div>
-<div class="rounded-lg border text-sm py-2 font-medium text-center" style="width:12.00rem;border-color:#e4e4e7;background:#fafafa;color:#71717a">Verify</div>
-<div class="text-center" style="width:1.0rem;color:#e4e4e7">&rarr;</div>
-<div class="rounded-lg border text-sm py-2 font-medium text-center" style="width:16.00rem;border-color:#e4e4e7;background:#fafafa;color:#71717a">Redo</div>
-</div>
-<div class="flex items-start mt-1.5" style="width:51.00rem">
-<div style="width:4.00rem"></div>
-<div style="width:1.0rem"></div>
-<div style="width:16.00rem"></div>
-<div style="width:1.0rem"></div>
-<div class="text-xs text-center " style="width:12.00rem;color:#a1a1aa">your only checkpoint</div>
-<div style="width:1.0rem"></div>
-<div class="text-xs text-center " style="width:16.00rem;color:#a1a1aa">and again</div>
-</div>
-<div class="flex" style="width:51.00rem">
-<div style="width:2.00rem"></div>
-<div style="width:41.00rem;height:1.4rem;border-left:2px solid #e4e4e7;border-right:2px solid #e4e4e7;border-bottom:2px solid #e4e4e7;border-radius:0 0 0.5rem 0.5rem"></div>
-</div>
-<div class="flex" style="width:51.00rem">
-<div style="width:2.00rem"></div>
-<div class="text-xs text-center mt-1" style="width:41.00rem;color:#a1a1aa">back to nothing</div>
-</div>
-<div class="transition-all duration-700" :class="$clicks >= 1 ? 'opacity-100' : 'opacity-0'">
-<div class="dgm-wide text-xs mt-10 mb-6" style="color:#a1a1aa;letter-spacing:0.08em">With AI Coder</div>
-<div class="flex items-center" style="width:43.00rem">
-<div class="rounded-lg border text-sm py-2 font-medium text-center" style="width:4.00rem;border-color:#d4d4d8;background:#fafafa;color:#18181b">Set up</div>
-<div class="text-center" style="width:1.0rem;color:#d4d4d8">&rarr;</div>
-<div class="rounded-lg border text-sm py-2 font-medium text-center" style="width:6.00rem;border-color:#d4d4d8;background:#fafafa;color:#18181b">Propose</div>
-<div class="text-center" style="width:1.0rem;color:#d4d4d8">&rarr;</div>
-<div class="rounded-lg border-2 text-sm py-2 font-bold text-center" style="width:4.00rem;border-color:#dc2626;background:#dc2626;color:#ffffff">Change</div>
-<div class="text-center" style="width:1.0rem;color:#d4d4d8">&rarr;</div>
-<div class="rounded-lg border text-sm py-2 font-medium text-center" style="width:16.00rem;border-color:#d4d4d8;background:#fafafa;color:#18181b">Develop</div>
-<div class="text-center" style="width:1.0rem;color:#d4d4d8">&rarr;</div>
-<div class="rounded-lg border-2 text-sm py-2 font-bold text-center" style="width:4.00rem;border-color:#dc2626;background:#dc2626;color:#ffffff">Verify</div>
-<div class="text-center" style="width:1.0rem;color:#d4d4d8">&rarr;</div>
-<div class="rounded-lg border text-sm py-2 font-medium text-center" style="width:4.00rem;border-color:#d4d4d8;background:#fafafa;color:#18181b">Archive</div>
-</div>
-<div class="flex items-start mt-1.5" style="width:43.00rem">
-<div style="width:4.00rem"></div>
-<div style="width:1.0rem"></div>
-<div style="width:6.00rem"></div>
-<div style="width:1.0rem"></div>
-<div class="text-xs text-center font-bold" style="width:4.00rem;color:#dc2626">you</div>
-<div style="width:1.0rem"></div>
-<div style="width:16.00rem"></div>
-<div style="width:1.0rem"></div>
-<div class="text-xs text-center font-bold" style="width:4.00rem;color:#dc2626">you</div>
-<div style="width:1.0rem"></div>
-<div style="width:4.00rem"></div>
-</div>
-<div class="flex" style="width:43.00rem">
-<div style="width:8.00rem"></div>
-<div style="width:33.00rem;height:1.4rem;border-left:2px solid rgba(220,38,38,0.35);border-right:2px solid rgba(220,38,38,0.35);border-bottom:2px solid rgba(220,38,38,0.35);border-radius:0 0 0.5rem 0.5rem"></div>
-</div>
-<div class="flex" style="width:43.00rem">
-<div style="width:8.00rem"></div>
-<div class="text-xs text-center mt-1" style="width:33.00rem;color:#9f5f5f">next change</div>
-</div>
-</div>
-</div>
-
-<!--
-HOW IT WORKS
-
-Box width is time. Both rows start at the same point, so the length of the
-row is how long the work takes.
-
-Top: you prompt, it develops for a long stretch, you review the lot, and
-if it went the wrong way you redo it. The loop goes back to nothing.
-
-Click. Bottom: Develop is exactly as long. Nothing about the coding got
-faster. What changed is everything around it.
-
-Propose and Change are short, and they happen before a line is written.
-Because you already agreed the plan, Verify is short too, and there is no
-Redo block at all. The loop comes back to the next change, not to nothing.
-
-Set up sits outside the loop. One command, once.
-
-The honest claim: we are not making the AI faster. We are removing the
-part you throw away.
--->
-
----
-class: flex flex-col justify-center items-center
----
 
 # Setting up
 
-<div class="mt-8 text-left" style="width:50rem">
-<div class="flex items-baseline py-2.5">
-<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">1</div>
-<div class="text-lg" style="color:#18181b">Install Podman</div>
-</div>
-<div class="flex items-baseline py-2.5">
-<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">2</div>
-<div class="text-lg" style="color:#18181b">Put your GitHub token in ~/.npmrc</div>
-</div>
-<div class="flex items-baseline py-2.5">
-<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">3</div>
-<div class="font-mono text-sm" style="color:#18181b">podman compose -f compose/compose.yml -f compose/compose.devcontainer.yml up -d</div>
-</div>
-<div class="flex items-baseline py-2.5">
-<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">4</div>
-<div class="font-mono text-sm" style="color:#18181b">podman compose exec workshop bash</div>
-</div>
-<div class="flex items-baseline py-2.5">
-<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">5</div>
-<div class="font-mono text-sm" style="color:#18181b">pnpm start</div>
-</div>
-<div class="flex items-baseline py-2.5">
-<div class="font-mono text-base" style="width:2.5rem;color:#dc2626">6</div>
-<div class="text-lg" style="color:#18181b">Open http://localhost:5173</div>
-</div>
-</div>
+<Points>
+<NumStep :n="1">Install Podman</NumStep>
+<NumStep :n="2">Put your GitHub token in ~/.npmrc</NumStep>
+<NumStep :n="3" body="font-mono text-sm">podman compose -f compose/compose.yml -f compose/compose.devcontainer.yml up -d</NumStep>
+<NumStep :n="4" body="font-mono text-sm">podman compose exec workshop bash</NumStep>
+<NumStep :n="5" body="font-mono text-sm">pnpm start</NumStep>
+<NumStep :n="6">Open http://localhost:5173</NumStep>
+</Points>
 
 <!--
 SETTING UP
@@ -824,89 +638,4 @@ second after. Safe to retype if anything goes wrong.
 
 If someone already runs Postgres on 5432, the runner says so by name and they
 start again with POSTGRES_PORT set to a free port.
--->
-
----
-class: flex flex-col justify-center items-center
----
-
-# Three features, not built
-
-<div class="mt-8 text-left" style="width:42rem">
-<div class="flex items-baseline py-2.5">
-<div class="font-mono text-xl" style="width:2.5rem;color:#dc2626">1</div>
-<div class="text-xl" style="color:#18181b">Dispatch a unit to an incident, and stand it down</div>
-</div>
-<div class="flex items-baseline py-2.5">
-<div class="font-mono text-xl" style="width:2.5rem;color:#dc2626">2</div>
-<div class="text-xl" style="color:#18181b">Show what a unit has been doing this shift</div>
-</div>
-<div class="flex items-baseline py-2.5">
-<div class="font-mono text-xl" style="width:2.5rem;color:#dc2626">3</div>
-<div class="text-xl" style="color:#18181b">Add and remove the crew on a unit</div>
-</div>
-</div>
-
-<div class="text-base text-center mt-10" style="color:#71717a;max-width:52rem">
-<div>Each one is sketched into the console where it belongs.</div>
-<div class="mt-1">The service answers 501 until you build it.</div>
-</div>
-
-<!--
-THREE FEATURES, NOT BUILT
-
-Everything else in the repository works. A dispatcher can see the roster,
-open a unit, and add, edit or delete one. These three are missing on
-purpose.
-
-They are not toy problems. Each one crosses the whole stack: a form in the
-console, a form action, a client call, then handler, service and
-repository in Go, and in one case a migration.
-
-You do not have to hunt for where they go. The console draws each missing
-control in dashed outline in the exact place it belongs, and the service
-answers 501 on their routes, with our error contract, so the gap is
-visible from the API too.
-
-The full brief, with acceptance criteria and pointers to the code to copy,
-is in WORKSHOP.md. The user story for each one is written for you.
--->
-
----
-class: flex flex-col justify-center items-center
----
-
-<div class="text-4xl font-extrabold leading-tight text-center px-16">
-Pick one. Build it end to end.
-</div>
-
-<div class="text-xl text-center mt-10" style="color:#71717a;max-width:52rem">
-Describe it in a sentence, agree the plan before any code,<br/>
-let it build, then walk the acceptance criteria.
-</div>
-
-<div class="text-xl text-center mt-5" style="color:#71717a;max-width:52rem">
-Done is the placeholder gone, <code>pnpm verify</code> green,<br/>
-and the data still there after a restart.
-</div>
-
-<!--
-THE OBJECTIVE
-
-One exercise, not three. One feature finished end to end is worth more
-than three left half built.
-
-The loop is the one from earlier in the deck, and the two steps that need
-you are the same two: agreeing the plan while no code exists yet, and
-checking the result against the criteria once it does. In between, it
-works and nobody has to watch.
-
-Done is specific and it is written down. The placeholder is gone from the
-console and from the service, pnpm verify is green, and the last criterion
-on every exercise is a restart, so prove the data survived rather than
-assuming it.
-
-Notice what is not on that list. Nobody has to look up our coding
-standards, our error contract or our concurrency rule. They came with the
-project.
 -->

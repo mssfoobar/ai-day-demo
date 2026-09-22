@@ -10,8 +10,20 @@
 }
 
 .slidev-layout {
+  position: relative;
   background: #ffffff;
   color: var(--deck-ink);
+}
+
+/* Red gradient sidebar down the left edge, on every slide. */
+.slidev-layout::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0.55rem;
+  height: 34%;
+  background: linear-gradient(to bottom, var(--deck-red), rgba(220, 38, 38, 0));
 }
 
 .slidev-layout h1,
@@ -34,6 +46,11 @@
 
 .slidev-layout code {
   color: var(--deck-red-dark);
+}
+
+/* Emphasis inside a point: weight only, no colour shift. */
+.key {
+  font-weight: 700;
 }
 
 /* Red accent applied to one word or phrase inside a statement. */
@@ -60,4 +77,32 @@
   text-transform: uppercase;
   letter-spacing: 0.16em;
   font-weight: 500;
+}
+
+/* Click reveals: fade and rise, matching the deck's 700ms transitions. */
+.slidev-vclick-target {
+  transition:
+    opacity 700ms ease,
+    transform 700ms ease;
+}
+
+.slidev-vclick-hidden {
+  opacity: 0;
+  transform: translateY(0.4rem);
+}
+
+/* Collapses height as well as opacity, so a v-click reveal pushes siblings down. */
+.arch-collapse {
+  max-height: 3rem;
+  overflow: hidden;
+  transition:
+    max-height 700ms ease,
+    padding-top 700ms ease,
+    opacity 700ms ease,
+    transform 700ms ease;
+}
+
+.arch-collapse.slidev-vclick-hidden {
+  max-height: 0;
+  padding-top: 0;
 }
