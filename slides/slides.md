@@ -213,22 +213,21 @@ What changed is the economics. When a human wrote every line, the spec was overh
 ---
 
 ```yaml
-clicks: 5
+clicks: 6
 ```
 
 # How a change gets built {.text-center}
 
 <div class="flex items-start justify-center gap-10 mt-4">
 <div class="flex flex-col">
-<div class="dgm-wide text-[10px] text-faint mb-3">One change, end to end</div>
 <FlowColumn
-  :steps="['Story', 'Propose spec', 'Review spec', 'Implement', 'Review build', 'Ship']"
+  :steps="['Story', 'Propose spec', 'Review spec', 'Implement', 'Review build', 'Ship', 'Archive']"
   :active="$clicks"
 />
 </div>
 
 <!-- The artefacts only exist while the spec is being proposed and reviewed. -->
-<div
+<SpecStack
   class="flex flex-col gap-2 w-[34rem] transition-all duration-700"
   :class="$clicks === 1 || $clicks === 2 ? 'opacity-100' : 'opacity-0'"
 >
@@ -286,7 +285,7 @@ clicks: 5
     '- [ ] 2.2 Add unit form, edit form, delete confirm',
   ]"
 />
-</div>
+</SpecStack>
 </div>
 
 <!--
@@ -305,7 +304,16 @@ them. This is the gate: nothing is implemented until it passes. If the spec is
 wrong you send it back, and that costs a spec rather than a build. Click.
 
 Implement, approve the build, ship. The documents are gone from the screen
-because the arguing is over. The loop comes back to the next story.
+because the arguing is over.
+
+Archive is the last click, and it is bookkeeping rather than building. The
+change folded its deltas back into the permanent specs, so the next story
+starts from a spec that describes what the system actually does now. Then the
+loop comes back to the next story.
+
+If someone asks in the room: the four documents are clickable. Click one to
+open it and the others close, so you can jump straight to whichever they ask
+about instead of clicking through in order.
 -->
 
 ---
@@ -476,7 +484,7 @@ clicks: 3
 
 # What you review
 
-<div class="flex flex-col gap-2 mt-6 w-[44rem]">
+<SpecStack class="flex flex-col gap-2 mt-6 w-[44rem]">
 <SpecCard
   name="proposal.md"
   caption="why are we doing this"
@@ -531,7 +539,7 @@ clicks: 3
     '- [ ] 2.2 Add unit form, edit form, delete confirm',
   ]"
 />
-</div>
+</SpecStack>
 
 <!--
 WHAT YOU REVIEW
