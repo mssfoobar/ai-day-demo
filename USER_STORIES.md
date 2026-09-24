@@ -66,7 +66,9 @@ None. `unit.position` is already on the wire. Render it with `LocationMapDisplay
 `map_xyz_url`. It draws no marker itself. Its children are laid over the map centre, where
 `position` is, so pass the marker as children. Its root has no size, so give the frame a
 height and `[&>div]:h-full`. Otherwise the map overflows the frame and the unit is clipped
-out of view.
+out of view. The marker is fixed to the frame, not to the map, so also put
+`pointer-events-none` on the frame. That keeps the map a static preview, so a drag or a
+scroll cannot move the map out from under the marker.
 
 Note: that component pulls in Cesium, which touches browser globals at module init, so it
 must be imported dynamically in the browser. A top-level import breaks SSR of the units

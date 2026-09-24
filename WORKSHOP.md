@@ -141,10 +141,15 @@ a link that navigates away. This exercise turns them into a map.
   `position: [lon, lat]`, `zoom: number` and `map_xyz_url: string`.
 - It draws **no marker of its own**. The camera centres on `position`, and whatever you
   pass as its children is laid over the centre of the map, so the children are the marker.
+- That marker is **fixed to the frame, not to the map**. The map still pans and zooms, so
+  after one drag the marker points at the wrong place. Put `pointer-events-none` on the
+  frame. The map then ignores the mouse and stays a static preview, and exploring is what
+  **Show on map** is for.
 - Its root element has **no size**. Give the frame a height and make the component fill it,
-  for example `class="relative h-40 overflow-hidden [&>div]:h-full"` on the wrapper.
-  Without that, the map renders taller than the frame and is clipped. The unit then sits
-  below the visible area while the marker stays in the middle of the frame.
+  for example
+  `class="pointer-events-none relative h-40 overflow-hidden [&>div]:h-full"` on the
+  wrapper. Without that, the map renders taller than the frame and is clipped. The unit then
+  sits below the visible area while the marker stays in the middle of the frame.
 - The tile URL the map page uses is `https://tile.openstreetmap.org/{z}/{x}/{y}.png`
   (`OSM_URL` in `map/+page.svelte`). Lift it somewhere both pages can read rather than
   typing it twice.
@@ -164,7 +169,8 @@ work. Do **not** fix this by turning SSR off for the units page.
 
 ### Out of scope
 
-Panning and zooming, a layer switcher, showing more than the selected unit, the incident's
+Panning and zooming (the inline map is a static preview, so turn them off rather than
+leave them on), a layer switcher, showing more than the selected unit, the incident's
 location (that is exercise 3, on the map page), and replacing the map page.
 
 ---
