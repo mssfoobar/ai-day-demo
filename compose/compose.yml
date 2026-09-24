@@ -7,6 +7,13 @@ name: aoh
 #
 #     podman compose up -d gis-service
 #
+# Host paths in the included files are written `${COMPOSE_PROJECT_DIR:-..}/<dir>/...`,
+# because the two compose providers resolve a relative path in an included file
+# differently: docker-compose against that file's own directory, podman-compose against
+# this one. podman-compose sets COMPOSE_PROJECT_DIR to this directory; docker-compose
+# leaves it unset, and the `..` fallback climbs from the included file back to here.
+# A plain `./` path works under one provider and yields an empty mount under the other.
+#
 include:
     - ./traefik/compose.yml
     - ./iams/compose.yml

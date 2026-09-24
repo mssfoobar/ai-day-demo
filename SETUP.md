@@ -106,20 +106,16 @@ On macOS and Windows, Podman Desktop needs a machine running before any
 container starts. Open it once and start the machine it offers.
 
 `podman compose` delegates to a compose provider, so you need `podman-compose`
-on your PATH as well. Podman Desktop offers to install one during onboarding.
-Check what you have with:
+or `docker-compose` on your PATH as well. Podman Desktop offers to install one
+during onboarding. Check what you have with:
 
 ```sh
 podman compose version
 ```
 
-If that prints `podman-compose`, you are set. If it reports no provider,
-install it (`brew install podman-compose`, or `pip install podman-compose`).
-
-Take `podman-compose`, not `docker-compose`. The two resolve relative paths
-inside an included compose file differently, and `compose/` is written for
-`podman-compose`. Podman prefers `docker-compose` when both are on your PATH,
-and the stack then starts with empty config mounts.
+If that prints a version, you are set. If it reports no provider, install
+`podman-compose` (`brew install podman-compose`, or
+`pip install podman-compose`). Either provider runs the stack.
 
 ### Python
 

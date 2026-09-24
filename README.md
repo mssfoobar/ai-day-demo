@@ -20,9 +20,8 @@ installing.
   dropped corepack). Take the `@10`: an unpinned install gives pnpm 12, and the
   lockfile and `pnpm-workspace.yaml` here were written for 10.
 - **Go 1.25+**
-- **Podman**, with `podman-compose` as its provider; check yours with
-  `podman compose version`. Not `docker-compose`: the two resolve relative paths in an
-  included compose file differently, and `compose/` is written for `podman-compose`.
+- **Podman**, with `podman-compose` or `docker-compose` as its provider; check yours
+  with `podman compose version`.
 - **Claude Code**, for the workshop exercises:
   `curl -fsSL https://claude.ai/install.sh | bash`, or
   `irm https://claude.ai/install.ps1 | iex` in Windows PowerShell

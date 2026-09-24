@@ -20,7 +20,7 @@ services:
             - gis-db-volume:/var/lib/postgresql/data
             # gis-service migrates its tables on boot but does not CREATE SCHEMA;
             # this seeds the schema namespace (see ./db-init/schema.sql).
-            - ./gis/db-init:/docker-entrypoint-initdb.d/
+            - ${COMPOSE_PROJECT_DIR:-..}/gis/db-init:/docker-entrypoint-initdb.d/
         healthcheck:
             test: ["CMD-SHELL", "pg_isready -U ${DEV_USER} -d gis"]
             interval: 5s
