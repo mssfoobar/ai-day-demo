@@ -63,7 +63,10 @@ selection to a trip to the map page.
 
 None. `unit.position` is already on the wire. Render it with `LocationMapDisplay`
 (`@mssfoobar/gis-web-sdk/location-map-display`), which takes `position`, `zoom` and
-`map_xyz_url`.
+`map_xyz_url`. It draws no marker itself. Its children are laid over the map centre, where
+`position` is, so pass the marker as children. Its root has no size, so give the frame a
+height and `[&>div]:h-full`. Otherwise the map overflows the frame and the unit is clipped
+out of view.
 
 Note: that component pulls in Cesium, which touches browser globals at module init, so it
 must be imported dynamically in the browser. A top-level import breaks SSR of the units
