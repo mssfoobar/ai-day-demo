@@ -1,5 +1,9 @@
 name: aoh
 
+include:
+    - ../traefik/compose.yml
+    - ../sds/compose.yml
+
 services:
     iams-db:
         image: postgres:17.0
