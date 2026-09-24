@@ -366,11 +366,11 @@ check_podman() {
 		return
 	fi
 	info "$(podman --version)"
-	if podman compose version >/dev/null 2>&1; then
+	if podman compose version 2>&1 | grep -i 'docker compose' >/dev/null; then
 		record Podman ok "$(podman --version | awk '{print $3}')"
 	else
-		warn "no compose provider. Install podman-compose while you still have internet."
-		record Podman missing "podman compose version reports no provider"
+		warn "no docker-compose provider. Install docker-compose while you still have internet."
+		record Podman missing "podman compose version does not report docker-compose"
 	fi
 }
 

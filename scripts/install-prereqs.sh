@@ -275,17 +275,19 @@ install_podman() {
 		esac
 	fi
 
-	# `podman compose` is a dispatcher; without a provider it cannot start anything.
-	if podman compose version >/dev/null 2>&1; then
-		info "compose provider present"
+	# `podman compose` is a dispatcher, and compose/ is written for docker-compose.
+	# podman-compose resolves the stack's mount paths differently; podman prefers
+	# docker-compose once both are installed.
+	if podman compose version 2>&1 | grep -i 'docker compose' >/dev/null; then
+		info "docker-compose provider present"
 	else
-		info "no compose provider, installing podman-compose"
+		info "no docker-compose provider, installing docker-compose"
 		case "$PM" in
-			brew) run brew install podman-compose ;;
-			apt) run sudo apt-get install -y podman-compose ;;
-			dnf) run sudo dnf install -y podman-compose ;;
-			pacman) run sudo pacman -S --noconfirm podman-compose ;;
-			*) fail "install podman-compose, or docker-compose" ;;
+			brew) run brew install docker-compose ;;
+			apt) run sudo apt-get install -y docker-compose-v2 ;;
+			dnf) run sudo dnf install -y docker-compose ;;
+			pacman) run sudo pacman -S --noconfirm docker-compose ;;
+			*) fail "install docker-compose" ;;
 		esac
 	fi
 
@@ -308,11 +310,11 @@ install_podman() {
 		run podman machine ssh 'sudo mkdir -p /etc/containers/containers.conf.d && printf "[containers]\nhttp_proxy = false\n" | sudo tee /etc/containers/containers.conf.d/99-no-container-proxy.conf >/dev/null'
 	fi
 
-	if have podman && podman compose version >/dev/null 2>&1; then
+	if have podman && podman compose version 2>&1 | grep -i 'docker compose' >/dev/null; then
 		record Podman ok "$(podman --version | awk '{print $3}')"
 	else
 		record Podman missing "https://podman-desktop.io"
-		[ "$CHECK_ONLY" = 1 ] || fail "podman or its compose provider is still missing"
+		[ "$CHECK_ONLY" = 1 ] || fail "podman or docker-compose is still missing"
 	fi
 }
 

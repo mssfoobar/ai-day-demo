@@ -99,23 +99,28 @@ Claude Code are installed from the terminal, and both have a section below.
 Podman:
 
 - macOS and Windows: Podman Desktop, <https://podman-desktop.io>
-- Linux: `sudo apt install podman podman-compose`, or your distribution's
+- Linux: `sudo apt install podman docker-compose-v2`, or your distribution's
   equivalent
 
 On macOS and Windows, Podman Desktop needs a machine running before any
 container starts. Open it once and start the machine it offers.
 
-`podman compose` delegates to a compose provider, so you need `podman-compose`
-or `docker-compose` on your PATH as well. Podman Desktop offers to install one
-during onboarding. Check what you have with:
+`podman compose` delegates to a compose provider, and this stack needs
+`docker-compose`. Podman Desktop offers to install it during onboarding. Check
+what you have with:
 
 ```sh
 podman compose version
 ```
 
-If that prints a version, you are set. If it reports no provider, install
-`podman-compose` (`brew install podman-compose`, or
-`pip install podman-compose`). Either provider runs the stack.
+If that prints `Docker Compose version`, you are set. If it reports no
+provider, or prints `podman-compose`, install `docker-compose`
+(`brew install docker-compose`, or `sudo apt install docker-compose-v2`).
+Podman prefers it over `podman-compose` when both are installed.
+
+Traefik mounts the Podman socket. To run the stack under Docker instead, copy
+`compose/compose.override.sample.yml` to `compose/compose.override.yml` and
+uncomment its traefik block, which mounts `/var/run/docker.sock` in its place.
 
 ### Python
 
