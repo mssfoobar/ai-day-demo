@@ -94,7 +94,9 @@ function composeRunner() {
 function requireDockerCompose(runner) {
 	if (runner !== 'podman') return;
 	const probe = spawnSync('podman', ['compose', 'version'], { encoding: 'utf8' });
-	if (!/podman-compose/i.test(`${probe.stdout}${probe.stderr}`)) return;
+	// Only podman-compose prints this line. Podman's stderr notice names
+	// `podman-compose(1)` whichever provider it runs, so it must not be matched.
+	if (!/^podman-compose version/m.test(probe.stdout ?? '')) return;
 
 	log('infra', 'podman compose is using podman-compose; this stack needs docker-compose');
 	log('infra', 'install docker-compose (see SETUP.md). Podman prefers it when both are present');
