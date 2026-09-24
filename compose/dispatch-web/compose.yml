@@ -7,6 +7,10 @@
 
 name: aoh
 
+include:
+    - ../traefik/compose.yml
+    - ../iams/compose.yml
+
 services:
     dispatch-web:
         # `profiles: [apps]` matches the Turborepo `apps/dispatch-web/` convention.

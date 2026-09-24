@@ -85,6 +85,25 @@ function composeRunner() {
 }
 
 /**
+ * Refuses to run when `podman compose` dispatches to podman-compose.
+ *
+ * compose/ is written for docker-compose. podman-compose resolves relative host paths in
+ * the included files against compose/ rather than each file's own directory, so every
+ * config mount comes up empty and the failures surface far away: no realm, no schema.
+ */
+function requireDockerCompose(runner) {
+	if (runner !== 'podman') return;
+	const probe = spawnSync('podman', ['compose', 'version'], { encoding: 'utf8' });
+	// Only podman-compose prints this line. Podman's stderr notice names
+	// `podman-compose(1)` whichever provider it runs, so it must not be matched.
+	if (!/^podman-compose version/m.test(probe.stdout ?? '')) return;
+
+	log('infra', 'podman compose is using podman-compose; this stack needs docker-compose');
+	log('infra', 'install docker-compose (see SETUP.md). Podman prefers it when both are present');
+	process.exit(1);
+}
+
+/**
  * Warns when the podman VM will copy its proxy settings into every container.
  *
  * `podman machine init` inherits the host's HTTP_PROXY. Containers then address each
@@ -372,6 +391,7 @@ if (skipInfra) {
 		log('infra', 'no podman or docker found. The stack is required — see SETUP.md');
 		process.exit(1);
 	}
+	requireDockerCompose(runner);
 	warnOnContainerProxy(runner);
 	startInfra(runner);
 	await waitForInfra(runner);

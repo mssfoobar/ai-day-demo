@@ -1,5 +1,9 @@
 name: aoh
 
+include:
+    - ../traefik/compose.yml
+    - ../sds/compose.yml
+
 services:
     iams-db:
         image: postgres:17.0
@@ -47,7 +51,7 @@ services:
             - traefik.http.routers.iams-keycloak.middlewares=permissive-headers@docker
             - traefik.http.services.iams-keycloak.loadBalancer.server.port=8080
         volumes:
-            - ./iams/keycloak:/opt/keycloak/data/import
+            - ./keycloak:/opt/keycloak/data/import
         healthcheck:
             test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q '\"status\": \"UP\"'"]
             interval: 10s
@@ -127,7 +131,7 @@ services:
             - --env-var
             - DEV_PASSWORD=${DEV_PASSWORD}
         volumes:
-            - ./iams/init:/etc/newman
+            - ./init:/etc/newman
         depends_on:
             iams-keycloak:
                 condition: service_healthy
@@ -151,7 +155,7 @@ services:
     # edits, which is the #1 hiccup users hit when iterating on authz.
     project-aas-init:
         build:
-            context: ./iams/init/project-aas
+            context: ./init/project-aas
         environment:
             IAMS_AAS_ENDPOINT: http://iams-aas:8080
             IAM_ENDPOINT: http://iams-keycloak:8080
@@ -160,8 +164,8 @@ services:
             DEV_USER: ${DEV_USER}
             DEV_PASSWORD: ${DEV_PASSWORD}
         volumes:
-            - ./iams/init/project-aas/roles.yaml:/app/roles.yaml:ro
-            - ./iams/init/project-aas/bootstrap.py:/app/bootstrap.py:ro
+            - ./init/project-aas/roles.yaml:/app/roles.yaml:ro
+            - ./init/project-aas/bootstrap.py:/app/bootstrap.py:ro
         depends_on:
             iams-init:
                 condition: service_completed_successfully

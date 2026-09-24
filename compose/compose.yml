@@ -1,11 +1,16 @@
 name: aoh
 
-# The single entry point for the stack. The files below no longer include one another:
-# podman-compose concatenates list fields when a file is included twice, which corrupts
-# any healthcheck or ports block it reaches. Run a subset from here instead, and
-# depends_on pulls in the rest:
+# The single entry point for the stack. Each file below also includes the files it
+# depends on, so any one of them runs on its own; docker-compose loads a file reached
+# along several include paths once. Run a subset from here, and depends_on pulls in the
+# rest:
 #
 #     podman compose up -d gis-service
+#
+# The stack is written for docker-compose, which resolves a relative host path in an
+# included file against that file's own directory, as the Compose spec says.
+# podman-compose resolves it against this directory instead, so every config mount comes
+# up empty; `pnpm start` refuses to run under it.
 #
 include:
     - ./traefik/compose.yml

@@ -1,5 +1,9 @@
 name: aoh
 
+include:
+    - ../traefik/compose.yml
+    - ../iams/compose.yml
+
 services:
     rtus-db:
         image: postgres:17.0
