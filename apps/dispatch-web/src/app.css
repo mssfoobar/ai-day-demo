@@ -16,6 +16,13 @@
    ============================================ */
 @import '@mssfoobar/ui/styles/app.css';
 
+/* Scan the GIS SDK's components too. The same Tailwind rooting applies: without this,
+ * a utility only the SDK uses gets no CSS rule. `LocationMapDisplay`'s marker overlay
+ * relies on `z-20`, which nothing else here uses, so its pin rendered under the map.
+ * It must stay a CSS `@import` in this file, after the ui one, so its `@source` joins
+ * the same Tailwind pass (aoh-gis-integration, step 8). */
+@import '@mssfoobar/gis-web-sdk/styles/app.css';
+
 /* Scan THIS app's own source for utility classes.
  *
  * Required, and easy to miss: `@import 'tailwindcss'` lives inside the package's

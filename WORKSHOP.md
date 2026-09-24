@@ -139,6 +139,12 @@ a link that navigates away. This exercise turns them into a map.
 - **`LocationMapDisplay`** (`@mssfoobar/gis-web-sdk/location-map-display`) is the component
   for exactly this: one location, its own tiles, no RTUS. Props are
   `position: [lon, lat]`, `zoom: number` and `map_xyz_url: string`.
+- It draws **no marker of its own**. The camera centres on `position`, and whatever you
+  pass as its children is laid over the centre of the map, so the children are the marker.
+- Its root element has **no size**. Give the frame a height and make the component fill it,
+  for example `class="relative h-40 overflow-hidden [&>div]:h-full"` on the wrapper.
+  Without that, the map renders taller than the frame and is clipped. The unit then sits
+  below the visible area while the marker stays in the middle of the frame.
 - The tile URL the map page uses is `https://tile.openstreetmap.org/{z}/{x}/{y}.png`
   (`OSM_URL` in `map/+page.svelte`). Lift it somewhere both pages can read rather than
   typing it twice.
