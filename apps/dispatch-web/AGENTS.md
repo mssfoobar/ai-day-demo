@@ -103,6 +103,10 @@ border">`. Hand-rolling silently bypasses theme tokens and dark mode.
   app uses but the package doesn't is emitted into the DOM with no CSS rule behind it —
   the class is present, the token is defined, and nothing renders. That is how the
   selected-row highlight (`bg-accent`) first shipped invisible.
+  `src/app.css` imports `@mssfoobar/gis-web-sdk/styles/app.css` for the same reason,
+  because the SDK's components use utilities this app does not. **Do not remove that either.**
+  Without it `LocationMapDisplay`'s marker overlay loses its `z-20`, and its pin renders
+  under the map.
 
 - **API quirks worth knowing** (they fail silently, not loudly):
   - `Badge` splits shape from palette: `<Badge variant="soft" color="success">`.
