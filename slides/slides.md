@@ -26,10 +26,11 @@ defaults:
 <Points>
 <NumStep :n="1" pad="py-1">Background</NumStep>
 <NumStep :n="2" pad="py-1">AI Coder</NumStep>
-<NumStep :n="3" pad="py-1">Components</NumStep>
+<NumStep :n="3" pad="py-1">How it works</NumStep>
 <SubPoint>AGIL Ops Hub</SubPoint>
 <SubPoint>Agent Skills</SubPoint>
 <SubPoint>OpenSpec</SubPoint>
+<SubPoint>Components</SubPoint>
 <NumStep :n="4" pad="py-1">Workshop</NumStep>
 <NumStep :n="5" pad="py-1">Build your own</NumStep>
 </Points>
@@ -127,7 +128,7 @@ AGIL OPS HUB
 Yours to write. Worth covering, based on what the deck already claims:
 
 - what AGIL Ops Hub is, in one sentence
-- that it is the middle layer from the Components slide, the only red box
+- that it is the middle layer of the Components diagram coming up, the red box
 - what is actually in it: the knowledge, the skills, the conventions
 - who maintains it and how a team gets changes into it
 - why it carries over when the harness or the model is swapped
@@ -147,7 +148,7 @@ Yours to write. Worth covering, based on what the deck already claims:
 <!--
 SKILLS
 
-This is the red box from the Components slide, on its own.
+This is the red box of the Components diagram coming up, on its own.
 
 A skill is not a prompt. It is our standards written down in a form the
 agent reads by itself: how we code, how we design, how we review.
@@ -193,15 +194,16 @@ What changed is the economics. When a human wrote every line, the spec was overh
 <!--
 COMPONENTS
 
+This is the wrap-up of the three you have just seen, not an introduction to
+them. Name each piece as you point at it and move on.
+
 Start with the dashed box. Everything inside it runs on the developer's own
 machine. Only the model sits outside, and that is the only thing that leaves.
 
 The developer machine has the CLI installed. It hydrates the project with the
 context and knowledge of the AGIL Ops Hub platform.
 
-Click. That is what it installs. The knowledge and skills: code, design, code
-review, test, devops, documentation. And OpenSpec, a lightweight framework
-for spec-driven development.
+Click. That is what it installs: the skills the room just saw, and OpenSpec.
 
 Click. The coding harness reads those artifacts and feeds them to an LLM,
 cloud or on-prem. That is what makes it consistently aware of the domain
