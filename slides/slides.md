@@ -48,8 +48,8 @@ the session.
 # Background
 
 <Points>
-<Bullet>Tasked to build a C2 application, as fast as AI could take us.</Bullet>
-<Bullet>A C2 application needs an <span class="key">exorbitant amount of detail</span>.</Bullet>
+<Bullet>Build a C2 application, as fast as AI could take us.</Bullet>
+<Bullet>A C2 application needs a <span class="key">huge amount of detail</span>.</Bullet>
 <Bullet>Whatever you leave out, the model <span class="key">fills in for you</span>.</Bullet>
 <Bullet>And you find out only <span class="key">after</span> it is finished.</Bullet>
 </Points>
@@ -70,7 +70,7 @@ Which leads to the next problem where you realised whats wrong only after it is 
 # Two questions
 
 <Points>
-<NumStep :n="1">Can we keep the results <span class="key">consistent</span> </NumStep>
+<NumStep :n="1">Can we keep the results <span class="key">consistent and grouded to our platform</span> </NumStep>
 <NumStep :n="2">Can we pin down what it builds, <span class="key">before</span> it builds it?</NumStep>
 </Points>
 
@@ -108,33 +108,6 @@ class: text-center
 
 <!--
 AI Coder is a coding tool that generates C2 applications quickly using the AGIL Ops Hub platform.
--->
-
----
-
-# Components
-
-<ArchDiagram class="mt-6" />
-
-<!--
-COMPONENTS
-
-Start with the dashed box. Everything inside it runs on the developer's own
-machine. Only the model sits outside, and that is the only thing that leaves.
-
-The developer machine has the CLI installed. It hydrates the project with the
-context and knowledge of the AGIL Ops Hub platform.
-
-Click. That is what it installs. The knowledge and skills: code, design, code
-review, test, devops, documentation. And OpenSpec, a lightweight framework
-for spec-driven development.
-
-Click. The coding harness reads those artifacts and feeds them to an LLM,
-cloud or on-prem. That is what makes it consistently aware of the domain
-knowledge before it writes anything.
-
-The harness and the model are both swappable. The red box is the part that
-is ours, and it carries over every time.
 -->
 
 ---
@@ -208,6 +181,33 @@ The idea isn't new. What spec-driven used to be like was like this.
 *Display loop*
 
 What changed is the economics. When a human wrote every line, the spec was overhead you paid once and then abandoned as the code drifted. Now that generating code is cheap and reviewing it is the bottleneck, the expensive scarce thing is a precise statement of intent. Agents will produce something plausible for any prompt you give them, including a badly underspecified one, so vagueness doesn't fail loudly. It fails as confident, working code that solves the wrong problem.
+-->
+
+---
+
+# Components
+
+<ArchDiagram class="mt-6" />
+
+<!--
+COMPONENTS
+
+Start with the dashed box. Everything inside it runs on the developer's own
+machine. Only the model sits outside, and that is the only thing that leaves.
+
+The developer machine has the CLI installed. It hydrates the project with the
+context and knowledge of the AGIL Ops Hub platform.
+
+Click. That is what it installs. The knowledge and skills: code, design, code
+review, test, devops, documentation. And OpenSpec, a lightweight framework
+for spec-driven development.
+
+Click. The coding harness reads those artifacts and feeds them to an LLM,
+cloud or on-prem. That is what makes it consistently aware of the domain
+knowledge before it writes anything.
+
+The harness and the model are both swappable. The red box is the part that
+is ours, and it carries over every time.
 -->
 
 ---
@@ -322,7 +322,7 @@ about instead of clicking through in order.
 clicks: 1
 ```
 
-# Where you check the work {.text-center}
+# Whats the Difference? {.text-center}
 
 <div class="flex items-start justify-center gap-20 mt-10">
 <LoopDiagram
@@ -373,56 +373,52 @@ tool doing the work, and then what they need to install before the session.
 
 ---
 
-```yaml
-clicks: 1
-```
+# Setting up
 
-# One command
-
-<TermPanel>
-<TermDots />
-<PromptLine sigil="$">aia init</PromptLine>
-<div class="font-mono text-sm mt-3"><span class="text-term-dim">? </span><span class="text-faint">Project name</span><span class="pl-4 text-term-fg">fleet-dispatch-console</span></div>
-<div class="mt-4">
-<CheckLine>Resolving template source</CheckLine>
-<CheckLine>Configuring OpenSpec workflows</CheckLine>
-<CheckLine>Initializing OpenSpec</CheckLine>
-<CheckLine>Installing agent skills</CheckLine>
-<CheckLine>Initializing git repository</CheckLine>
-</div>
-<div class="font-mono text-base font-bold mt-5 text-term-fg">Project ready</div>
-</TermPanel>
+<Points>
+<NumStep :n="1">Install Node 24+, Go 1.25+ and Python 3</NumStep>
+<NumStep :n="2">Install Podman, and start its machine</NumStep>
+<NumStep :n="3" body="font-mono text-sm">npm install -g pnpm@10</NumStep>
+<NumStep :n="4" body="font-mono text-sm">curl -fsSL https://claude.ai/install.sh | bash</NumStep>
+<NumStep :n="5" body="font-mono text-sm">cd ai-day-demo && pnpm start</NumStep>
+<NumStep :n="6">Open http://127.0.0.1.nip.io:5173/aoh/dispatch/units</NumStep>
+</Points>
 
 <!--
-ONE COMMAND
+SETTING UP
 
-This is the answer to "what is it". It is a command-line tool. Show the
-terminal and let it speak.
+The only slide where falling behind costs someone the session, so walk it.
 
-The command is just `aia init`. It asks for the project name, so the name
-is an answer, not part of the command.
+Everything runs natively. Only PostgreSQL is a container, which is what Podman
+is for.
 
-Then the real steps, in the real order. It pulls the template, configures
-the spec workflow, installs the twenty-three agent skills, and commits.
-About twenty seconds.
+Step two matters on macOS and Windows: Podman Desktop needs its machine started
+before any container will run. Ask the room to open it now.
 
-Click for the line underneath. Equips is the word: the project arrives
-already carrying how we build, so nobody has to remember it or look it up.
+Python is not used by the project. It is there for the scripts the agent writes
+during the exercises. macOS and Linux already have it; Windows people need the
+installer, and need to tick "Add python.exe to PATH".
 
-Do not say "nothing to install". There are prerequisites, and the room may
-know it: Node, pnpm, Podman, OpenSpec, Git, make and Python. The CLI checks
-them for you with `aia check` and tells you what is missing. What you do not
-install is our standards, our skills or the workflow. Those arrive with the
-project.
+Steps three and four are the two that are typed rather than downloaded. Say the
+@10 out loud: unpinned gives pnpm 12, which our lockfile was not written for.
+Windows PowerShell runs step four as: irm https://claude.ai/install.ps1 | iex
 
-Be straight if asked what is not in there: the application. No app code,
-no platform modules. The repository is not the product, it is everything
-the product needs to be built our way.
+After step four they need a fresh terminal before claude is on PATH. Tell them
+now, or a third of the room reports command not found.
 
-This is exactly the first commit of the demo repository, pinned at
-@mssfoobar/agent-skills v0.9.0. Run it today and you get the same tree.
+No token to set up. The GitHub Packages credential for our six dependencies,
+including the design system, is checked into .npmrc in the repo.
+
+pnpm start installs, pulls PostgreSQL, compiles the Go service, then runs. A
+few minutes the first time, under a second after. Safe to retype if anything
+goes wrong.
+
+That first run is the one that needs internet. It fills node_modules, the Go
+module cache and the Podman image store, and all three survive going offline.
+
+If someone already runs Postgres on 5432, the runner says so by name and they
+start again with POSTGRES_PORT set to a free port.
 -->
-
 ---
 
 ```yaml
@@ -611,49 +607,52 @@ named step, rather than carrying on and reporting at the end.
 
 ---
 
-# Setting up
+```yaml
+clicks: 1
+```
 
-<Points>
-<NumStep :n="1">Install Node 24+, Go 1.25+ and Python 3</NumStep>
-<NumStep :n="2">Install Podman, and start its machine</NumStep>
-<NumStep :n="3" body="font-mono text-sm">npm install -g pnpm@10</NumStep>
-<NumStep :n="4" body="font-mono text-sm">curl -fsSL https://claude.ai/install.sh | bash</NumStep>
-<NumStep :n="5" body="font-mono text-sm">cd ai-day-demo && pnpm start</NumStep>
-<NumStep :n="6">Open http://127.0.0.1.nip.io:5173/aoh/dispatch/units</NumStep>
-</Points>
+# One command
+
+<TermPanel>
+<TermDots />
+<PromptLine sigil="$">aia init</PromptLine>
+<div class="font-mono text-sm mt-3"><span class="text-term-dim">? </span><span class="text-faint">Project name</span><span class="pl-4 text-term-fg">fleet-dispatch-console</span></div>
+<div class="mt-4">
+<CheckLine>Resolving template source</CheckLine>
+<CheckLine>Configuring OpenSpec workflows</CheckLine>
+<CheckLine>Initializing OpenSpec</CheckLine>
+<CheckLine>Installing agent skills</CheckLine>
+<CheckLine>Initializing git repository</CheckLine>
+</div>
+<div class="font-mono text-base font-bold mt-5 text-term-fg">Project ready</div>
+</TermPanel>
 
 <!--
-SETTING UP
+ONE COMMAND
 
-The only slide where falling behind costs someone the session, so walk it.
+This is the answer to "what is it". It is a command-line tool. Show the
+terminal and let it speak.
 
-Everything runs natively. Only PostgreSQL is a container, which is what Podman
-is for.
+The command is just `aia init`. It asks for the project name, so the name
+is an answer, not part of the command.
 
-Step two matters on macOS and Windows: Podman Desktop needs its machine started
-before any container will run. Ask the room to open it now.
+Then the real steps, in the real order. It pulls the template, configures
+the spec workflow, installs the twenty-three agent skills, and commits.
+About twenty seconds.
 
-Python is not used by the project. It is there for the scripts the agent writes
-during the exercises. macOS and Linux already have it; Windows people need the
-installer, and need to tick "Add python.exe to PATH".
+Click for the line underneath. Equips is the word: the project arrives
+already carrying how we build, so nobody has to remember it or look it up.
 
-Steps three and four are the two that are typed rather than downloaded. Say the
-@10 out loud: unpinned gives pnpm 12, which our lockfile was not written for.
-Windows PowerShell runs step four as: irm https://claude.ai/install.ps1 | iex
+Do not say "nothing to install". There are prerequisites, and the room may
+know it: Node, pnpm, Podman, OpenSpec, Git, make and Python. The CLI checks
+them for you with `aia check` and tells you what is missing. What you do not
+install is our standards, our skills or the workflow. Those arrive with the
+project.
 
-After step four they need a fresh terminal before claude is on PATH. Tell them
-now, or a third of the room reports command not found.
+Be straight if asked what is not in there: the application. No app code,
+no platform modules. The repository is not the product, it is everything
+the product needs to be built our way.
 
-No token to set up. The GitHub Packages credential for our six dependencies,
-including the design system, is checked into .npmrc in the repo.
-
-pnpm start installs, pulls PostgreSQL, compiles the Go service, then runs. A
-few minutes the first time, under a second after. Safe to retype if anything
-goes wrong.
-
-That first run is the one that needs internet. It fills node_modules, the Go
-module cache and the Podman image store, and all three survive going offline.
-
-If someone already runs Postgres on 5432, the runner says so by name and they
-start again with POSTGRES_PORT set to a free port.
+This is exactly the first commit of the demo repository, pinned at
+@mssfoobar/agent-skills v0.9.0. Run it today and you get the same tree.
 -->
