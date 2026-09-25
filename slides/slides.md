@@ -31,6 +31,7 @@ defaults:
 <SubPoint>Agent Skills</SubPoint>
 <SubPoint>OpenSpec</SubPoint>
 <NumStep :n="4" pad="py-1">Workshop</NumStep>
+<NumStep :n="5" pad="py-1">Build your own</NumStep>
 </Points>
 
 <!--
@@ -39,8 +40,8 @@ CONTENTS
 Thirty seconds. Read the five, do not expand on any of them.
 
 The only one worth a beat is three: that is the part most of the room has
-not seen before. Four is the demo, five is what they need to do before
-the session.
+not seen before. Four is the demo and what to install. Five is how they
+make the AI coder their own.
 -->
 
 ---
@@ -656,4 +657,361 @@ module cache and the Podman image store, and all three survive going offline.
 
 If someone already runs Postgres on 5432, the runner says so by name and they
 start again with POSTGRES_PORT set to a free port.
+-->
+
+---
+
+<SectionTitle>Build your own</SectionTitle>
+
+<!--
+BUILD YOUR OWN
+
+Section marker. Everything so far used our AI coder. This part shows that it
+is made of plain files in the repository, and that they can write their own.
+-->
+
+---
+
+```yaml
+clicks: 3
+```
+
+# Three things you write
+
+<div class="flex flex-col items-center gap-3 mt-8">
+<div class="transition-all duration-700" :class="$clicks >= 1 ? 'opacity-100' : 'opacity-0'">
+<StackLayer>AGENTS.md <span class="font-normal opacity-70">· read every session</span></StackLayer>
+</div>
+<div class="transition-all duration-700" :class="$clicks >= 2 ? 'opacity-100' : 'opacity-0'">
+<StackLayer>Agent skills <span class="font-normal opacity-70">· read when the task needs them</span></StackLayer>
+</div>
+<div class="transition-all duration-700" :class="$clicks >= 3 ? 'opacity-100' : 'opacity-0'">
+<StackLayer>OpenSpec schema <span class="font-normal opacity-70">· the steps every change takes</span></StackLayer>
+</div>
+</div>
+
+<!--
+THREE THINGS YOU WRITE
+
+None of this is code. It is Markdown and YAML in the repository, reviewed and
+versioned like code. That is the point of the section: they can write it.
+
+Click. AGENTS.md: the rules every session reads before it does anything. This
+repo keeps it at the root. CLAUDE.md is a one-line import of it, so Claude Code
+and the other tools that read AGENTS.md all get the same rules.
+
+Click. Agent skills: know-how the agent reads only when the task calls for it.
+We ship twenty-three for the platform.
+
+Click. The OpenSpec schema: which documents every change produces, in what
+order, and what each must contain.
+
+The next slides take the last two in turn.
+-->
+
+---
+
+```yaml
+clicks: 2
+```
+
+# Anatomy of a skill
+
+<SpecStack class="flex flex-col gap-2 mt-6 w-[44rem]">
+<SpecCard
+  name="SKILL.md"
+  caption="when to use it, and how"
+  :active="$clicks === 0"
+  :lines="[
+    '---',
+    'name: aoh-gis-integration',
+    'description: Integrate the AOH GIS module. Use when a user wants a map.',
+    '---',
+    '### Step 1. Opt the map route out of SSR',
+    '### Step 8. Styles',
+  ]"
+/>
+<SpecCard
+  name="references/"
+  caption="detail, read when a step needs it"
+  :active="$clicks === 1"
+  :lines="[
+    '- components.md',
+    '- entities.md',
+    '- auth-and-config.md',
+    '- bff-bookmarks.md',
+  ]"
+/>
+<SpecCard
+  name="scripts/"
+  caption="things it runs instead of rewriting"
+  :active="$clicks === 2"
+  :lines="['- seed-geoentities.sh']"
+/>
+</SpecStack>
+
+<!--
+ANATOMY OF A SKILL
+
+A skill is a folder. This is the real GIS skill from this repository, cut down
+to fit.
+
+SKILL.md: a name, a description, then the steps. The description is abridged
+here; the real one lists the phrases people use when they want a map.
+
+Click. references/: the detail. The agent opens these only when a step needs
+them, so a long reference costs nothing until it is used.
+
+Click. scripts/: things the agent runs rather than working out again each time.
+Here, seeding test entities onto the map.
+
+The part to write most carefully is the description. Next slide.
+-->
+
+---
+
+```yaml
+class: text-center
+```
+
+<div class="flex flex-col items-center justify-center h-full">
+  <div class="text-6xl font-bold tracking-tight">The description is the trigger</div>
+  <div class="rule-red mt-6"></div>
+  <div class="text-2xl text-muted mt-10 max-w-[44rem]">Write it in the words people will ask with</div>
+</div>
+
+<!--
+THE DESCRIPTION IS THE TRIGGER
+
+Only the name and description of each skill sit in the agent's context all the
+time, for all twenty-nine skills at once. The body loads when the agent decides
+the task matches the description.
+
+So a skill with a vague description never loads, however good its body is.
+
+Write the description the way a developer phrases the request. Ours list them
+outright: "add a map", "integrate GIS", "render entities on a map".
+-->
+
+---
+
+# A mistake, written down once
+
+<SpecCard
+  class="mt-6 w-[44rem]"
+  name="apps/dispatch-web/AGENTS.md"
+  caption="added while preparing this workshop"
+  :active="true"
+  :lines="[
+    '### Tailwind only scans this app because src/app.css says so',
+    '- It also imports @mssfoobar/gis-web-sdk/styles/app.css.',
+    '- Do not remove that either.',
+    '- Without it the marker overlay loses its z-20: the pin renders under the map.',
+  ]"
+/>
+
+<!--
+A MISTAKE, WRITTEN DOWN ONCE
+
+A real one. While preparing exercise two, the inline map rendered but the unit
+pin did not.
+
+The app never imported the GIS SDK stylesheet, so one CSS class the pin relies
+on had no rule, and the pin sat underneath the map. The fix was a single line.
+
+These lines, abridged from the real file, are what stops the next agent from
+deleting it again. That is the habit to leave with: when the agent gets
+something wrong, write down why, where the next agent will read it.
+
+When the lesson is about the platform rather than this app, it belongs in the
+platform skill, here aoh-gis-integration, so every project gets it.
+-->
+
+---
+
+```yaml
+class: text-center
+```
+
+<div class="flex flex-col items-center justify-center h-full">
+  <div class="text-6xl font-bold tracking-tight">Test it cold</div>
+  <div class="rule-red mt-6"></div>
+  <div class="text-2xl text-muted mt-10 max-w-[44rem]">A fresh agent, only the skill, a real project</div>
+</div>
+
+<!--
+TEST IT COLD
+
+Reading a skill does not catch the two failures that matter. It points at a
+file the agent will not have, or its code compiles and never runs.
+
+So hand it to a fresh agent that has no access to the source it was written
+from, on a realistic project, and watch what it does.
+
+aoh-skill-acceptance-test packages exactly that check. Run it before a skill
+ships.
+-->
+
+---
+
+# The workflow is a file
+
+<div class="mt-8 w-[36rem]" style="--slidev-code-font-size: 1.5rem; --slidev-code-line-height: 2.4rem">
+
+````md magic-move
+```yaml
+# openspec/config.yaml
+schema: spec-driven
+```
+```yaml
+# openspec/config.yaml
+schema: aoh-spec-driven
+```
+````
+
+</div>
+
+<!--
+THE WORKFLOW IS A FILE
+
+Which steps the agent follows for every change is one line of configuration.
+
+spec-driven is the default that ships with OpenSpec: proposal, specs, design,
+tasks, then apply.
+
+Click. Ours points at aoh-spec-driven, a schema that lives in this repository
+under openspec/schemas.
+-->
+
+---
+
+# Start from the default
+
+<TermPanel>
+<TermDots />
+<PromptLine sigil="$">openspec schema fork spec-driven my-team-flow</PromptLine>
+<div class="mt-3"><CheckLine>Forked 'spec-driven' to 'my-team-flow'</CheckLine></div>
+<div class="font-mono text-sm mt-4 text-term-dim">openspec/schemas/my-team-flow/</div>
+<div class="font-mono text-sm text-term-fg pl-4 leading-relaxed">
+schema.yaml<br/>templates/proposal.md<br/>templates/spec.md<br/>templates/design.md<br/>templates/tasks.md
+</div>
+<PromptLine sigil="$" pad="mt-6">openspec schema validate my-team-flow</PromptLine>
+<div class="mt-3"><CheckLine>Schema 'my-team-flow' is valid</CheckLine></div>
+</TermPanel>
+
+<!--
+START FROM THE DEFAULT
+
+This is where they start. fork copies the default schema into their own
+repository: the schema file, and one template per document.
+
+Then they edit the instructions to say what their team expects: their
+platform, their conventions, what a reviewer always sends back.
+
+validate checks the structure. Then config.yaml points at it.
+
+Real output from OpenSpec 1.5, trimmed. It also prints that schema commands are
+experimental, so say so if asked.
+-->
+
+---
+
+```yaml
+clicks: 1
+```
+
+# We added one step
+
+<div class="flex items-start justify-center gap-16 mt-4">
+<div class="flex flex-col items-center gap-3">
+<div class="font-mono text-sm text-muted">spec-driven</div>
+<FlowColumn :steps="['Proposal', 'Specs', 'Design', 'Tasks', 'Apply']" />
+</div>
+<div class="flex flex-col items-center gap-3">
+<div class="font-mono text-sm text-muted">aoh-spec-driven</div>
+<FlowColumn :steps="['Proposal', 'Specs', 'Design', 'Tasks', 'Lint', 'Apply']" :active="$clicks >= 1 ? 4 : -1" />
+</div>
+</div>
+
+<!--
+WE ADDED ONE STEP
+
+Left, the default. Right, ours. The same four documents, then one more before
+anything is built.
+
+Click. Lint. It reads all four documents and checks them against the mistakes
+agents make on this platform by default, forty-odd checks in ten groups:
+roles attributed to Keycloak instead of AAS, a response that is not the AOH
+envelope, an /api prefix on a path.
+
+Every check is mechanical: pass, fail with the offending line quoted, or not
+applicable. Apply will not start until it passes, so a mistake caught here
+costs a document, not a build.
+-->
+
+---
+
+# The gate, declared
+
+<div class="mt-6 w-[42rem]" style="--slidev-code-font-size: 1.05rem; --slidev-code-line-height: 1.7rem">
+
+```yaml {3-7|9-11}
+artifacts:
+  # proposal, specs, design and tasks, as before
+  - id: lint
+    generates: lint.md
+    template: lint.md
+    instruction: Check every document against known mistakes
+    requires: [proposal, specs, design, tasks]
+
+apply:
+  requires: [lint]
+  tracks: tasks.md
+```
+
+</div>
+
+<!--
+THE GATE, DECLARED
+
+This is the whole mechanism. A step is an id, the file it produces, a template,
+and an instruction the agent follows. requires puts them in order.
+
+Click. apply.requires is the gate. The step that writes code cannot begin until
+lint exists.
+
+Abridged from openspec/schemas/aoh-spec-driven/schema.yaml. The real
+instruction runs to a page.
+-->
+
+---
+
+```yaml
+clicks: 2
+```
+
+# Start small
+
+<Points>
+<NumStep :n="1">Put your stack in <span class="font-mono text-lg">config.yaml</span> as context and rules</NumStep>
+<NumStep :n="2" class="transition-all duration-700" :class="$clicks >= 1 ? 'opacity-100' : 'opacity-0'">Fork a schema and rewrite its instructions</NumStep>
+<NumStep :n="3" class="transition-all duration-700" :class="$clicks >= 2 ? 'opacity-100' : 'opacity-0'">Add a step that checks the others</NumStep>
+</Points>
+
+<!--
+START SMALL
+
+Nobody needs a schema on day one.
+
+One. config.yaml takes a context block and rules per document, with no schema
+at all. That is the fastest win: every proposal learns your stack.
+
+Click. Two. When rules are not enough, fork the default and rewrite its
+instructions.
+
+Click. Three. When review keeps catching the same mistakes, turn them into a
+step that checks for them, the way our lint does.
+
+Skills follow the same path. Write the gotcha down first. Turn it into a skill
+when a second project needs it.
 -->
