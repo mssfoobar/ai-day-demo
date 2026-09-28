@@ -229,10 +229,35 @@ clicks: 6
 />
 </div>
 
-<!-- The artefacts only exist while the spec is being proposed and reviewed. -->
+<!-- Stacked in one grid cell so the column keeps its place as the stage changes. -->
+<div class="grid items-start w-[34rem]">
+
+<div
+  class="col-start-1 row-start-1 transition-all duration-700"
+  :class="$clicks === 1 ? 'opacity-100' : 'opacity-0 pointer-events-none'"
+>
+<TermPanel width="34rem" class="px-6 py-5">
+<ClaudeHeader pad="mb-4">
+<div><span class="text-term-fg font-bold">Claude Code</span></div>
+<div class="text-term-dim">~/Desktop/projects/ai-day-demo</div>
+</ClaudeHeader>
+<PromptLine pad="mb-1">/opsx:propose</PromptLine>
+<div class="font-mono text-[13px] mt-3 text-steel leading-[1.6]">
+As a dispatcher, I want to dispatch an available unit to an incident
+and stand it down when the job is done.
+</div>
+<div class="mt-4">
+<CheckLine name="proposal.md">why, and what changes</CheckLine>
+<CheckLine name="design.md">how it will be built</CheckLine>
+<CheckLine name="specs/">36 requirements, 77 scenarios</CheckLine>
+<CheckLine name="tasks.md">82 steps, in order</CheckLine>
+</div>
+</TermPanel>
+</div>
+
 <SpecStack
-  class="flex flex-col gap-2 w-[34rem] transition-all duration-700"
-  :class="$clicks === 1 || $clicks === 2 ? 'opacity-100' : 'opacity-0'"
+  class="col-start-1 row-start-1 flex flex-col gap-2 transition-all duration-700"
+  :class="$clicks === 2 ? 'opacity-100' : 'opacity-0 pointer-events-none'"
 >
 <SpecCard
   name="proposal.md"
@@ -289,6 +314,30 @@ clicks: 6
   ]"
 />
 </SpecStack>
+
+<div
+  class="col-start-1 row-start-1 transition-all duration-700"
+  :class="$clicks === 3 ? 'opacity-100' : 'opacity-0 pointer-events-none'"
+>
+<TermPanel width="34rem" class="px-6 py-5">
+<ClaudeHeader pad="mb-4">
+<div><span class="text-term-fg font-bold">Claude Code</span></div>
+<div class="text-term-dim">~/Desktop/projects/ai-day-demo</div>
+</ClaudeHeader>
+<PromptLine pad="mb-1">/opsx:apply</PromptLine>
+<div class="font-mono text-[12px] mt-3"><span class="text-term-dimmer">## </span><span class="text-term-fg font-bold">1. Implement dispatch-svc</span></div>
+<TaskLine :done="$clicks >= 3">1.1 Consult the aoh-conventions skill</TaskLine>
+<TaskLine :done="$clicks >= 3">1.2 Add OccLock to the unit model</TaskLine>
+<TaskLine :done="$clicks >= 3">1.3 Repository: create, update, delete</TaskLine>
+<div class="font-mono text-[12px] mt-3"><span class="text-term-dimmer">## </span><span class="text-term-fg font-bold">2. Implement dispatch-web</span></div>
+<TaskLine :done="$clicks >= 3">2.1 Consult the aoh-conventions and aoh-design skills</TaskLine>
+<TaskLine :done="$clicks >= 3">2.2 Add unit form, edit form, delete confirm</TaskLine>
+<TaskLine :done="$clicks >= 3">2.3 Verify: build, lint, test</TaskLine>
+<div class="font-mono text-[13px] mt-3 font-bold text-term-ok">All 82 steps complete.</div>
+</TermPanel>
+</div>
+
+</div>
 </div>
 
 <!--
@@ -299,24 +348,30 @@ and the red outline is wherever you are.
 
 Story is yours. Click.
 
-Propose spec. The four documents appear on the right: why, how, how we will
-know, and in what order. This is what the agent hands back. Click.
+Propose spec. The terminal on the right is the developer handing over one
+sentence and getting four documents back: why, how, how we will know, and in
+what order. Click.
 
-Review spec. Same four documents, because this is the stage where you read
-them. This is the gate: nothing is implemented until it passes. If the spec is
-wrong you send it back, and that costs a spec rather than a build. Click.
+Review spec. The four documents themselves, because this is the stage where you
+read them. This is the gate: nothing is implemented until it passes. If the
+spec is wrong you send it back, and that costs a spec rather than a build.
+Click.
 
-Implement, approve the build, ship. The documents are gone from the screen
-because the arguing is over.
+Implement. Back to the terminal, working the task list. Point at 1.1 and 2.1,
+both "consult the aoh-conventions skill": our standards get read at the step
+where they matter. Click.
+
+Review the build, then ship. The right side is empty because the arguing is
+over.
 
 Archive is the last click, and it is bookkeeping rather than building. The
 change folded its deltas back into the permanent specs, so the next story
 starts from a spec that describes what the system actually does now. Then the
 loop comes back to the next story.
 
-If someone asks in the room: the four documents are clickable. Click one to
-open it and the others close, so you can jump straight to whichever they ask
-about instead of clicking through in order.
+If someone asks in the room: on the review stage the four documents are
+clickable. Click one to open it and the others close, so you can jump straight
+to whichever they ask about instead of clicking through in order.
 -->
 
 ---
@@ -337,8 +392,10 @@ clicks: 1
 <LoopDiagram
   variant="brand"
   label="Spec-driven development"
-  :nodes="['Story', 'Spec', 'Review', 'Build']"
-  :accent="2"
+  :nodes="['Story', 'Spec', 'Review', 'Build', 'Review']"
+  :accent="[2, 4]"
+  :size="360"
+  :radius="130"
 />
 </div>
 </div>
@@ -352,12 +409,13 @@ finger rather than reading the boxes out.
 Left: prompt, it builds, then you review. The first time a human gets a say
 is after the code exists, so a wrong turn costs the whole build.
 
-Click. Right: story, spec, you review, then it builds. The gate comes first,
-so nothing is written until you have agreed the plan, and a wrong turn costs
-a spec.
+Click. Right: story, spec, you review, it builds, then you review again. The
+first gate comes before any code, so nothing is written until you have agreed
+the plan, and a wrong turn costs a spec.
 
-The people icon marks the gate in both. On the left it is the last stop
-before you start over. On the right it sits ahead of the build.
+The people icon marks every gate. The left ring has one, after the build. The
+right ring has two: the spec review ahead of the build, and the build review
+after it.
 
 That answers the second question from earlier. You see what it plans to do
 before it does the work, and you correct it there, not at the end.
@@ -376,52 +434,56 @@ tool doing the work, and then what they need to install before the session.
 
 ---
 
-# Setting up
+```yaml
+clicks: 1
+```
 
-<Points>
-<NumStep :n="1">Install Node 24+, Go 1.25+ and Python 3</NumStep>
-<NumStep :n="2">Install Podman, and start its machine</NumStep>
-<NumStep :n="3" body="font-mono text-sm">npm install -g pnpm@10</NumStep>
-<NumStep :n="4" body="font-mono text-sm">curl -fsSL https://claude.ai/install.sh | bash</NumStep>
-<NumStep :n="5" body="font-mono text-sm">cd ai-day-demo && pnpm start</NumStep>
-<NumStep :n="6">Open http://127.0.0.1.nip.io:5173/aoh/dispatch/units</NumStep>
-</Points>
+# One command
+
+<TermPanel>
+<TermDots />
+<PromptLine sigil="$">aia init</PromptLine>
+<div class="font-mono text-sm mt-3"><span class="text-term-dim">? </span><span class="text-faint">Project name</span><span class="pl-4 text-term-fg">fleet-dispatch-console</span></div>
+<div class="mt-4">
+<CheckLine>Resolving template source</CheckLine>
+<CheckLine>Configuring OpenSpec workflows</CheckLine>
+<CheckLine>Initializing OpenSpec</CheckLine>
+<CheckLine>Installing agent skills</CheckLine>
+<CheckLine>Initializing git repository</CheckLine>
+</div>
+<div class="font-mono text-base font-bold mt-5 text-term-fg">Project ready</div>
+</TermPanel>
 
 <!--
-SETTING UP
+ONE COMMAND
 
-The only slide where falling behind costs someone the session, so walk it.
+This is the answer to "what is it". It is a command-line tool. Show the
+terminal and let it speak.
 
-Everything runs natively. Only PostgreSQL is a container, which is what Podman
-is for.
+The command is just `aia init`. It asks for the project name, so the name
+is an answer, not part of the command.
 
-Step two matters on macOS and Windows: Podman Desktop needs its machine started
-before any container will run. Ask the room to open it now.
+Then the real steps, in the real order. It pulls the template, configures
+the spec workflow, installs the twenty-three agent skills, and commits.
+About twenty seconds.
 
-Python is not used by the project. It is there for the scripts the agent writes
-during the exercises. macOS and Linux already have it; Windows people need the
-installer, and need to tick "Add python.exe to PATH".
+Click for the line underneath. Equips is the word: the project arrives
+already carrying how we build, so nobody has to remember it or look it up.
 
-Steps three and four are the two that are typed rather than downloaded. Say the
-@10 out loud: unpinned gives pnpm 12, which our lockfile was not written for.
-Windows PowerShell runs step four as: irm https://claude.ai/install.ps1 | iex
+Do not say "nothing to install". There are prerequisites, and the room may
+know it: Node, pnpm, Podman, OpenSpec, Git, make and Python. The CLI checks
+them for you with `aia check` and tells you what is missing. What you do not
+install is our standards, our skills or the workflow. Those arrive with the
+project.
 
-After step four they need a fresh terminal before claude is on PATH. Tell them
-now, or a third of the room reports command not found.
+Be straight if asked what is not in there: the application. No app code,
+no platform modules. The repository is not the product, it is everything
+the product needs to be built our way.
 
-No token to set up. The GitHub Packages credential for our six dependencies,
-including the design system, is checked into .npmrc in the repo.
-
-pnpm start installs, pulls PostgreSQL, compiles the Go service, then runs. A
-few minutes the first time, under a second after. Safe to retype if anything
-goes wrong.
-
-That first run is the one that needs internet. It fills node_modules, the Go
-module cache and the Podman image store, and all three survive going offline.
-
-If someone already runs Postgres on 5432, the runner says so by name and they
-start again with POSTGRES_PORT set to a free port.
+This is exactly the first commit of the demo repository, pinned at
+@mssfoobar/agent-skills v0.9.0. Run it today and you get the same tree.
 -->
+
 ---
 
 ```yaml
@@ -606,58 +668,6 @@ part. Not once at the start, but at the point it matters.
 
 If asked what happens when a step fails: it stops and says so, against a
 named step, rather than carrying on and reporting at the end.
--->
-
----
-
-```yaml
-clicks: 1
-```
-
-# One command
-
-<TermPanel>
-<TermDots />
-<PromptLine sigil="$">aia init</PromptLine>
-<div class="font-mono text-sm mt-3"><span class="text-term-dim">? </span><span class="text-faint">Project name</span><span class="pl-4 text-term-fg">fleet-dispatch-console</span></div>
-<div class="mt-4">
-<CheckLine>Resolving template source</CheckLine>
-<CheckLine>Configuring OpenSpec workflows</CheckLine>
-<CheckLine>Initializing OpenSpec</CheckLine>
-<CheckLine>Installing agent skills</CheckLine>
-<CheckLine>Initializing git repository</CheckLine>
-</div>
-<div class="font-mono text-base font-bold mt-5 text-term-fg">Project ready</div>
-</TermPanel>
-
-<!--
-ONE COMMAND
-
-This is the answer to "what is it". It is a command-line tool. Show the
-terminal and let it speak.
-
-The command is just `aia init`. It asks for the project name, so the name
-is an answer, not part of the command.
-
-Then the real steps, in the real order. It pulls the template, configures
-the spec workflow, installs the twenty-three agent skills, and commits.
-About twenty seconds.
-
-Click for the line underneath. Equips is the word: the project arrives
-already carrying how we build, so nobody has to remember it or look it up.
-
-Do not say "nothing to install". There are prerequisites, and the room may
-know it: Node, pnpm, Podman, OpenSpec, Git, make and Python. The CLI checks
-them for you with `aia check` and tells you what is missing. What you do not
-install is our standards, our skills or the workflow. Those arrive with the
-project.
-
-Be straight if asked what is not in there: the application. No app code,
-no platform modules. The repository is not the product, it is everything
-the product needs to be built our way.
-
-This is exactly the first commit of the demo repository, pinned at
-@mssfoobar/agent-skills v0.9.0. Run it today and you get the same tree.
 -->
 
 ---

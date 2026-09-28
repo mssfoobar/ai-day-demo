@@ -94,7 +94,7 @@ const arcs = computed(() =>
       </svg>
 
       <!-- Marks every stage a person has to pass. -->
-      <template v-for="node in placed" :key="`icon-${node.label}`">
+      <template v-for="(node, i) in placed" :key="`icon-${i}`">
         <OwnerIcon
           v-if="node.icon"
           kind="people"
@@ -105,8 +105,8 @@ const arcs = computed(() =>
       </template>
 
       <div
-        v-for="node in placed"
-        :key="node.label"
+        v-for="(node, i) in placed"
+        :key="i"
         class="absolute rounded-lg text-sm px-3 py-1.5 text-center whitespace-nowrap -translate-x-1/2 -translate-y-1/2"
         :class="node.highlight ? HIGHLIGHT : node.accent ? tone.accent : `border ${tone.node} font-medium`"
         :style="{ left: `${node.x}px`, top: `${node.y}px` }"
